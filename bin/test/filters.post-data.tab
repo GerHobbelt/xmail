@@ -1,0 +1,136 @@
+#SMTP MESSAGE FILTERS
+#
+#    Besides having the ability to perform off-line message filtering, XMail
+#    gives the user the power to run filters during the SMTP session. Three
+#    files drive the SMTP on-line filtering, and these are
+#    'FILTERS.POST-RCPT.TAB', 'FILTERS.PRE-DATA.TAB' and
+#    'FILTERS.POST-DATA.TAB'. The file 'FILTERS.POST-RCPT.TAB', contains one
+#    or more commands to be executed after the remote SMTP client sends the
+#    RCPT_TO command(s), and before XMail sends the response to the command.
+#    The file 'FILTERS.PRE-DATA.TAB' contains one or more commands to be
+#    executed after the remote SMTP client sends the DATA command, and before
+#    XMail sends the response to the command. Using such filters, the user
+#    can tell XMail if or if not accept the following transaction and, in
+#    case of rejection, the user is also allowed to specify a custom message
+#    to be sent to the remote SMTP client. The file 'FILTERS.POST-DATA.TAB'
+#    contains one or more commands to be executed after XMail received the
+#    whole client DATA, and before XMail sends the final response to the DATA
+#    command (final messages ack). The files 'FILTERS.POST-RCPT.TAB',
+#    'FILTERS.PRE-DATA.TAB' and 'FILTERS.POST-DATA.TAB' contains zero or more
+#    lines with the following format:
+#
+#     "command"[TAB]"arg-or-macro"[TAB]...[NEWLINE]
+#
+#    or:
+#
+#     "!flags"[TAB]"command"[TAB]"arg-or-macro"[TAB]...[NEWLINE]
+#
+#    Each file may contain multiple commands, that will be executed in
+#    strictly sequential order. The first command that will trigger a
+#    rejection code will make the filtering process to end. The 'flags'
+#    parameter is a comma-separated list of flags that drives the filter
+#    execution. The syntax of each flag is either FLAG or FLAG=VAL. Currently
+#    supported flags are:
+#
+#    aex exclude filter execution in case of authenticated sender
+#
+#    wlex
+#        exclude filter execution in case the client IP is white-listed
+#        inside the SMTP.IPPROP.TAB file.
+#
+#    Each argument can be a macro also (see [MACRO SUBSTITUTION]):
+#
+#    FILE
+#        message file path
+#
+#    USERAUTH
+#        name of the SMTP authenticated user, or "-" if no authentication has
+#        been supplied
+#
+#    REMOTEADDR
+#        remote IP address and port of the sender
+#
+#    LOCALADDR
+#        local IP address and port where the message has been accepted
+#
+#    FROM
+#        message sender address
+#
+#    CRCPT
+#        last recipient submitted by the client. For post-rcpt filters, this
+#        will be used as to-validate recipient
+#
+#    RRCPT
+#        last recipient submitted by the client, translated to the real
+#        account (in case of aliases)
+#
+#    Filter commands have the ability to inspect and modify the content of
+#    the message (or info) file. The exit code of commands executed by XMail
+#    are used to tell XMail the action that has to be performed as a
+#    consequence of the filter. The exit code is composed by a raw exit code
+#    and additional flags. Currently defined flags are:
+#
+#    '16'
+#        Stop selected filter list processing.
+#
+#    Currently defined raw exit codes are:
+#
+#    '3' Reject the message.
+#
+#    Any other exit codes will make XMail to accept the message, and can be
+#    used also when changing the content of the $(FILE) file. 'EXTREME' care
+#    must be used when changing the $(FILE) file, since XMail expect the file
+#    format to be correct. Also, it is important to preserve the <CR><LF>
+#    line termination of the file itself. When rejecting the message, the
+#    filter command has the ability to specify the SMTP status code that
+#    XMail will send to the remote SMTP client, by creating a file named
+#    $(FILE).rej containing the message in the very first line. Such file
+#    will be automatically removed by XMail. The data passed to filter
+#    commands inside $(FILE) varies depending if the command is listed inside
+#    'FILTERS.POST-RCPT.TAB', 'FILTERS.PRE-DATA.TAB' or inside
+#    'FILTERS.POST-DATA.TAB'. Commands listed inside 'FILTERS.POST-RCPT.TAB'
+#    and 'FILTERS.PRE-DATA.TAB' will receive the following data stored inside
+#    $(FILE):
+#
+#     Info Data           [ 1th line ]
+#     SmtpDomain          [ 2nd line ]
+#     SmtpMessageID       [ 3rd line ]
+#     MAIL FROM:<...>     [ 4th line ]
+#     RCPT TO:<...> {...} [ 5th line ]
+#     ...
+#
+#    The file can have one or more "RCPT TO" lines. The format of the "Info
+#    Data" line is:
+#
+#     ClientDomain;[ClientIP]:ClientPort;ServerDomain;[ServerIP]:ServerPort;Time;Logo
+#
+#    Note that in case of 'FILTERS.POST-RCPT.TAB', the $(FILE) data does not
+#    yet contain the current recipient to be validated. This needs to be
+#    fetched and passed to the external program using the $(CRCPT) macro (or
+#    $(RRCPT)). Commands listed inside 'FILTERS.POST-DATA.TAB' will receive
+#    the following data stored inside $(FILE):
+#
+#     Info Data           [ 1th line ]
+#     SmtpDomain          [ 2nd line ]
+#     SmtpMessageID       [ 3rd line ]
+#     MAIL FROM:<...>     [ 4th line ]
+#     RCPT TO:<...> {...} [ 5th line ]
+#     ...
+#     <<MAIL-DATA>>
+#     ...
+#
+#    After the '<<MAIL-DATA>>' tag the message follows. The message is
+#    composed of a headers section and, after the first empty line, the
+#    message body. The format of the RCPT line is:
+#
+#     RCPT TO:<address> {ra=real-address}
+#
+#    where "real-address" is the "address" after it has been translated (if
+#    aliases applies) to the real local address. Otherwise it holds the same
+#    value of "address". In case one or more SMTP filter functionalities are
+#    not needed, avoid to create zero sized files altogether, since this will
+#    result in faster processing.
+#
+
+
+

@@ -1,0 +1,28 @@
+#   SMTP.IPPROP.TAB
+#
+#    This file lists SMTP properties to be associated with the remote SMTP
+#    peer IP. The format of the file is:
+#
+#     "ip-addr"[TAB]"var0=value0"...[TAB]"varN=valueN"[NEWLINE]
+#
+#    Example:
+#
+#     "192.168.0.7/32"   "WhiteList=1"
+#
+#    Address selection mask are formed by an IP address (network) plus the
+#    number of valid bits inside the network mask. No space are allowed
+#    between the variable name and the '=' sign and between the '=' sign and
+#    the value. These are the currently defined variables:
+#
+#    WhiteList
+#        If set to 1, all peer IP based checks will be skipped.
+#
+#    EaseTLS
+#        If set to 1, drops the TLS requirement for SMTP sessions coming from
+#        the matched network.
+#
+#    SenderDomainCheck
+#        If set to 0, bypasses the "CheckMailerDomain" 'SERVER.TAB' variable.
+#
+
+

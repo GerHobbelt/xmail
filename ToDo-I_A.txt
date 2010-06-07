@@ -1,0 +1,42 @@
+
+* Whitelist senders (email address)
+* Blacklist senders (email address)
+
+* Blacklist receivers (email address) --> e.g. blacklist all unknown receiver email addresses and only let 
+  email to known addresses pass through. (suzanna@ia-schaake.com blacklisted!)
+  
+* treat bounce messages separately in spamfilters
+
+* graylists / acceptance levels: whitelisted people always pass; then there's the email that passed
+  both virus and spam checks, but are either completely 'new' to us (low 'level') or are 'known'
+  but not whitelisted (i.e. each of their emails has to pass the tests) (medium 'level', level might
+  increase with the number of emails)
+  
+  The idea is to split the incoming email stream into several categories:
+  
+  - well-known folks who do not send spam or virusses; 'inner circle'
+  
+  - known folks, but no special relationship otherwise.
+  
+  - new entries; may pass at a glance or fully automatically when sufficient trust level is
+    achieved regarding our virus and spam filters
+    
+  - spammers (maybe several levels there, so that we can 'inspect' suspected email and tag
+    'false positives' as 'negatives' after all)
+  
+  - virus carriers
+
+  
+* Concept: use CRM114 for spam detection, but ADD another CRM114 to the 'okayed' (negatives) stream to
+  help split up our email into several categories (mailing list / friends / urgency detection)
+  
+* NNTP interface so we can read news like it was email (mailing list) and post to news group as if 
+  those were mailing lists (fetchmail interface)
+  
+  
+  
+  
+  
+
+
+ 

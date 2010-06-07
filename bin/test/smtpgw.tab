@@ -1,0 +1,25 @@
+#   SMTPGW.TAB
+#
+#     "domain"[TAB]"smtp-gateway"[NEWLINE]
+#
+#    Examples:
+#
+#     "foo.example.com"   "@xmailserver.org"
+#
+#    sends all mail for 'foo.example.com' through the 'xmailserver.org' SMTP
+#    server, while:
+#
+#     "*.dummy.net"   "@relay.xmailserver.org"
+#
+#    sends all mail for "*'*.dummy.net' through 'relay.xmailserver.org'.
+#
+#    The 'smtp-gateway' can be a complex routing also, for example:
+#
+#     "*.dummy.net"   "@relay.xmailserver.org,@mail.nowhere.org"
+#
+#    sends all mail for "*'*.dummy.net' through
+#    '@relay.xmailserver.org,@mail.nowhere.org', in this way:
+#    relay.xmailserver.org --> mail.nowhere.org --> @DESTINATION.
+#
+
+

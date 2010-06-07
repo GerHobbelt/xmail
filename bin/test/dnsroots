@@ -1,0 +1,22 @@
+#   DNSROOTS
+#
+#     host
+#
+#    This is a file that lists a root name server in each line (this is not a
+#    TAB file). This can be created from a query via nslookup for type=ns and
+#    host = '.'.
+#
+
+a.root-servers.net.
+h.root-servers.net.
+c.root-servers.net.
+g.root-servers.net.
+f.root-servers.net.
+b.root-servers.net.
+j.root-servers.net.
+k.root-servers.net.
+l.root-servers.net.
+m.root-servers.net.
+i.root-servers.net.
+e.root-servers.net.
+d.root-servers.net.

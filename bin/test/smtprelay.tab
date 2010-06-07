@@ -1,0 +1,16 @@
+#   SMTPRELAY.TAB
+#
+#     "ipaddr"[TAB]"netmask"[NEWLINE]
+#
+#    Example:
+#
+#     "212.131.173.0"   "255.255.255.0"
+#
+#    allows all hosts of the class 'C' network '212.131.173.XXX' to use the
+#    server as relay.
+#
+
+
+"10.0.0.0"	"255.0.0.0"
+"172.16.0.0"	"255.255.0.0"
+"192.168.0.0"	"255.255.0.0"

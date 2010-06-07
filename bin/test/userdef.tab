@@ -1,0 +1,40 @@
+#   USERDEF.TAB
+#
+#     "varname"[TAB]"varvalue"[NEWLINE]
+#
+#    Example:
+#
+#     "RealName"  "??"
+#     "HomePage"  "??"
+#     "Address"   "??"
+#     "Telephone" "??"
+#     "MaxMBSize" "10000"
+#
+#    contains user default values for new users that are not set during the
+#    new account creation. This file is looked up in two different places,
+#    first in '$MAIL_ROOT/domains/DOMAIN' then in '$MAIL_ROOT', where
+#    'DOMAIN' is the name of the domain where We're going to create the new
+#    user.
+#
+#    For each 'domain' handled by the server we'll create a directory
+#    'domain' inside $MAIL_ROOT. Inside $MAIL_ROOT/'domain' reside
+#    'domain'->'account' directories ($MAIL_ROOT/'domain'/'account'). This
+#    folder contains a sub folder named 'mailbox' (or
+#    'Maildir/(tmp,new,cur)') that stores all 'account' messages. It also
+#    contains a file named 'USER.TAB' that stores"account" variables,
+#    example:
+#
+#     "RealName"  "Davide Libenzi"
+#     "HomePage"  "http://www.xmailserver.org/davide.html"
+#     "MaxMBSize" "30000"
+#
+
+
+"RealName"	"??"
+"HomePage"	"??"
+"Address"	"??"
+"Telephone"	"??"
+"MaxMBSize"	"10000"
+"SmtpPerms"	"MR"
+"ReceiveEnable"	"1"
+"PopEnable"	"1"

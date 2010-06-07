@@ -1,0 +1,28 @@
+#   EXTALIASES.TAB
+#
+#     "external-domain"[TAB]"external-account"[TAB]"local-domain"[TAB]"local-user"[NEWLINE]
+#
+#    Example:
+#
+#     "xmailserver.org"   "dlibenzi"  "home.bogus"    "dlibenzi"
+#
+#    This file is used in configurations in which the server does not run
+#    directly on Internet (like my case) but acts as internal mail exchanger
+#    and external mail gateway. This file defines 'Return-Path: <...>'
+#    mapping for internal mail delivery. If you are using a Mail client like
+#    Outlook, Eudora, KMail ... you have to configure your email address with
+#    the external account say 'dlibenzi@xmailserver.org'. When you post an
+#    internal message to 'foo@home.bogus' the mail client puts your external
+#    email address ('dlibenzi@xmailserver.org') in the 'MAIL FROM: <...>'
+#    SMTP request. Now if the user 'foo' replies to this message, it replies
+#    to 'dlibenzi@xmailserver.org', and then is sent to the external mail
+#    server. With the entry above in 'EXTALIASES.TAB' file the 'Return-Path:
+#    <...>' field is filled with 'dlibenzi@home.bogus' that leads to an
+#    internal mail reply.
+#
+#    You 'CANNOT' edit this file while XMail is running because it is an
+#    indexed file.
+#
+
+
+

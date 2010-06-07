@@ -1,0 +1,6 @@
+"mailbox"
+"redirect"	"foo-user@supermx.net"	"root@maindomain.org"
+"lredirect"	"foo-user@supermx2.org"	"root@foodomain.net"
+"external"	"0"	"0"	"mailprocess.sh"	"-s"	"@@FROM"	"-r"	"@@RCPT"	"-f"	"@@FILE"
+"wait"	"8"
+"external"	"0"	"0"	"mailprocess-delfile.sh"	"-s"	"@@FROM"	"-r"	"@@RCPT"	"-f"	"@@TMPFILE"

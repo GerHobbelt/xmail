@@ -1,0 +1,16 @@
+#   CTRL.IPMAP.TAB
+#
+#     "ipaddr"[TAB]"netmask"[TAB]"permission"[TAB]"precedence"[NEWLINE]
+#
+#    This file control IP access permission to CTRL server. Example:
+#
+#     "0.0.0.0"  "0.0.0.0"  "DENY"  "1"
+#     "212.131.173.0"  "255.255.255.0"  "ALLOW"  "2"
+#
+#    This configuration deny access to all IPs except the ones of the class
+#    'C' network '212.131.173.XXX'. Higher precedences win over lower ones.
+#
+#    [table index] [configuration] [top]
+#
+
+"0.0.0.0"	"0.0.0.0"	"ALLOW"	1

@@ -1,0 +1,54 @@
+#   SPAMMERS.TAB
+#
+#     "ipaddr"[TAB]"netmask"[NEWLINE]
+#
+#    or:
+#
+#     "ipaddr"[TAB]"netmask"[TAB]"params"[NEWLINE]
+#
+#    or:
+#
+#     "ipaddr/bits"[NEWLINE]
+#
+#    or:
+#
+#     "ipaddr/bits"[TAB]"params"[NEWLINE]
+#
+#    Example:
+#
+#     "212.131.173.0"  "255.255.255.0"
+#     "212.131.173.0/24"
+#
+#    register all hosts of the class 'C' network '212.131.173.XXX' as
+#    spammers, and block them the use of XMail SMTP server. If a match is
+#    found on one of those records, XMail will reject the incoming SMTP
+#    connection at early stages. It is possible to specify optional
+#    parameters to tell XMail which behaviour it should assume in case of
+#    match. An example of such setup is:
+#
+#     "212.131.173.0/24"  "code=0"
+#
+#    In this case a code=0 tells XMail to flag the connection as possible
+#    spammer, but wait later SMTP session stages to reject the connection
+#    itself. In this case an authenticated SMTP session can override the
+#    SPAMMERS.TAB match. The optional "params" field lists parameters
+#    associated with the record, separated by a comma:
+#
+#     "param1=value1,param2=value2,...,paramN=valueN"
+#
+#    Currently supported parameters are:
+#
+#    code
+#        Specify the rejection code for the record. If the value is greater
+#        than zero, the connection is rejected soon, and the remote SMTP
+#        client is disconnected. If the value is zero, the connection is
+#        flagged as spammer but wait later stages for rejection, by allowing
+#        authenticated SMTP connections to bypass the SPAMMERS.TAB match. If
+#        the value is less than zero, XMail will insert an "absolute value"
+#        seconds delay between SMTP commands. Default value for code is
+#        greater than zero (immediate rejection).
+#
+
+
+
+

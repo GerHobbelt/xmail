@@ -1,0 +1,22 @@
+#   POP3.IPMAP.TAB
+#
+#     "ipaddr"[TAB]"netmask"[TAB]"permission"[TAB]"precedence"[NEWLINE]
+#
+#    This file controls the global IP access permission to the POP3 server if
+#    located in the MAIL_ROOT path, and user IP access to its POP3 mailbox if
+#    located inside the user directory.
+#
+#    Example:
+#
+#     "0.0.0.0"  "0.0.0.0"  "DENY"  "1"
+#     "212.131.173.0"  "255.255.255.0"  "ALLOW"  "2"
+#
+#    This configuration denies access to all IPs except the ones of the class
+#    'C' network '212.131.173.XXX'.
+#
+#    Higher precedences win over lower ones.
+#
+
+
+
+"0.0.0.0"	"0.0.0.0"	"ALLOW"	1

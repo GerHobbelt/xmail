@@ -1,0 +1,47 @@
+
+		< XMail Server ToDo List >
+
+Long term :
+1) GUI ( Qt or GTK for Linux and Win32 for Windows or Tk for both ) for remote server administration
+2) Web administration of server
+3) Implementation of IMAP server protocol
+
+--
+Version 0.1 :
+Date 11-10-1999
+
+1) Implementation of server administration protocol
+2) Documentation and file specifications
+3) Creation of "configure" script to enable a better platform porting
+4) Mailbox size checking
+5) Multiple mail redirection
+6) Sure a lot of other features that I can't figure out for now
+
+--
+Version 0.2 :
+Date 02-02-2000
+
+1) Documentation and file specifications
+2) Creation of "configure" script to enable a better platform porting
+3) Mailbox size checking
+4) Multiple mail redirection
+5) Sure a lot of other features that I can't figure out for now
+
+--
+Version 0.28 :
+Date 28-02-2000
+
+1) Documentation and file specifications
+2) Creation of "configure" script to enable a better platform porting
+3) Multiple mail redirection
+4) Sure a lot of other features that I can't figure out for now
+
+--
+Version 0.34 :
+Date 10-03-2000
+
+1) Documentation and file specifications
+2) Creation of "configure" script to enable a better platform porting
+3) Package creation ( .deb )
+4) Sure a lot of other features that I can't figure out for now
+

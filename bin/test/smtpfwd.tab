@@ -1,0 +1,29 @@
+#   SMTPFWD.TAB
+#
+#     "domain"[TAB]"smtp-mx-list"[NEWLINE]
+#
+#    The "smtp-mx-list" is a semicolon separated list of SMTP relays, and can
+#    also contain options as a comma-separated list (see [SMTP GATEWAY
+#    CONFIGURATION] for more information).
+#
+#    Examples:
+#
+#     "foo.example.com"   "mail.xmailserver.org:7001;192.168.1.1:6123,NeedTLS=1;mx.xmailserver.org"
+#
+#    sends all mail for 'foo.example.com' using the provided list of mail
+#    exchangers, while:
+#
+#     "*.dummy.net"   "mail.xmailserver.org,NeedTLS=1;192.168.1.1;mx.xmailserver.org:6423"
+#
+#    sends all mail for "*'*.dummy.net' through the provided list of mail
+#    exchangers. If the port (:nn) is not specified the default SMTP port
+#    (25) is assumed. you can also enable XMail to random-select the order of
+#    the gateway list by specifying:
+#
+#     "*.dummy.net"   "#mail.xmailserver.org;192.168.1.1;mx.xmailserver.org:6423"
+#
+#    using the character '#' as the first char of the gateway list.
+#
+
+
+

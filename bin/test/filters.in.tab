@@ -1,0 +1,159 @@
+#MESSAGE FILTERS
+#
+#    This feature offers a way to filter messages by providing the ability to
+#    execute external programs, such as scripts or real executables. These
+#    'filters' may examine and/or modify messages and inform XMail of their
+#    actions with a return value.
+#
+#    This feature offers the ability to inspect and modify messages, giving a
+#    way to reject messages based on content, alter messages (address
+#    rewriting) and so on.
+#
+#    If this filters returns '4, 5 or 6' the message is rejected and is
+#    stopped in its travel. If the filter modifies the message it must return
+#    '7'.
+#
+#    Additional flags are allowed to be returned to XMail as a result of
+#    filter processing by adding the flags value to the exits code above
+#    listed. The currently defined flags are :
+#
+#    '16'
+#        Stop selected filter list processing.
+#
+#    Filter flags are additive and if more than one flag need to be
+#    specified, their values must be added together. If a filter "raw" exit
+#    code is RC and the filter needs to return extra flags FILTER-SUM, the
+#    final return code FRC must be :
+#
+#    FRC = RC + FILTER-SUM
+#
+#    Example. Suppose a filter modified the message and hence needs to return
+#    7 as return code. Suppose also that a filter wants to block the filter
+#    selection list processing by specifying a flags value of 16, the value
+#    to be returned will be :
+#
+#    FRC = 7 + 16 = 23
+#
+#    Filter selection is driven by two files 'FILTERS.IN.TAB' and
+#    'FILTERS.OUT.TAB' located inside the $MAIL_ROOT/ directory and that have
+#    the following format:
+#
+#     "sender"[TAB]"recipient"[TAB]"remote-addr"[TAB]"local-addr"[TAB]"filename"[NEWLINE]
+#
+#    For example:
+#
+#     "*@bad-domain.com" "*" "0.0.0.0/0" "0.0.0.0/0" "av-filter.tab"
+#     "*" "clean@purified.net" "0.0.0.0/0" "0.0.0.0/0" "spam-block.tab"
+#     "*" "*" "192.168.1.0/24" "0.0.0.0/0" "archive.tab"
+#
+#    where the file "av-filter.tab" must be present inside the
+#    $MAIL_ROOT/filters directory. The "sender" and the "recipient" are
+#    resolved to the real account when possible. Address selection mask are
+#    formed by an IP address (network) plus the number of valid bits inside
+#    the network mask. The file 'FILTERS.IN.TAB' lists filters that have to
+#    be applied to inbound messages (going to local mailboxes) while the file
+#    'FILTERS.OUT.TAB' lists filters that have to be applied to outbound
+#    messages (delivered remotely). All four
+#    (sender+recipient+remote-addr+local-addr) selection fields must have a
+#    match in order "filename" to be evaluated. The syntax of the filter file
+#    is:
+#
+#     "command"[TAB]"arg-or-macro"[TAB]...[NEWLINE]
+#
+#    or:
+#
+#     "!flags"[TAB]"command"[TAB]"arg-or-macro"[TAB]...[NEWLINE]
+#
+#    Each file may contain multiple commands, that will be executed in
+#    strictly sequential order. The first command that will trigger a
+#    rejection code will make the filtering process to end. The 'flags'
+#    parameter is a comma-separated list of flags that drives the filter
+#    execution. The syntax of each flag is either FLAG or FLAG=VAL. Currently
+#    supported flags are:
+#
+#    aex exclude filter execution in case of authenticated sender
+#
+#    wlex
+#        exclude filter execution in case the client IP is white-listed
+#        inside the SMTP.IPPROP.TAB file. This flag works only for SMTP
+#        filters.
+#
+#    Each argument can be a macro also (see [MACRO SUBSTITUTION]):
+#
+#    FROM
+#        the sender of the message
+#
+#    RFROM
+#        the sender of the message resolved to the real account, when
+#        possible (alias resolution)
+#
+#    RCPT
+#        the target of the message
+#
+#    RRCPT
+#        the target of the message resolved to the real account, when
+#        possible (alias resolution)
+#
+#    REMOTEADDR
+#        remote IP address and port of the sender
+#
+#    LOCALADDR
+#        local IP address and port where the message has been accepted
+#
+#    FILE
+#        the message file path (the external command may modify the file if
+#        it returns '7' as command exit value.)
+#
+#    MSGID
+#        with the (XMail unique) message id
+#
+#    MSGREF
+#        the reference SMTP message id
+#
+#    USERAUTH
+#        name of the SMTP authenticated user, or "-" if no authentication has
+#        been supplied
+#
+#    Here 'command' is the name of an external program that processes the
+#    message and returns its processing result. If it returns '6' the message
+#    is rejected and a notification message is sent to the sender. By
+#    returning '5' the message is rejected without notification. While
+#    returning '4' the message is rejected without notification and without
+#    being frozen (a '5' response could lead to a frozen message if the
+#    "SERVER.TAB" configuration enables this). If all filters return values
+#    different from '6, 5 and 4' the message continues its trip. The filter
+#    command may also modify the file (AV scanning, content filter, message
+#    rewriting, etc) by returning '7'. The filter 'MUST' return '7' in case
+#    it modifies the message. If the filter changes the message file it
+#    'MUST' keep the message structure and it 'MUST' terminate all line with
+#    <CR><LF>. The filter has also the ability to return a one-line custom
+#    return message by creating a file named $(FILE).rej holding the message
+#    in the very first line. This file should be created 'ONLY' when the
+#    filter returns a rejection code ('6, 5 and 4')and 'NEVER' in case of
+#    passthru code ('7') or modify code.
+#
+#    The spool files has this structure:
+#
+#     Info Data           [ 1th line ]
+#     SmtpDomain          [ 2nd line ]
+#     SmtpMessageID       [ 3rd line ]
+#     MAIL FROM:<...>     [ 4th line ]
+#     RCPT TO:<...>       [ 5th line ]
+#     <<MAIL-DATA>>       [ 6th line ]
+#     ...
+#
+#    After the '<<MAIL-DATA>>' tag (5th line) the message follows. The
+#    message is composed of a headers section and, after the first empty
+#    line, the message body. The format of the "Info Data" line is:
+#
+#     [ClientIP]:ClientPort;[ServerIP]:ServerPort;Time
+#
+#    'EXTREME' care must be used when modifying the message because the
+#    filter will be working on the real message, and a badly reformatted file
+#    will lead to message loss. The spool file header (any data before
+#    <<MAIL-DATA>>) 'MUST' be preserved as is by the filter in case of
+#    message rewrite happens.
+#
+
+
+

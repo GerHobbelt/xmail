@@ -1,0 +1,192 @@
+
+!IF "$(CFG)" == ""
+CFG=debug
+!ENDIF 
+
+!IF "$(CFG)" != "release" && "$(CFG)" != "debug"
+!MESSAGE Invalid configuration "$(CFG)" specified.
+!MESSAGE You can specify a configuration when running NMAKE
+!MESSAGE by defining the macro CFG on the command line. For example:
+!MESSAGE 
+!MESSAGE nmake /f makefile CFG=debug
+!MESSAGE 
+!MESSAGE Possible choices for configuration are:
+!MESSAGE 
+!MESSAGE "release" ( Win32 x86 release build )
+!MESSAGE "debug"   ( Win32 x86 debug build)
+!MESSAGE 
+!ERROR An invalid configuration is specified.
+!ENDIF 
+
+
+!IF "$(OS)" == "Windows_NT"
+NULL=
+!ELSE 
+NULL=nul
+!ENDIF
+
+
+SRC_DIR=.
+
+INCL_DIRS=/I"$(SRC_DIR)" /I"$(SRC_DIR)\win32ssl\include"
+
+LIBPATH=/libpath:"$(SRC_DIR)\win32ssl\lib"
+LIBS=libeay32.lib ssleay32.lib
+
+CPP_DEFS=/nologo /D "XMAIL_OS=Win32" /D _CRT_SECURE_NO_DEPRECATE /D _CRT_NONSTDC_NO_DEPRECATE
+
+!IF "$(DEBUG_OSSL)" == "1"
+CPP_FLAGS=$(CPP_FLAGS) /D DEBUG_OSSL
+!ENDIF
+
+!IF "$(CFG)" == "release"
+
+OUTDIR=.\release
+CPP_FLAGS=$(CPP_DEFS) $(INCL_DIRS) /Zp1 /W3 /O2 /MT /D "WIN32" /D "NDEBUG" \
+	/D "_CONSOLE" /D "_MBCS" /Fo"$(OUTDIR)\\" /c
+LINK_DEBUG=
+
+!ELSEIF  "$(CFG)" == "debug"
+
+OUTDIR=.\debug
+CPP_FLAGS=$(CPP_DEFS) $(INCL_DIRS) /Zp1 /Zi /W3 /Od /MTd /D "WIN32" /D "_DEBUG" \
+	/D "_CONSOLE" /D "_MBCS" /Fo"$(OUTDIR)\\" /c
+LINK_DEBUG=/debug
+
+!ENDIF
+
+
+CPP=cl.exe
+LINK32=link.exe
+LINK32_FLAGS=$(LIBPATH) $(LIBS) kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib \
+	advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib ws2_32.lib \
+	/subsystem:console /incremental:no /machine:I386 $(LINK_DEBUG) /nologo
+
+
+XMAIL_TARGET=XMail
+XMAIL_OBJS= \
+	"$(OUTDIR)\AliasDomain.obj" \
+	"$(OUTDIR)\Base64Enc.obj" \
+	"$(OUTDIR)\BuffSock.obj" \
+	"$(OUTDIR)\CTRLSvr.obj" \
+	"$(OUTDIR)\DNSCache.obj" \
+	"$(OUTDIR)\DNS.obj" \
+	"$(OUTDIR)\Errors.obj" \
+	"$(OUTDIR)\ExtAliases.obj" \
+	"$(OUTDIR)\Filter.obj" \
+	"$(OUTDIR)\FINGSvr.obj" \
+	"$(OUTDIR)\LMAILSvr.obj" \
+	"$(OUTDIR)\MailConfig.obj" \
+	"$(OUTDIR)\Maildir.obj" \
+	"$(OUTDIR)\MailDomains.obj" \
+	"$(OUTDIR)\MailSvr.obj" \
+	"$(OUTDIR)\MainWin.obj" \
+	"$(OUTDIR)\MD5.obj" \
+	"$(OUTDIR)\MessQueue.obj" \
+	"$(OUTDIR)\MiscUtils.obj" \
+	"$(OUTDIR)\POP3GwLink.obj" \
+	"$(OUTDIR)\POP3Svr.obj" \
+	"$(OUTDIR)\POP3Utils.obj" \
+	"$(OUTDIR)\PSYNCSvr.obj" \
+	"$(OUTDIR)\QueueUtils.obj" \
+	"$(OUTDIR)\ResLocks.obj" \
+	"$(OUTDIR)\ShBlocks.obj" \
+	"$(OUTDIR)\SList.obj" \
+	"$(OUTDIR)\SMAILSvr.obj" \
+	"$(OUTDIR)\SMAILUtils.obj" \
+	"$(OUTDIR)\SMTPSvr.obj" \
+	"$(OUTDIR)\SMTPUtils.obj" \
+	"$(OUTDIR)\StrUtils.obj" \
+	"$(OUTDIR)\SvrUtils.obj" \
+	"$(OUTDIR)\SysDepWin.obj" \
+	"$(OUTDIR)\SysDepCommon.obj" \
+	"$(OUTDIR)\TabIndex.obj" \
+	"$(OUTDIR)\UsrAuth.obj" \
+	"$(OUTDIR)\UsrMailList.obj" \
+	"$(OUTDIR)\UsrUtils.obj" \
+	"$(OUTDIR)\SSLBind.obj" \
+	"$(OUTDIR)\SSLConfig.obj" \
+	"$(OUTDIR)\Hash.obj" \
+	"$(OUTDIR)\Array.obj" \
+
+XMCRYPT_TARGET=XMCrypt
+XMCRYPT_OBJS= \
+	"$(OUTDIR)\XMCrypt.obj" \
+
+MKUSERS_TARGET=MkUsers
+MKUSERS_OBJS= \
+	"$(OUTDIR)\MkUsers.obj" \
+
+CTRLCLNT_TARGET=CtrlClnt
+CTRLCLNT_OBJS= \
+	"$(OUTDIR)\Base64Enc.obj" \
+	"$(OUTDIR)\MD5.obj" \
+	"$(OUTDIR)\BuffSock.obj" \
+	"$(OUTDIR)\CTRLClient.obj" \
+	"$(OUTDIR)\Errors.obj" \
+	"$(OUTDIR)\StrUtils.obj" \
+	"$(OUTDIR)\MiscUtils.obj" \
+	"$(OUTDIR)\SysDepWin.obj" \
+	"$(OUTDIR)\SysDepCommon.obj" \
+	"$(OUTDIR)\SSLBind.obj" \
+
+SENDMAIL_TARGET=SendMail
+SENDMAIL_OBJS= \
+	"$(OUTDIR)\SendMail.obj" \
+
+
+
+ALL : "$(OUTDIR)\$(XMAIL_TARGET).exe" "$(OUTDIR)\$(XMCRYPT_TARGET).exe" \
+	"$(OUTDIR)\$(MKUSERS_TARGET).exe" "$(OUTDIR)\$(CTRLCLNT_TARGET).exe" \
+	"$(OUTDIR)\$(SENDMAIL_TARGET).exe"
+	
+
+CLEAN :
+	-@erase "$(OUTDIR)\$(XMAIL_TARGET).exe" $(XMAIL_OBJS)
+	-@erase "$(OUTDIR)\$(XMCRYPT_TARGET).exe" $(XMCRYPT_OBJS)
+	-@erase "$(OUTDIR)\$(MKUSERS_TARGET).exe" $(MKUSERS_OBJS)
+	-@erase "$(OUTDIR)\$(CTRLCLNT_TARGET).exe" $(CTRLCLNT_OBJS)
+	-@erase "$(OUTDIR)\$(SENDMAIL_TARGET).exe" $(SENDMAIL_OBJS)
+	-@erase *.pdb *.idb *.pch "$(OUTDIR)\*.pdb"
+
+"$(OUTDIR)" :
+	if not exist "$(OUTDIR)\$(NULL)" mkdir "$(OUTDIR)"
+
+
+"$(OUTDIR)\$(XMAIL_TARGET).exe" : "$(OUTDIR)" $(XMAIL_OBJS)
+	$(LINK32) @<<
+	$(LINK32_FLAGS) /out:"$(OUTDIR)\$(XMAIL_TARGET).exe" $(XMAIL_OBJS)
+<<
+
+"$(OUTDIR)\$(XMCRYPT_TARGET).exe" : "$(OUTDIR)" $(XMCRYPT_OBJS)
+	$(LINK32) @<<
+	$(LINK32_FLAGS) /out:"$(OUTDIR)\$(XMCRYPT_TARGET).exe" $(XMCRYPT_OBJS)
+<<
+
+"$(OUTDIR)\$(MKUSERS_TARGET).exe" : "$(OUTDIR)" $(MKUSERS_OBJS)
+	$(LINK32) @<<
+	$(LINK32_FLAGS) /out:"$(OUTDIR)\$(MKUSERS_TARGET).exe" $(MKUSERS_OBJS)
+<<
+
+"$(OUTDIR)\$(CTRLCLNT_TARGET).exe" : "$(OUTDIR)" $(CTRLCLNT_OBJS)
+	$(LINK32) @<<
+	$(LINK32_FLAGS) /out:"$(OUTDIR)\$(CTRLCLNT_TARGET).exe" $(CTRLCLNT_OBJS)
+<<
+
+"$(OUTDIR)\$(SENDMAIL_TARGET).exe" : "$(OUTDIR)" $(SENDMAIL_OBJS)
+	$(LINK32) @<<
+	$(LINK32_FLAGS) /out:"$(OUTDIR)\$(SENDMAIL_TARGET).exe" $(SENDMAIL_OBJS)
+<<
+
+
+{$(SRC_DIR)}.c{$(OUTDIR)}.obj::
+   $(CPP) @<<
+   $(CPP_FLAGS) $< 
+<<
+
+{$(SRC_DIR)}.cpp{$(OUTDIR)}.obj::
+   $(CPP) @<<
+   $(CPP_FLAGS) $< 
+<<
+
+

@@ -1,0 +1,62 @@
+#   SMTPEXTAUTH.TAB
+#
+#    The 'SMTPEXTAUTH.TAB' file enable the XMail administrator to use
+#    external authentications methods to verify SMTP clients. If the
+#    'SMTPEXTAUTH.TAB' does not exist, or it is empty, XMail standard
+#    authentication methods are used, and those will use either the
+#    'MAILUSERS.TAB' or the 'SMTPAUTH.TAB' to verify account credentials. If
+#    the file 'SMTPEXTAUTH.TAB' is not empty, then the XMail standard
+#    authentication methods are not advertised in the AUTH response of the
+#    EHLO SMTP command. Instead, only the ones listed inside the
+#    'SMTPEXTAUTH.TAB' are reported to the SMTP client. The 'SMTPEXTAUTH.TAB'
+#    file can contain multiple lines with the following format:
+#
+#     "auth-name"[TAB]"program-path"[TAB]"arg-or-macro"...[NEWLINE]
+#
+#    This file can contain multiple lines whose 'auth-name' are listed during
+#    the EHLO command response. Where 'arg-or-macro' can be (see [MACRO
+#    SUBSTITUTION]):
+#
+#    AUTH
+#        authentication method (PLAIN, LOGIN, CRAM-MD5, ...)
+#
+#    USER
+#        SMTP client supplied username (available in PLAIN, LOGIN and
+#        CRAM-MD5)
+#
+#    PASS
+#        SMTP client supplied password (available in PLAIN and LOGIN)
+#
+#    CHALL
+#        challenge used by the server (available in CRAM-MD5)
+#
+#    DGEST
+#        client response to server challenge (@CHALL - available in CRAM-MD5)
+#
+#    RFILE
+#        a file path where the external authentication binary might supply
+#        extra informations/credentials about the account (available in all
+#        authentications)
+#
+#    The RFILE file is composed by multiple lines with the following format:
+#
+#      VAR=VALUE
+#
+#    Currently supported variables inside the RFILE file are:
+#
+#    Perms
+#        Supply SMTP permissions for the account (see [SMTPAUTH.TAB] for
+#        detailed inforamtion)
+#
+#    Example:
+#
+#     "PLAIN" "/usr/bin/my-auth" "-a" "@@AUTH" "-u" "@@USER" "-p" "@@PASS" "-r" "@@RFILE"
+#
+#    The external authentication binary may or may not fill a response file.
+#    If the authentication has been successful, the binary should exit with a
+#    code equal to zero. Any other exit code different from zero, will be
+#    interpreted as failure.
+#
+
+
+

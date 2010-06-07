@@ -1,0 +1,361 @@
+#   SERVER.TAB
+#
+#     "varname"[TAB]"varvalue"[NEWLINE]
+#
+#    This file contains server configuration variables. See "SERVER.TAB
+#    variables" below for details.
+#
+#
+#
+#SERVER.TAB VARIABLES
+#
+#    The following variables are for use int the "SERVER.TAB" configuration
+#    file.
+#
+#    [RootDomain]
+#        Indicate the primary domain for the server.
+#
+#    [SmtpServerDomain]
+#        If set, forces the domain name XMail uses inside the ESMTP greeting
+#        used to support CRAM-MD5 ESMTP authentication.
+#
+#    [POP3Domain]
+#        Set the default domain for POP3 client connections.
+#
+#    [PostMaster]
+#        Set the postmaster address.
+#
+#    [ErrorsAdmin]
+#        The email address that receives notification messages for every
+#        message that has had delivery errors. If it is empty (allowed), the
+#        notification message is sent to the sender only.
+#
+#    [TempErrorsAdmin]
+#        The email address that receives notification for temporary delivery
+#        failures. In case it's empty the notification message is sent to the
+#        sender only.
+#
+#    [DefaultSMTPGateways]
+#        A semicolon separated list of SMTP servers XMail 'must' use to send
+#        its mails. The definition can also contain options as a
+#        comma-separated list (see [SMTP GATEWAY CONFIGURATION] for more
+#        information). Example:
+#
+#          "192.168.0.1,NeedTLS=2;192.168.0.2"
+#
+#        This has the precedence over MX records.
+#
+#    [HeloDomain]
+#        If this variable is specified and is not empty, its content is sent
+#        as HELO domain. Otherwise the reverse lookup of the local IP is sent
+#        as HELO domain. This helps to deal with remote SMTP servers that are
+#        set to check the reverse lookup of the incoming IP.
+#
+#    [CheckMailerDomain]
+#        Enable validation of the sender domain ('MAIL FROM:<...@xxx>') by
+#        looking up DNS/MX entries.
+#
+#    [RemoveSpoolErrors]
+#        Indicate if mail has to be removed or stored in 'froz' directory
+#        after a failure in delivery or filtering.
+#
+#    [NotifyMsgLinesExtra]
+#        Number of lines of the bounced message that have to be listed inside
+#        the notify message (lines after the headers section). Default is
+#        zero.
+#
+#    [NotifySendLogToSender]
+#        Enable/Disable sending the message log file inside the notify
+#        message to the sender. Default is off (zero).
+#
+#    [NotifyTryPattern]
+#        List of delivery attempts that require the system to send a
+#        notification to the sender (and eventually to 'TempErrorsAdmin').
+#        The list is a comma separated list of numbers (with no extra spaces)
+#        as in:
+#
+#         "1,4,9"
+#
+#        Default is empty which means no notification is sent upon a delivery
+#        attempt failure.
+#
+#    [AllowNullSender]
+#        Enable null sender ('MAIL FROM:<>') messages to be accepted by
+#        XMail.
+#
+#    [NoSenderBounce]
+#        When building bounce messages, use the null SMTP sender ('MAIL
+#        FROM:<>') instead of the 'PostMaster' address. This will affect only
+#        the SMTP sender, while the message RFC822 headers will still contain
+#        the correct From: header.
+#
+#    [MaxMTAOps]
+#        Set the maximum number of MTA relay steps before to declare the
+#        message as looped (default 16).
+#
+#    [ReceivedHdrType]
+#        Set the verbosity of the Received: message headers tag.
+#
+#        '0'     Standard (client IP shown , server IP not). Default.
+#
+#        '1'     Verbose (client IP shown , server IP shown)
+#
+#        '2'     Strict (no IP shown)
+#
+#        '3'     Same as 0 but the client IP is not shown if the client
+#                authenticate itself.
+#
+#        '4'     Same as 1 but the client IP is not shown if the client
+#                authenticate itself.
+#
+#    [FetchHdrTags]
+#        Set the list of headers tags to be used to extract addresses from
+#        POP3 fetched messages ("POP3LINKS.TAB"). This is a comma delimited
+#        list (no extra space or TABs must be included inside the list) as
+#        in:
+#
+#         "+X-Deliver-To,To,Cc"
+#
+#        Tags preceded by a '+' character make XMail stop scanning when an
+#        address is found inside the header tag.
+#
+#        Tags preceded by a '+' character must be listed before other tags.
+#
+#        The string "+X-Deliver-To,To,Cc" is the default if nothing is
+#        specified.
+#
+#    [SMTP-MaxErrors]
+#        Set the maximum number of errors allowed in a single SMTP session.
+#        When the maximum number of allowed errors is exceeded, the
+#        connection will be automatically dropped. If such variable is not
+#        set, or it is set to zero, the maximum number of errors will be
+#        unlimited.
+#
+#    [SmtpMsgIPBanSpammers]
+#        Used to set the message that is sent to the SMTP client when the
+#        client IP is listed inside the file SPAMMER.TAB.
+#
+#    [SmtpMsgIPBanSpamAddress]
+#        Used to set the message that is sent to the SMTP client when the
+#        client IP is listed inside the file SPAM-ADDRESS.TAB.
+#
+#    [SmtpMsgIPBanMaps]
+#        Used to set the message that is sent to the SMTP client when the
+#        client IP is listed inside one of the "CustMapsList".
+#
+#    [SmtpMsgIPBan]
+#        Used to set the message that is sent to the SMTP client when the
+#        client IP is listed inside the file SMTP.IPMAP.TAB.
+#
+#    [CustomSMTPMessage]
+#        Set this to the message that you want to follow the standard SMTP
+#        error response sent by XMail, as in (one line, remember the =>):
+#
+#         "Please open http://www.xmailserver.test/smtp_errors.html to get=>
+#            more information about this error"
+#
+#        Please be aware the RFC821 fix the maximum reply line length to 512
+#        bytes.
+#
+#    [SMTP-IpMapDropCode]
+#        Set the drop code for IPs blocked by the SMTP.IPMAP.TAB file:
+#
+#        '1'     the connection is dropped soon
+#
+#        "0"     the connection is kept alive but only authenticated users
+#                can send mail
+#
+#        '-S'    the peer can send messages but a delay of S seconds is
+#                introduced between commands
+#
+#    [AllowSmtpVRFY]
+#        Enable the use of VRFY SMTP command. This flag may be forced by SMTP
+#        authentication.
+#
+#    [AllowSmtpETRN]
+#        Enable the use of ETRN SMTP command. This flag may be forced by SMTP
+#        authentication.
+#
+#    [SmtpMinDiskSpace]
+#        Minimum disk space (in Kb) that is requested before accepting an
+#        SMTP connection.
+#
+#    [SmtpMinVirtMemSpace]
+#        Minimum virtual memory (in Kb) that is requested before accepting an
+#        SMTP connection.
+#
+#    [Pop3MinVirtMemSpace]
+#        Minimum virtual memory (in Kb) that is requested before accepting a
+#        POP3 connection.
+#
+#    [Pop3SyncErrorAccount]
+#        This defines the email account (MUST be handled locally) that
+#        receives all fetched email that XMail has not been able to deliver.
+#
+#    [EnableAuthSMTP-POP3]
+#        Enable SMTP after POP3 authentication (default on).
+#
+#    [MaxMessageSize]
+#        Set the maximum message size in Kb that is possible to send through
+#        the server.
+#
+#    [DefaultSmtpPerms]
+#        This list SMTP permissions assigned to users looked up inside
+#        "MAILUSERS.TAB" during SMTP authentication. It also defines the
+#        permissions for users authenticated with SMTP after POP3.
+#
+#    [CustMapsList]
+#        This is a list a user can use to set custom maps checking. The list
+#        has the given (strict) format:
+#
+#        maps-root:code,maps-root:code...
+#
+#        Where maps-root is the root for the dns query (ie.
+#        dialups.mail-abuse.org.) and the code can be:
+#
+#        '1'     the connection is dropped soon
+#
+#        "0"     the connection is kept alive but only authenticated users
+#                can send mail
+#
+#        '-S'    the peer can send messages but a delay of S seconds is
+#                introduced between commands
+#
+#    [SMTP-RDNSCheck]
+#        Indicate if XMail must do an RDNS lookup before accepting a incoming
+#        SMTP connection. If 0, the check is not performed; if 1 and the
+#        check fails, the user receives a 'server use forbidden' at MAIL_FROM
+#        time; if -S (S > 0) and the check fails, a delay of S seconds
+#        between SMTP commands is used to prevent massive spamming.
+#
+#        SMTP authentication overrides the denial set by this option by
+#        giving authenticated users the ability to access the server from
+#        'mapped' IPs.
+#
+#    [SmartDNSHost]
+#        Setup a list of smart DNS hosts to which are directed DNS queries
+#        with recursion bit set to true. Such DNS hosts must support DNS
+#        recursion in queries. The format is:
+#
+#         dns.home.bogus.net:tcp,192.168.1.1:udp,...
+#
+#    [DisableEmitAuthUser]
+#        Enable/disable the emission the the 'X-AuthUser:' mail header for
+#        authenticated users. Valid values are "0" or '1', default is "0"
+#        (emission enabled).
+#
+#    [SmtpGwConfig]
+#        Sets global SMTP gateway options. Those can be overridden by
+#        specific gateway options. See [SMTP GATEWAY CONFIGURATION] for
+#        information.
+#
+#    [Pop3LogPasswd]
+#        Control if POP3 passwords are logged into the POP3 log file. Set to
+#        "0" to disable password logging, set to "1" to enable logging of
+#        failed logins, and the to "2" to always enable password logging.
+#        Default is "0".
+#
+#    [SmtpNoTLSAuths]
+#        Lists a comma-separated sequence of SMTP authentications that are
+#        allowed while the connections is in non-TLS mode (clear text). Do
+#        not set this variable if you do not want to impose any restriction,
+#        or set it to the empty string if you do not want any authentication
+#        method to be allowed in clear-text mode.
+#
+#    [EnableCTRL-TLS]
+#        Enable CTRL TLS negotiation (default "1").
+#
+#    [EnablePOP3-TLS]
+#        Enable POP3 TLS (STLS) negotiation (default "1").
+#
+#    [EnableSMTP-TLS]
+#        Enable SMTP TLS (STARTTLS) negotiation (default "1").
+#
+#    [SSLUseCertsFile]
+#    [SSLUseCertsDir]
+#    [SSLWantVerify]
+#    [SSLAllowSelfSigned]
+#    [SSLWantCert]
+#    [SSLMaxCertsDepth]
+#        See [SSL CONFIGURATION] for information.
+#
+#    [SmtpConfig]
+#        Default SMTP server config loaded if specific server IP[,PORT]
+#        config is not found.
+#
+#    [SmtpConfig-IP | SmtpConfig-IP,PORT]
+#        Specific IP or IP,PORT SMTP server config. Examples:
+#
+#         "SmtpConfig-192.168.1.123" "..."
+#         "SmtpConfig-192.168.1.17,1025" "..."
+#
+#        The variable value is a comma separated sequence of configuration
+#        tokens whose meaning is:
+#
+#        MailAuth
+#                authentication required to send mail to the server. Please
+#                note that by setting this value everything requires
+#                authentication, even for sending to local domains, and this
+#                is probably not what you want. The "mail-auth" is also
+#                synonym of "MailAuth".
+#
+#        WantTLS TLS connection needed to talk to this server. This is either
+#                done by issuing a STARTTLS command over a standard SMTP
+#                session, or by using an SMTPS port
+#
+
+
+#
+# Example configuration file.
+# Note : remember to use _REAL_ TABs and " to format this file
+#
+"RootDomain"	"peins.net"
+"SmtpServerDomain"	"peins.net"
+"POP3Domain"	"peins.net"
+"HeloDomain"	"peins.net"
+"PostMaster"	"admin@peins.net"
+"ErrorsAdmin"	"admin@peins.net"
+"TempErrorsAdmin"	"send-failures@peins.net"
+#"DefaultSMTPGateways"	"192.168.1.2,192.168.1.15"
+"RemoveSpoolErrors"	"0"
+"Pop3LogPasswd"	"0"
+#"NoSenderBounce"	"1"
+#"DisableEmitAuthUser"	"1"
+#"NotifyMsgLinesExtra"	"8"
+"NotifySendLogToSender"	"1"
+#"NotifyTryPattern"	"1"
+"MaxMTAOps"	"16"
+"ReceivedHdrType"	"0"
+
+#"FetchHdrTags"	"+X-Deliver-To,+Received,To,Cc"
+"FetchHdrTags"	"To,Cc"
+
+#"SmtpGwConfig"	"NeedTLS=1,OutBind=192.168.1.1"
+#"EnableCTRL-TLS"	"1"
+#"EnableSMTP-TLS"	"1"
+#"EnablePOP3-TLS"	"1"
+#"SmtpMsgIPBanSpammers"	"550 Denied due inclusion of your IP in our spam lists"
+#"SmtpMsgIPBanSpamAddress"	"550 Denied due inclusion of your email address in our spam lists"
+#"SmtpMsgIPBanMaps"	"550 Denied due inclusion of your IP in the following map"
+#"CustomSMTPMessage"	"Please open http://www.xmailserver.test/smtp_errors.html to get more information about this error"
+#"MaxMessageSize"	"20000"
+#"EnableAuthSMTP-POP3"	"0"
+"Pop3SyncErrorAccount"	"psync-errors@peins.net"
+#"AllowNullSender"	"1"
+#"AllowSmtpVRFY"	"1"
+#"AllowSmtpETRN"	"1"
+#"SMTP-MaxErrors"	"4"
+#"SmtpMinDiskSpace"	"100000"
+#"SmtpMinVirtMemSpace"	"64000"
+#"Pop3MinVirtMemSpace"	"64000"
+#"CustMapsList"	"list.dsbl.org.:1,blackholes.mail-abuse.org.:1,dialups.mail-abuse.org.:0"
+#"SMTP-RDNSCheck"	"1"
+#"CheckMailerDomain"	"1"
+#"SmartDNSHost"	"10.1.0.2:tcp,10.1.0.2:udp"
+#"SmtpConfig"	"mail-auth"
+#"SmtpConfig-192.168.0.1"	"mail-auth"
+"DefaultSmtpPerms"	"MRVZ"
+                                 
+# [i_a] do NOT bounce undeliverable messages to the sender (reply-to) address.
+"NoBounceToReplyAddress"	"1"                                           
+

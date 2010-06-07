@@ -1,0 +1,117 @@
+#   POP3LINKS.TAB
+#
+#     "local-domain"[TAB]"local-account"[TAB]"external-domain"[TAB]=>
+#       "external-account"[TAB]"external-crypted-password"[TAB]"authtype"[NEWLINE]
+#
+#    (remember, enter as one line) where:
+#
+#    'authtype' = Comma-separated list of options:
+#
+#    CLR Use clear-text USER/PASS authentication
+#
+#    APOP
+#        Use POP3 APOP authentication (that does not send clear-text
+#        passwords over the wire). Fall back to 'CLR' if 'APOP' is not
+#        supported
+#
+#    FAPOP
+#        Use POP3 APOP authentication (that does not send clear-text
+#        passwords over the wire).
+#
+#    STLS
+#        Establish an SSL link with the server by issuing a POP3 STLS
+#        command. Continue with the non-encrypted link is STLS is not
+#        supported
+#
+#    FSTLS
+#        Establish an SSL link with the server by issuing a POP3 STLS
+#        command.
+#
+#    POP3S
+#        Establish a full POP3S connection with the remote server.
+#
+#    Leave
+#        Leave messages on the server, and download only the new ones. In
+#        order this functionality to work, the remote POP3 server must
+#        support the UIDL command.
+#
+#    OutBind
+#        Sets the IP address of the network interface that should be used
+#        when connecting to the remote host. This configuration should be
+#        used carefully, because XMail will fail if the selected IP of the
+#        interface does not have a route to the remote host using such IP.
+#
+#    Examples;
+#
+#     "home.bogus"    "dlibenzi"  "xmailserver.org"   "dlibenzi" "XYZ..."=>
+#       "APOP"
+#
+#    This entry is used to synchronize the external account
+#    'dlibenzi@xmailserver.org' with encrypted password 'XYZ...' with the
+#    local account 'dlibenzi@home.bogus' using 'APOP' authentication. It
+#    connect with the 'xmailserver.org' POP3 server and download all messages
+#    for 'dlibenzi@xmailserver.org' into the local account
+#    'dlibenzi@home.bogus'. The remote server must support 'APOP'
+#    authentication to specify 'APOP' as authtype. Even if using APOP
+#    authentication is more secure because clear usernames and password does
+#    not travel on the network, if you're not sure about it, specify 'CLR' as
+#    authtype. For non local POP3 sync you've to specify a line like this one
+#    (@ as the first domain char):
+#
+#     "@home.bogus.com"   "dlibenzi"  "xmailserver.org:110"   "dlibenzi" "XYZ..."=>
+#       "CLR"
+#
+#    This entry is used to synchronize the external account
+#    'dlibenzi@xmailserver.org' with encrypted password 'XYZ...' with the
+#    account 'dlibenzi@home.bogus.com' using 'CLR' authentication. The
+#    message is pushed into the spool having as destination
+#    dlibenzi@home.bogus.com , so you've to have some kind of processing for
+#    that user or domain in your XMail configuration (for example custom
+#    domain processing). you can also have the option to setup a line like
+#    this one:
+#
+#     "?home.bogus.com,felins.net,pets.org"   "dlibenzi"  "xmailserver.org"=>
+#       "dlibenzi"  "XYZ..."    "CLR"
+#
+#    and messages are dropped inside the spool by following these rules:
+#
+#    1.  XMail parse the message headers by searching for To:, Cc: and Bcc:
+#        addresses.
+#
+#    2.  Each address's domain is compared with the list of valid domains
+#        (felins.net, pets.org).
+#
+#    3.  For each valid address the username part is taken and joined with
+#        the '@' and the masquerade domain name (the name following '?').
+#
+#    4.  The message is spooled with the above built destination address.
+#
+#    Obviously the masquerade domain ('home.bogus.com') MUST be handled by
+#    the server or MUST be a valid external mail domain. So if a message
+#    having as To: address graycat@felins.net is fetched by the previous line
+#    a message is pushed into the spool with address graycat@home.bogus.com.
+#    Particular attention is to be taken about at not creating mail loops.
+#    Another option is:
+#
+#     "&.local,felins.net,pets.org"   "dlibenzi"  "xmailserver.org" "dlibenzi"=>
+#       "XYZ..."    "CLR"
+#
+#    where a fetched message whose To: address is graycat@felins.net is
+#    replaced with graycat@felins.net.local. You can avoid the matching
+#    domain list after the masquerading domain but, in that case, you may
+#    have bad destination addresses inside the spool. The list MUST be comma
+#    separated WITHOUT spaces. XMail starts PSYNC session with a delay that
+#    you can specify with the -Yi nsec command line parameter (default 120).
+#    XMail also checks for the presence (inside MAIL_ROOT) of a file named
+#    '.psync-trigger' and, when this file is found, a PSYNC session starts
+#    and that file is removed.
+#
+
+
+#"peins.net"	"ger"	"pop.xs4all.nl"	"ia42test"	"2b0c1d44545756"	"APOP,Leave"
+#"peins.net"	"ger"	"pop.xs4all.nl"	"ia42spam"	"2b0c1d44545756"	"APOP,Leave"
+
+"peins.net"	"ger"	"pop.xs4all.nl"	"inshalla"	"2b0c00112b0c1d"	"APOP,Leave"
+#"&.lan"	"pop3"	"pop.xs4all.nl"	"inshalla"	"2b0c00112b0c1d"	"APOP,Leave"
+
+

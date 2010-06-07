@@ -1,0 +1,15 @@
+#   CTRLACCOUNTS.TAB
+#
+#     "username"[TAB]"password"[NEWLINE]
+#
+#    This file contains the accounts that are enable to remote administer
+#    XMail. The password is encrypted with the 'XMCrypt' program supplied
+#    with the source distro.
+#
+#    'REMEMBER THAT THIS HOLDS ADMIN ACCOUNTS, SO PLEASE CHOOSE COMPLEX
+#    USERNAMES AND PASSWORDS AND USE CTRL.IPMAP.TAB TO RESTRICT IP ACCESS!
+#    REMEMBER TO REMOVE THE EXAMPLE ACCOUNT FROM THIS FILE!'
+#
+
+
+"admin"	"2b0a15150016"

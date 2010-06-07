@@ -1,0 +1,17 @@
+#   ALIASDOMAIN.TAB
+#
+#     "aliasdomain"[TAB]"realdomain"[NEWLINE]
+#
+#    where 'aliasdomain' can use wildcards:
+#
+#     "simpson.org"   "simpson.com"
+#     "*.homer.net"   "homer.net"
+#
+#    The first line defines 'simpson.org' as an alias of 'simpson.com' while
+#    the second remaps all subdomains of 'homer.net' to 'homer.net'.
+#
+#    You 'CANNOT' edit this file while XMail is running because it is an
+#    indexed file.
+#
+
+"peins.org"	"peins.net"

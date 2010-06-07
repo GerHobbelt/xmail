@@ -1,0 +1,31 @@
+#   ALIASES.TAB
+#
+#     "domain"[TAB]"alias"[TAB]"realaccount"[NEWLINE]
+#
+#    Example:
+#
+#     "home.bogus"    "davidel"   "dlibenzi"
+#
+#    define 'davidel' as alias for 'dlibenzi' in 'home.bogus' domain.
+#
+#     "home.bogus"    "foo*bog"   "homer@internal-domain.org"
+#
+#    define an alias for all users whose name starts with 'foo' and ends with
+#    'bog' that point to the locally handled account
+#    'homer@internal-domain.org'.
+#
+#     "home.bogus"    "??trips"   "travels"
+#
+#    define an alias for all users whose names start with any two chars and
+#    end with 'trips'. You can have widcard even in the domain field, as:
+#
+#     "*" "postmaster"    "postmaster@domain.net"
+#
+#    You 'CANNOT' edit this file while XMail is running because it is an
+#    indexed file.
+#
+#    [table index] [configuration] [top]
+#
+
+# "peins.org"	"admin"	"peins.net"
+# "xmailserver.test"	"postmaster"	"xmailuser"

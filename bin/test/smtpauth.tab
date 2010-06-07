@@ -1,0 +1,37 @@
+#   SMTPAUTH.TAB
+#
+#     "username"[TAB]"password"[TAB]"permissions"[NEWLINE]
+#
+#    is used to permit SMTP clients authentication with protocols PLAIN,
+#    LOGIN, CRAM-MD5 and custom. With custom authentication a file containing
+#    all secrets (username + ':' + password) is passed as parameter to the
+#    custom authentication program which tests all secrets to find the one
+#    matching (if exist). For this reason it's better to keep the number of
+#    entries in this file as low as possible. Permissions are a string that
+#    can contain:
+#
+#    M   open mailing features
+#
+#    R   open relay features (bypass all other relay blocking traps)
+#
+#    V   VRFY command enabled (bypass SERVER.TAB variable)
+#
+#    T   ETRN command enabled (bypass SERVER.TAB variable)
+#
+#    Z   disable mail size checking (bypass SERVER.TAB variable)
+#
+#    S   ease SSL requirement for this user (bypass the "WantTLS" mail config
+#        variable)
+#
+#    When PLAIN, LOGIN or CRAM-MD5 authentication mode are used, first a
+#    lookup in 'MAILUSERS.TAB' accounts is performed to avoid duplicating
+#    information with 'SMTPAUTH.TAB'. Therefore when using these
+#    authentication modes a user must use as username the full email address
+#    (the : separator is permitted instead of @) and as password his POP3
+#    password. If the lookup succeed the 'SERVER.TAB' variable
+#    'DefaultSmtpPerms' is used to assign user SMTP permissions (default MR).
+#    If the lookup fails then 'SMTPAUTH.TAB' lookup is done.
+#
+
+# admin	Nix	MR
+

@@ -1,0 +1,15 @@
+#   SPAM-ADDRESS.TAB
+#
+#     "spam-address"[NEWLINE]
+#
+#    Example:
+#
+#     "*@rude.net"
+#     "*-admin@even.more.rude.net"
+#
+#    blocks mails coming from the entire domain 'rude.net' and coming from
+#    all addresses that end with '-admin@'even.more.rude.net.
+#
+
+
+
