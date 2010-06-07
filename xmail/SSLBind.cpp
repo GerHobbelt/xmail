@@ -382,8 +382,8 @@ static int BSslSetupVerify(SSL_CTX *pSCtx, SslServerBind const *pSSLB)
 	char const *pszKeyFile = pSSLB->pszKeyFile;
 
 	if (pSSLB->pszCertFile != NULL) {
-		if (SSL_CTX_use_certificate_file(pSCtx, pSSLB->pszCertFile,
-						 SSL_FILETYPE_PEM) <= 0) {
+		if (SSL_CTX_use_certificate_chain_file(pSCtx,
+						       pSSLB->pszCertFile) <= 0) {
 			ErrSetErrorCode(ERR_SSL_SETCERT, pSSLB->pszCertFile);
 			return ERR_SSL_SETCERT;
 		}

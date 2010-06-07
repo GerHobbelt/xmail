@@ -7,9 +7,13 @@ XMail Change Log as of Version 1.27
 
 =head1 CHANGE LOG
 
-=head2 Jun 27, 2009 v 1.27
+=head2 Feb 25, 2010 v 1.27
 
 =over 4
+
+=item *
+
+Support for using a chain of SSL certificates, instead of a single one.
 
 =item *
 

@@ -77,7 +77,7 @@ VERSION
 
   release date
 
-    Jun 27, 2009
+    Feb 25, 2010
 
   project by
 
@@ -2591,9 +2591,9 @@ SSL CONFIGURATION
     XMail uses to identify itself during SSL negotiations, by the mean of
     the two files 'server.cert' and 'server.key'. These files 'MUST' be
     available inside the 'MAIL_ROOT' directory. Both are in PEM format, and
-    one represent the server certificate file ('server.cert') while the
-    other represent the server private key file ('server.key'). XMail uses
-    the OpenSSL libraries for its SSL operations.
+    one represent the server certificate file/chain ('server.cert') while
+    the other represent the server private key file ('server.key'). XMail
+    uses the OpenSSL libraries for its SSL operations.
     <http://www.openssl.org/docs/HOWTO/certificates.txt> contains examples
     about how to create certificates to be use by XMail, while
     <http://www.openssl.org/docs/HOWTO/keys.txt> describes own to generate

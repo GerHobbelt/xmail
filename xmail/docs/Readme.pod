@@ -78,7 +78,7 @@ Gnu Public License L<http://www.gnu.org>
 
 =head2 release date
 
-Jun 27, 2009
+Feb 25, 2010
 
 =head2 project by
 
@@ -2968,8 +2968,8 @@ host using such IP.
 
 XMail uses to identify itself during SSL negotiations, by the mean of the two files
 'B<server.cert>' and 'B<server.key>'. These files 'B<MUST>' be available inside the
-'B<MAIL_ROOT>' directory. Both are in PEM format, and one represent the server certificate file
-('B<server.cert>') while the other represent the server private key file ('B<server.key>').
+'B<MAIL_ROOT>' directory. Both are in PEM format, and one represent the server certificate
+file/chain ('B<server.cert>') while the other represent the server private key file ('B<server.key>').
 XMail uses the OpenSSL libraries for its SSL operations. L<http://www.openssl.org/docs/HOWTO/certificates.txt>
 contains examples about how to create certificates to be use by XMail, while
 L<http://www.openssl.org/docs/HOWTO/keys.txt> describes own to generate keys.
