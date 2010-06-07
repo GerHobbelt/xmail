@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -572,7 +572,7 @@ static int SMTPInitSession(ThreadConfig const *pThCfg, BSOCK_HANDLE hBSock,
 	SMTPS.pszCustMsg = NULL;
 	SMTPS.pszNoTLSAuths = NULL;
 
-	SysGetTmpFile(SMTPS.szMsgFile);
+	MscSafeGetTmpFile(SMTPS.szMsgFile, sizeof(SMTPS.szMsgFile));
 
 	if ((SMTPS.hSvrConfig = SvrGetConfigHandle()) == INVALID_SVRCFG_HANDLE)
 		return ErrGetErrorCode();
@@ -679,7 +679,6 @@ static void SMTPClearSession(SMTPSession &SMTPS)
 {
 	if (SMTPS.pMsgFile != NULL)
 		fclose(SMTPS.pMsgFile), SMTPS.pMsgFile = NULL;
-
 	SysRemove(SMTPS.szMsgFile);
 
 	if (SMTPS.hSvrConfig != INVALID_SVRCFG_HANDLE)
@@ -704,7 +703,6 @@ static void SMTPResetSession(SMTPSession &SMTPS)
 
 	if (SMTPS.pMsgFile != NULL)
 		fclose(SMTPS.pMsgFile), SMTPS.pMsgFile = NULL;
-
 	SysRemove(SMTPS.szMsgFile);
 
 	SetEmptyString(SMTPS.szDestDomain);
@@ -2350,8 +2348,8 @@ static int SMTPHandleCmd_STARTTLS(char const *pszCommand, BSOCK_HANDLE hBSock, S
 		ErrorPush();
 		if (SMTPLogEnabled(SMTPS.pThCfg->hThShb, SMTPS.pSMTPCfg))
 			SMTPLogSession(SMTPS, "", "", "SMTP=ESSL", 0);
-		SysLogMessage(LOG_LEV_MESSAGE, "SMTP failed to STARTTLS [%s]\n",
-			      SysInetNToA(SMTPS.PeerInfo, szIP, sizeof(szIP)));
+		SysLogMessage(LOG_LEV_MESSAGE, "SMTP failed to STARTTLS (%d) [%s]\n",
+			      iError, SysInetNToA(SMTPS.PeerInfo, szIP, sizeof(szIP)));
 		SMTPS.iSMTPState = stateExit;
 
 		return ErrorPop();
@@ -2427,7 +2425,7 @@ static int SMTPExternalAuthenticate(BSOCK_HANDLE hBSock, SMTPSession &SMTPS,
 {
 	char szRespFile[SYS_MAX_PATH] = "";
 
-	SysGetTmpFile(szRespFile);
+	MscSafeGetTmpFile(szRespFile, sizeof(szRespFile));
 
 	/* Do macro substitution */
 	SMTPExternalAuthSubstitute(ppszAuthTokens, pszAuthType, pszUsername, pszPassword,

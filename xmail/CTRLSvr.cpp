@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -1035,7 +1035,7 @@ static int CTRLDo_usergetmproc(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
 	/* Exist user custom message processing ? */
 	char szMPFile[SYS_MAX_PATH] = "";
 
-	SysGetTmpFile(szMPFile);
+	UsrGetTmpFile(NULL, szMPFile, sizeof(szMPFile));
 	if (UsrGetMailProcessFile(pUI, szMPFile, ulGMPFlags) < 0) {
 		ErrorPush();
 		UsrFreeUserInfo(pUI);
@@ -1093,7 +1093,7 @@ static int CTRLDo_usersetmproc(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
 	/* Read user data in file */
 	char szMPFile[SYS_MAX_PATH] = "";
 
-	SysGetTmpFile(szMPFile);
+	UsrGetTmpFile(NULL, szMPFile, sizeof(szMPFile));
 
 	if (MscRecvTextFile(szMPFile, hBSock, pCTRLCfg->iTimeout) < 0) {
 		ErrorPush();
@@ -1513,7 +1513,7 @@ static int CTRLDo_custdomget(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
 	/* Try to get custom domain file ( if exist ) */
 	char szCustDomainFile[SYS_MAX_PATH] = "";
 
-	SysGetTmpFile(szCustDomainFile);
+	UsrGetTmpFile(NULL, szCustDomainFile, sizeof(szCustDomainFile));
 
 	if (USmlGetCustomDomainFile(ppszTokens[1], szCustDomainFile) < 0) {
 		ErrorPush();
@@ -1556,7 +1556,7 @@ static int CTRLDo_custdomset(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
 	/* Read user data in file */
 	char szCustDomainFile[SYS_MAX_PATH] = "";
 
-	SysGetTmpFile(szCustDomainFile);
+	UsrGetTmpFile(NULL, szCustDomainFile, sizeof(szCustDomainFile));
 
 	if (MscRecvTextFile(szCustDomainFile, hBSock, pCTRLCfg->iTimeout) < 0) {
 		ErrorPush();
@@ -1921,7 +1921,7 @@ static int CTRLDo_cfgfileget(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
 	/* Get a file snapshot */
 	char szRequestedFile[SYS_MAX_PATH] = "";
 
-	SysGetTmpFile(szRequestedFile);
+	UsrGetTmpFile(NULL, szRequestedFile, sizeof(szRequestedFile));
 
 	if (MscCopyFile(szRequestedFile, szFullPath) < 0) {
 		ErrorPush();
@@ -1976,7 +1976,7 @@ static int CTRLDo_cfgfileset(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
 	/* Read user data in file */
 	char szClientFile[SYS_MAX_PATH] = "";
 
-	SysGetTmpFile(szClientFile);
+	UsrGetTmpFile(NULL, szClientFile, sizeof(szClientFile));
 
 	if (MscRecvTextFile(szClientFile, hBSock, pCTRLCfg->iTimeout) < 0) {
 		ErrorPush();
@@ -2036,7 +2036,7 @@ static int CTRLDo_frozlist(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
 	/* Build frozen list file */
 	char szListFile[SYS_MAX_PATH] = "";
 
-	SysGetTmpFile(szListFile);
+	UsrGetTmpFile(NULL, szListFile, sizeof(szListFile));
 
 	if (QueUtGetFrozenList(hSpoolQueue, szListFile) < 0) {
 		ErrorPush();
@@ -2129,7 +2129,7 @@ static int CTRLDo_frozgetlog(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
 	/* Get log file snapshot */
 	char szFileSS[SYS_MAX_PATH] = "";
 
-	SysGetTmpFile(szFileSS);
+	UsrGetTmpFile(NULL, szFileSS, sizeof(szFileSS));
 
 	if (QueUtGetFrozenLogFile(hSpoolQueue, iLevel1, iLevel2, szMessageFile, szFileSS) < 0) {
 		ErrorPush();
@@ -2170,7 +2170,7 @@ static int CTRLDo_frozgetmsg(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
 	/* Get log file snapshot */
 	char szFileSS[SYS_MAX_PATH] = "";
 
-	SysGetTmpFile(szFileSS);
+	UsrGetTmpFile(NULL, szFileSS, sizeof(szFileSS));
 
 	if (QueUtGetFrozenMsgFile(hSpoolQueue, iLevel1, iLevel2, szMessageFile, szFileSS) < 0) {
 		ErrorPush();

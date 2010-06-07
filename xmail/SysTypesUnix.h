@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -73,16 +73,15 @@
 #define SYS_SHUT_WR             SHUT_WR
 #define SYS_SHUT_RDWR           SHUT_RDWR
 
-typedef char SYS_INT8;
+typedef signed char SYS_INT8;
 typedef unsigned char SYS_UINT8;
-typedef short int SYS_INT16;
+typedef signed short int SYS_INT16;
 typedef unsigned short int SYS_UINT16;
-typedef int SYS_INT32;
+typedef signed int SYS_INT32;
 typedef unsigned int SYS_UINT32;
-typedef long long int SYS_INT64;
-typedef unsigned long long int SYS_UINT64;
-typedef unsigned long long int SYS_LONGLONG;
-typedef unsigned int SYS_PTRUINT;
+typedef signed long long SYS_INT64;
+typedef unsigned long long SYS_UINT64;
+typedef unsigned long long SYS_LONGLONG;
 typedef unsigned long SYS_HANDLE;
 typedef pthread_key_t SYS_TLSKEY;
 typedef pthread_once_t SYS_THREAD_ONCE;

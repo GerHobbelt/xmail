@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -55,18 +55,6 @@ struct ResLocator {
 };
 
 static SYS_UINT32 RLckHashString(char const *pData, SYS_UINT32 uHashInit = STD_RLCK_HASH_INIT);
-static void RLckGetResLocator(char const *pszResourceName, ResLocator * pRL);
-static ResLockEntry *RLckGetEntry(ResLocator const *pRL, char const *pszResourceName);
-static int RLckRemoveEntry(ResLocator const *pRL, ResLockEntry * pRLE);
-static ResLockEntry *RLckAllocEntry(char const *pszResourceName);
-static int RLckFreeEntry(ResLockEntry * pRLE);
-static int RLckTryLockEX(ResLocator const *pRL, char const *pszResourceName);
-static int RLckDoUnlockEX(ResLocator const *pRL, char const *pszResourceName);
-static int RLckTryLockSH(ResLocator const *pRL, char const *pszResourceName);
-static int RLckDoUnlockSH(ResLocator const *pRL, char const *pszResourceName);
-static RLCK_HANDLE RLckLock(char const *pszResourceName,
-			    int (*pLockProc) (ResLocator const *, char const *));
-static int RLckUnlock(RLCK_HANDLE hLock, int (*pUnlockProc) (ResLocator const *, char const *));
 
 static SYS_MUTEX hRLMutex = SYS_INVALID_MUTEX;
 static ResWaitGate RLGates[STD_WAIT_GATES];
@@ -113,6 +101,13 @@ int RLckInitLockers(void)
 		for (int jj = 0; jj < RLGates[ii].iHashSize; jj++)
 			SYS_INIT_LIST_HEAD(&RLGates[ii].pResList[jj]);
 	}
+
+	return 0;
+}
+
+static int RLckFreeEntry(ResLockEntry * pRLE)
+{
+	SysFree(pRLE);
 
 	return 0;
 }
@@ -221,13 +216,6 @@ static ResLockEntry *RLckAllocEntry(char const *pszResourceName)
 	strcpy(pRLE->szName, pszResourceName);
 
 	return pRLE;
-}
-
-static int RLckFreeEntry(ResLockEntry * pRLE)
-{
-	SysFree(pRLE);
-
-	return 0;
 }
 
 static int RLckTryLockEX(ResLocator const *pRL, char const *pszResourceName)

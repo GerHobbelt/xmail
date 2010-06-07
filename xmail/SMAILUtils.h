@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -54,73 +54,73 @@ struct LocalMailProcConfig {
 
 typedef void *TAG_POSITION;
 
-int USmlLoadSpoolFileHeader(const char *pszSpoolFile, SpoolFileHeader &SFH);
+int USmlLoadSpoolFileHeader(char const *pszSpoolFile, SpoolFileHeader &SFH);
 void USmlCleanupSpoolFileHeader(SpoolFileHeader &SFH);
-char *USmlAddrConcat(const char *const *ppszStrings);
-char *USmlBuildSendMailFrom(const char *const *ppszFrom, const char *const *ppszRcpt);
-char *USmlBuildSendRcptTo(const char *const *ppszFrom, const char *const *ppszRcpt);
-SPLF_HANDLE USmlCreateHandle(const char *pszMessFilePath);
+char *USmlAddrConcat(char const *const *ppszStrings);
+char *USmlBuildSendMailFrom(char const *const *ppszFrom, char const *const *ppszRcpt);
+char *USmlBuildSendRcptTo(char const *const *ppszFrom, char const *const *ppszRcpt);
+SPLF_HANDLE USmlCreateHandle(char const *pszMessFilePath);
 void USmlCloseHandle(SPLF_HANDLE hFSpool);
 int USmlReloadHandle(SPLF_HANDLE hFSpool);
-const char *USmlGetRelayDomain(SPLF_HANDLE hFSpool);
-const char *USmlGetSpoolFilePath(SPLF_HANDLE hFSpool);
-const char *USmlGetSpoolFile(SPLF_HANDLE hFSpool);
-const char *USmlGetSMTPDomain(SPLF_HANDLE hFSpool);
-const char *USmlGetSmtpMessageID(SPLF_HANDLE hFSpool);
-const char *const *USmlGetInfo(SPLF_HANDLE hFSpool);
-const char *const *USmlGetMailFrom(SPLF_HANDLE hFSpool);
-const char *USmlMailFrom(SPLF_HANDLE hFSpool);
-const char *USmlSendMailFrom(SPLF_HANDLE hFSpool);
-const char *const *USmlGetRcptTo(SPLF_HANDLE hFSpool);
-const char *USmlRcptTo(SPLF_HANDLE hFSpool);
-const char *USmlSendRcptTo(SPLF_HANDLE hFSpool);
+char const *USmlGetRelayDomain(SPLF_HANDLE hFSpool);
+char const *USmlGetSpoolFilePath(SPLF_HANDLE hFSpool);
+char const *USmlGetSpoolFile(SPLF_HANDLE hFSpool);
+char const *USmlGetSMTPDomain(SPLF_HANDLE hFSpool);
+char const *USmlGetSmtpMessageID(SPLF_HANDLE hFSpool);
+char const *const *USmlGetInfo(SPLF_HANDLE hFSpool);
+char const *const *USmlGetMailFrom(SPLF_HANDLE hFSpool);
+char const *USmlMailFrom(SPLF_HANDLE hFSpool);
+char const *USmlSendMailFrom(SPLF_HANDLE hFSpool);
+char const *const *USmlGetRcptTo(SPLF_HANDLE hFSpool);
+char const *USmlRcptTo(SPLF_HANDLE hFSpool);
+char const *USmlSendRcptTo(SPLF_HANDLE hFSpool);
 SYS_OFF_T USmlMessageSize(SPLF_HANDLE hFSpool);
 int USmlSyncChanges(SPLF_HANDLE hFSpool);
 int USmlGetMsgFileSection(SPLF_HANDLE hFSpool, FileSection &FSect);
 int USmlWriteMailFile(SPLF_HANDLE hFSpool, FILE *pMsgFile, bool bMBoxFile = false);
-char *USmlGetTag(SPLF_HANDLE hFSpool, const char *pszTagName, TAG_POSITION &TagPosition);
-int USmlAddTag(SPLF_HANDLE hFSpool, const char *pszTagName,
-	       const char *pszTagData, int iUpdate = 0);
-int USmlSetTagAddress(SPLF_HANDLE hFSpool, const char *pszTagName, const char *pszAddress);
-int USmlMapAddress(const char *pszAddress, char *pszDomain, char *pszName);
-int USmlCreateMBFile(UserInfo *pUI, const char *pszFileName, SPLF_HANDLE hFSpool);
-int USmlVCreateSpoolFile(SPLF_HANDLE hFSpool, const char *pszFromUser,
-			 const char *pszRcptUser, const char *pszFileName, va_list Headers);
-int USmlCreateSpoolFile(SPLF_HANDLE hFSpool, const char *pszFromUser,
-			const char *pszRcptUser, const char *pszFileName, ...);
+char *USmlGetTag(SPLF_HANDLE hFSpool, char const *pszTagName, TAG_POSITION &TagPosition);
+int USmlAddTag(SPLF_HANDLE hFSpool, char const *pszTagName,
+	       char const *pszTagData, int iUpdate = 0);
+int USmlSetTagAddress(SPLF_HANDLE hFSpool, char const *pszTagName, char const *pszAddress);
+int USmlMapAddress(char const *pszAddress, char *pszDomain, char *pszName);
+int USmlCreateMBFile(UserInfo *pUI, char const *pszFileName, SPLF_HANDLE hFSpool);
+int USmlVCreateSpoolFile(SPLF_HANDLE hFSpool, char const *pszFromUser,
+			 char const *pszRcptUser, char const *pszFileName, va_list Headers);
+int USmlCreateSpoolFile(SPLF_HANDLE hFSpool, char const *pszFromUser,
+			char const *pszRcptUser, char const *pszFileName, ...);
 int USmlProcessLocalUserMessage(SVRCFG_HANDLE hSvrConfig, UserInfo *pUI, SPLF_HANDLE hFSpool,
 				QUEUE_HANDLE hQueue, QMSG_HANDLE hMessage,
 				LocalMailProcConfig &LMPC);
 int USmlGetDomainCustomDir(char *pszCustomDir, int iMaxPath, int iFinalSlash);
 int USmlGetCmdAliasDir(char *pszAliasDir, int iMaxPath, int iFinalSlash);
-int USmlGetCmdAliasFile(const char *pszDomain, const char *pszUser, char *pszAliasFile);
-int USmlIsCmdAliasAccount(const char *pszDomain, const char *pszUser, char *pszAliasFile = NULL);
+int USmlGetCmdAliasFile(char const *pszDomain, char const *pszUser, char *pszAliasFile);
+int USmlIsCmdAliasAccount(char const *pszDomain, char const *pszUser, char *pszAliasFile = NULL);
 int USmlGetCmdAliasSpoolFile(QUEUE_HANDLE hQueue, QMSG_HANDLE hMessage, char *pszAliasFilePath);
 int USmlGetCmdAliasCustomFile(SPLF_HANDLE hFSpool, QUEUE_HANDLE hQueue,
-			      QMSG_HANDLE hMessage, const char *pszDomain, const char *pszUser,
+			      QMSG_HANDLE hMessage, char const *pszDomain, char const *pszUser,
 			      char *pszAliasFilePath);
-int USmlDomainCustomFileName(const char *pszDestDomain, char *pszCustFilePath);
-int USmlGetDomainCustomFile(const char *pszDestDomain, char *pszCustFilePath);
-int USmlCreateCmdAliasDomainDir(const char *pszDomain);
-int USmlDeleteCmdAliasDomainDir(const char *pszDomain);
+int USmlDomainCustomFileName(char const *pszDestDomain, char *pszCustFilePath);
+int USmlGetDomainCustomFile(char const *pszDestDomain, char *pszCustFilePath);
+int USmlCreateCmdAliasDomainDir(char const *pszDomain);
+int USmlDeleteCmdAliasDomainDir(char const *pszDomain);
 int USmlGetDomainCustomSpoolFile(QUEUE_HANDLE hQueue, QMSG_HANDLE hMessage,
 				 char *pszCustFilePath);
 int USmlGetUserCustomSpoolFile(QUEUE_HANDLE hQueue, QMSG_HANDLE hMessage, char *pszCustFilePath);
 int USmlGetDomainMsgCustomFile(SPLF_HANDLE hFSpool, QUEUE_HANDLE hQueue,
-			       QMSG_HANDLE hMessage, const char *pszDestDomain,
+			       QMSG_HANDLE hMessage, char const *pszDestDomain,
 			       char *pszCustFilePath);
-int USmlGetCustomDomainFile(const char *pszDestDomain, const char *pszCustFilePath);
-int USmlSetCustomDomainFile(const char *pszDestDomain, const char *pszCustFilePath);
-int USmlCustomizedDomain(const char *pszDestDomain);
-int USmlLogMessage(SPLF_HANDLE hFSpool, const char *pszMedium, const char *pszRmtMsgID,
-		   const char *pszParam);
-const char *USmlDotAtom(const char *pszStr, const char *pszTop);
-int USmlValidAddress(const char *pszAddress, const char *pszTop);
-int USmlValidHost(const char *pszHost, const char *pszTop);
-int USmlParseAddress(const char *pszAddress, char *pszPreAddr,
+int USmlGetCustomDomainFile(char const *pszDestDomain, char const *pszCustFilePath);
+int USmlSetCustomDomainFile(char const *pszDestDomain, char const *pszCustFilePath);
+int USmlCustomizedDomain(char const *pszDestDomain);
+int USmlLogMessage(SPLF_HANDLE hFSpool, char const *pszMedium, char const *pszRmtMsgID,
+		   char const *pszParam);
+char const *USmlDotAtom(char const *pszStr, char const *pszTop);
+int USmlValidAddress(char const *pszAddress, char const *pszTop);
+int USmlValidHost(char const *pszHost, char const *pszTop);
+int USmlParseAddress(char const *pszAddress, char *pszPreAddr,
 		     int iMaxPreAddress, char *pszEmailAddr, int iMaxAddress);
-int USmlDeliverFetchedMsg(const char *pszSyncAddr, const char *pszFetchHdrTags,
-			  const char *pszMailFile);
+int USmlDeliverFetchedMsg(char const *pszSyncAddr, char const *pszFetchHdrTags,
+			  char const *pszMailFile);
 int USmlMailLoopCheck(SPLF_HANDLE hFSpool, SVRCFG_HANDLE hSvrConfig);
 int USmlMessageAuth(SPLF_HANDLE hFSpool, char *pszAuthName, int iSize);
 

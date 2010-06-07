@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -306,6 +306,7 @@ static ErrorStrings Errors[] = {
 	{ ERR_SOCKET_SHUTDOWN, "Connection shutdown error" },
 	{ ERR_SSL_SHUTDOWN, "SSL connection shutdown error" },
 	{ ERR_TOO_MANY_ELEMENTS, "Too many elements" },
+	{ ERR_GET_RAND_BYTES, "Failed to retrieve entropy bytes" },
 
 };
 

@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -53,7 +53,6 @@ struct ADomainScanData {
 
 static int iIdxADomain_Alias[] = {
 	adomADomain,
-
 	INDEX_SEQUENCE_TERMINATOR
 };
 
@@ -243,7 +242,7 @@ int ADomRemoveADomain(char const *pszADomain)
 	char szTmpFile[SYS_MAX_PATH] = "";
 
 	ADomGetADomainFilePath(szADomainFilePath, sizeof(szADomainFilePath));
-	SysGetTmpFile(szTmpFile);
+	UsrGetTmpFile(NULL, szTmpFile, sizeof(szTmpFile));
 
 	char szResLock[SYS_MAX_PATH] = "";
 	RLCK_HANDLE hResLock = RLckLockEX(CfgGetBasedPath(szADomainFilePath, szResLock,
@@ -327,7 +326,7 @@ int ADomRemoveLinkedDomains(char const *pszDomain)
 	char szTmpFile[SYS_MAX_PATH] = "";
 
 	ADomGetADomainFilePath(szADomainFilePath, sizeof(szADomainFilePath));
-	SysGetTmpFile(szTmpFile);
+	UsrGetTmpFile(NULL, szTmpFile, sizeof(szTmpFile));
 
 	char szResLock[SYS_MAX_PATH] = "";
 	RLCK_HANDLE hResLock = RLckLockEX(CfgGetBasedPath(szADomainFilePath, szResLock,
@@ -434,7 +433,7 @@ ADOMAIN_HANDLE ADomOpenDB(void)
 	if (pDSD == NULL)
 		return INVALID_ADOMAIN_HANDLE;
 
-	SysGetTmpFile(pDSD->szTmpDBFile);
+	UsrGetTmpFile(NULL, pDSD->szTmpDBFile, sizeof(pDSD->szTmpDBFile));
 	if (ADomGetADomainFileSnapShot(pDSD->szTmpDBFile) < 0) {
 		CheckRemoveFile(pDSD->szTmpDBFile);
 		SysFree(pDSD);

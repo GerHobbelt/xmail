@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -232,7 +232,7 @@ static long SvrThreadCntCTRL(ThreadConfig const *pThCfg)
 
 	if (pCTRLCfg != NULL) {
 		lThreadCnt = pCTRLCfg->lThreadCount;
-		ShbUnlock(hShbCTRL);
+		ShbUnlock(pThCfg->hThShb);
 	}
 
 	return lThreadCnt;
@@ -440,7 +440,7 @@ static long SvrThreadCntFING(ThreadConfig const *pThCfg)
 
 	if (pFINGCfg != NULL) {
 		lThreadCnt = pFINGCfg->lThreadCount;
-		ShbUnlock(hShbFING);
+		ShbUnlock(pThCfg->hThShb);
 	}
 
 	return lThreadCnt;
@@ -558,7 +558,7 @@ static long SvrThreadCntPOP3(ThreadConfig const *pThCfg)
 
 	if (pPOP3Cfg != NULL) {
 		lThreadCnt = pPOP3Cfg->lThreadCount;
-		ShbUnlock(hShbPOP3);
+		ShbUnlock(pThCfg->hThShb);
 	}
 
 	return lThreadCnt;
@@ -779,7 +779,7 @@ static long SvrThreadCntSMTP(ThreadConfig const *pThCfg)
 
 	if (pSMTPCfg != NULL) {
 		lThreadCnt = pSMTPCfg->lThreadCount;
-		ShbUnlock(hShbSMTP);
+		ShbUnlock(pThCfg->hThShb);
 	}
 
 	return lThreadCnt;

@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -1428,7 +1428,7 @@ int UPopSyncRemoteLink(const char *pszSyncAddr, const char *pszRmtServer,
 	POP3SyncMsg *pSMsg;
 	char szMsgFileName[SYS_MAX_PATH] = "";
 
-	SysGetTmpFile(szMsgFileName);
+	MscSafeGetTmpFile(szMsgFileName, sizeof(szMsgFileName));
 
 	for (pPos = SYS_LIST_FIRST(&pPSChan->SyncMList); pPos != NULL;) {
 		pSMsg = SYS_LIST_ENTRY(pPos, POP3SyncMsg, LLnk);

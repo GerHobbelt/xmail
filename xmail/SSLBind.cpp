@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -49,26 +49,6 @@ struct SslBindCtx {
 	SSL_CTX *pSCtx;
 	SSL *pSSL;
 };
-
-
-static void BSslLockingCB(int iMode, int iType, const char *pszFile, int iLine);
-static void BSslThreadExit(void *pPrivate, SYS_THREAD ThreadID, int iMode);
-static void BSslFreeOSSL(void);
-static int BSslHandleAsync(SslBindCtx *pCtx, int iCode, int iDefError, int iTimeo);
-static int BSslReadLL(SslBindCtx *pCtx, void *pData, int iSize, int iTimeo);
-static int BSslWriteLL(SslBindCtx *pCtx, void const *pData, int iSize, int iTimeo);
-static int BSslShutdown(SslBindCtx *pCtx);
-static char const *BSslCtx__Name(void *pPrivate);
-static int BSslCtx__Free(void *pPrivate);
-static int BSslCtx__Read(void *pPrivate, void *pData, int iSize, int iTimeo);
-static int BSslCtx__Write(void *pPrivate, void const *pData, int iSize, int iTimeo);
-static int BSslCtx__SendFile(void *pPrivate, char const *pszFilePath, SYS_OFF_T llOffStart,
-			     SYS_OFF_T llOffEnd, int iTimeo);
-static int BSslAllocCtx(SslBindCtx **ppCtx, SYS_SOCKET SockFD, SSL_CTX *pSCtx, SSL *pSSL);
-static int BSslEnvExport(SSL_CTX *pSCtx, SSL *pSSL, X509 *pCert,
-			 int (*pfEnvCB)(void *, int, void const *), void *pPrivate);
-static int BSslCertVerifyCB(int iOK, X509_STORE_CTX *pXsCtx);
-static int BSslSetupVerify(SSL_CTX *pSCtx, SslServerBind const *pSSLB);
 
 
 static SYS_MUTEX *pSslMtxs;

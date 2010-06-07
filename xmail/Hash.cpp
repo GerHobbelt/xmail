@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -29,10 +29,7 @@
 #include "MiscUtils.h"
 #include "Hash.h"
 
-
-
 #define HMASK_TOP_BIT (1UL << (sizeof(long) * 8 - 1))
-
 
 struct Hash {
 	unsigned long ulCount;
@@ -40,11 +37,6 @@ struct Hash {
 	SysListHead *pBkts;
 	SysListHead NodeList;
 };
-
-
-
-static int HashGrow(Hash *pHash);
-
 
 
 HASH_HANDLE HashCreate(unsigned long ulSize) {
@@ -95,7 +87,6 @@ void HashFree(HASH_HANDLE hHash, void (*pfFree)(void *, HashNode *),
 }
 
 void HashInitNode(HashNode *pHNode) {
-
 	ZeroData(*pHNode);
 	SYS_INIT_LIST_HEAD(&pHNode->LLnk);
 	SYS_INIT_LIST_HEAD(&pHNode->HLnk);

@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -33,22 +33,6 @@
 #define WAIT_TIMEO_EXIT_STATUS      255
 #define WAIT_ERROR_EXIT_STATUS      254
 
-static int SysSetSignal(int iSigNo, void (*pSigProc) (int));
-static void SysIgnoreProc(int iSignal);
-static void SysRunThreadExitHooks(SYS_THREAD ThreadID, int iMode);
-static int SysSetSocketsOptions(SYS_SOCKET SockFD);
-static int SysFreeThreadData(ThrData *pTD);
-static void *SysThreadStartup(void *pThreadData);
-static int SysThreadSetup(ThrData *pTD);
-static void SysThreadCleanup(ThrData *pTD);
-static int SysSafeMsSleep(int iMsTimeout);
-static int SysWaitPID(pid_t PID, int *piExitCode, int iTimeout);
-static void SysBreakHandlerRoutine(int iSignal);
-static int SysSetupWait(WaitData *pWD);
-static int SysWait(WaitData *pWD, int iMsTimeout);
-static void SysCleanupWait(WaitData *pWD);
-static int SysWait(WaitData *pWD, int iMsTimeout);
-
 static int iNumThExitHooks;
 static volatile int iShutDown;
 static ThreadExitHook ThExitHooks[SYS_MAX_TH_EXIT_HOOKS];
@@ -66,6 +50,72 @@ static int SysSetSignal(int iSigNo, void (*pSigProc) (int))
 static void SysIgnoreProc(int iSignal)
 {
 	SysSetSignal(iSignal, SysIgnoreProc);
+}
+
+static void SysRunThreadExitHooks(SYS_THREAD ThreadID, int iMode)
+{
+	int i;
+
+	for (i = iNumThExitHooks - 1; i >= 0; i--)
+		(*ThExitHooks[i].pfHook)(ThExitHooks[i].pPrivate, ThreadID, iMode);
+}
+
+static int SysThreadSetup(ThrData *pTD)
+{
+	sigset_t SigMask;
+
+	sigemptyset(&SigMask);
+	sigaddset(&SigMask, SIGALRM);
+	sigaddset(&SigMask, SIGINT);
+	sigaddset(&SigMask, SIGHUP);
+	sigaddset(&SigMask, SIGSTOP);
+	sigaddset(&SigMask, SIGCHLD);
+
+	pthread_sigmask(SIG_BLOCK, &SigMask, NULL);
+
+	sigemptyset(&SigMask);
+	sigaddset(&SigMask, SIGQUIT);
+
+	pthread_sigmask(SIG_UNBLOCK, &SigMask, NULL);
+
+	SysSetSignal(SIGQUIT, SysIgnoreProc);
+	SysSetSignal(SIGPIPE, SysIgnoreProc);
+	SysSetSignal(SIGCHLD, SysIgnoreProc);
+
+	SysRunThreadExitHooks(pTD != NULL ? (SYS_THREAD) pTD: SYS_INVALID_THREAD,
+			      SYS_THREAD_ATTACH);
+
+	if (pTD != NULL) {
+
+	}
+
+	return 0;
+}
+
+static int SysFreeThreadData(ThrData *pTD)
+{
+	pthread_cond_destroy(&pTD->ExitWaitCond);
+	pthread_mutex_destroy(&pTD->Mtx);
+	SysFree(pTD);
+
+	return 0;
+}
+
+static void SysThreadCleanup(ThrData *pTD)
+{
+	SysRunThreadExitHooks(pTD != NULL ? (SYS_THREAD) pTD: SYS_INVALID_THREAD,
+			      SYS_THREAD_DETACH);
+
+	if (pTD != NULL) {
+		pthread_mutex_lock(&pTD->Mtx);
+		pTD->iThreadEnded = 1;
+		pthread_cond_broadcast(&pTD->ExitWaitCond);
+		if (--pTD->iUseCount == 0) {
+			pthread_mutex_unlock(&pTD->Mtx);
+			SysFreeThreadData(pTD);
+		} else
+			pthread_mutex_unlock(&pTD->Mtx);
+	}
 }
 
 int SysInitLibrary(void)
@@ -98,14 +148,6 @@ int SysAddThreadExitHook(void (*pfHook)(void *, SYS_THREAD, int), void *pPrivate
 	return 0;
 }
 
-static void SysRunThreadExitHooks(SYS_THREAD ThreadID, int iMode)
-{
-	int i;
-
-	for (i = iNumThExitHooks - 1; i >= 0; i--)
-		(*ThExitHooks[i].pfHook)(ThExitHooks[i].pPrivate, ThreadID, iMode);
-}
-
 int SysShutdownLibrary(int iMode)
 {
 	iShutDown++;
@@ -120,6 +162,45 @@ int SysSetupSocketBuffers(int *piSndBufSize, int *piRcvBufSize)
 		iSndBufSize = *piSndBufSize;
 	if (piRcvBufSize != NULL)
 		iRcvBufSize = *piRcvBufSize;
+
+	return 0;
+}
+
+static int SysSetSocketsOptions(SYS_SOCKET SockFD)
+{
+	/* Set socket buffer sizes */
+	if (iSndBufSize > 0) {
+		int iSize = iSndBufSize;
+
+		setsockopt((int) SockFD, SOL_SOCKET, SO_SNDBUF, (char const *) &iSize,
+			   sizeof(iSize));
+	}
+	if (iRcvBufSize > 0) {
+		int iSize = iRcvBufSize;
+
+		setsockopt((int) SockFD, SOL_SOCKET, SO_RCVBUF, (char const *) &iSize,
+			   sizeof(iSize));
+	}
+
+	int iActivate = 1;
+
+	if (setsockopt(SockFD, SOL_SOCKET, SO_REUSEADDR, (char const *) &iActivate,
+		       sizeof(iActivate)) != 0) {
+		ErrSetErrorCode(ERR_SETSOCKOPT);
+		return ERR_SETSOCKOPT;
+	}
+	/* Disable linger */
+	struct linger Ling;
+
+	ZeroData(Ling);
+	Ling.l_onoff = 0;
+	Ling.l_linger = 0;
+
+	setsockopt(SockFD, SOL_SOCKET, SO_LINGER, (char const *) &Ling, sizeof(Ling));
+
+	/* Set KEEPALIVE if supported */
+	setsockopt(SockFD, SOL_SOCKET, SO_KEEPALIVE, (char const *) &iActivate,
+		   sizeof(iActivate));
 
 	return 0;
 }
@@ -157,45 +238,6 @@ int SysBlockSocket(SYS_SOCKET SockFD, int iBlocking)
 		ErrSetErrorCode(ERR_NETWORK);
 		return ERR_NETWORK;
 	}
-
-	return 0;
-}
-
-static int SysSetSocketsOptions(SYS_SOCKET SockFD)
-{
-	/* Set socket buffer sizes */
-	if (iSndBufSize > 0) {
-		int iSize = iSndBufSize;
-
-		setsockopt((int) SockFD, SOL_SOCKET, SO_SNDBUF, (const char *) &iSize,
-			   sizeof(iSize));
-	}
-	if (iRcvBufSize > 0) {
-		int iSize = iRcvBufSize;
-
-		setsockopt((int) SockFD, SOL_SOCKET, SO_RCVBUF, (const char *) &iSize,
-			   sizeof(iSize));
-	}
-
-	int iActivate = 1;
-
-	if (setsockopt(SockFD, SOL_SOCKET, SO_REUSEADDR, (const char *) &iActivate,
-		       sizeof(iActivate)) != 0) {
-		ErrSetErrorCode(ERR_SETSOCKOPT);
-		return ERR_SETSOCKOPT;
-	}
-	/* Disable linger */
-	struct linger Ling;
-
-	ZeroData(Ling);
-	Ling.l_onoff = 0;
-	Ling.l_linger = 0;
-
-	setsockopt(SockFD, SOL_SOCKET, SO_LINGER, (const char *) &Ling, sizeof(Ling));
-
-	/* Set KEEPALIVE if supported */
-	setsockopt(SockFD, SOL_SOCKET, SO_KEEPALIVE, (const char *) &iActivate,
-		   sizeof(iActivate));
 
 	return 0;
 }
@@ -315,7 +357,7 @@ int SysRecvDataFrom(SYS_SOCKET SockFD, SYS_INET_ADDR *pFrom, char *pszBuffer,
 	return iRecvBytes;
 }
 
-int SysSendData(SYS_SOCKET SockFD, const char *pszBuffer, int iBufferSize, int iTimeout)
+int SysSendData(SYS_SOCKET SockFD, char const *pszBuffer, int iBufferSize, int iTimeout)
 {
 	struct pollfd pfds;
 
@@ -347,7 +389,7 @@ int SysSendData(SYS_SOCKET SockFD, const char *pszBuffer, int iBufferSize, int i
 	return iSendBytes;
 }
 
-int SysSend(SYS_SOCKET SockFD, const char *pszBuffer, int iBufferSize, int iTimeout)
+int SysSend(SYS_SOCKET SockFD, char const *pszBuffer, int iBufferSize, int iTimeout)
 {
 	int iRtxBytes = 0;
 
@@ -364,7 +406,7 @@ int SysSend(SYS_SOCKET SockFD, const char *pszBuffer, int iBufferSize, int iTime
 }
 
 int SysSendDataTo(SYS_SOCKET SockFD, const SYS_INET_ADDR *pTo,
-		  const char *pszBuffer, int iBufferSize, int iTimeout)
+		  char const *pszBuffer, int iBufferSize, int iTimeout)
 {
 	struct pollfd pfds;
 
@@ -496,7 +538,7 @@ int SysSelect(int iMaxFD, SYS_fd_set *pReadFDs, SYS_fd_set *pWriteFDs, SYS_fd_se
 	return iSelectResult;
 }
 
-int SysSendFileMMap(SYS_SOCKET SockFD, const char *pszFileName, SYS_OFF_T llBaseOffset,
+int SysSendFileMMap(SYS_SOCKET SockFD, char const *pszFileName, SYS_OFF_T llBaseOffset,
 		    SYS_OFF_T llEndOffset, int iTimeout)
 {
 	int iFileID = open(pszFileName, O_RDONLY);
@@ -559,7 +601,7 @@ int SysSendFileMMap(SYS_SOCKET SockFD, const char *pszFileName, SYS_OFF_T llBase
 
 #if !defined(SYS_HAS_SENDFILE)
 
-int SysSendFile(SYS_SOCKET SockFD, const char *pszFileName, SYS_OFF_T llBaseOffset,
+int SysSendFile(SYS_SOCKET SockFD, char const *pszFileName, SYS_OFF_T llBaseOffset,
 		SYS_OFF_T llEndOffset, int iTimeout)
 {
 	return SysSendFileMMap(SockFD, pszFileName, llBaseOffset, llEndOffset, iTimeout);
@@ -900,15 +942,6 @@ int SysTryWaitEvent(SYS_EVENT hEvent)
 	return 0;
 }
 
-static int SysFreeThreadData(ThrData *pTD)
-{
-	pthread_cond_destroy(&pTD->ExitWaitCond);
-	pthread_mutex_destroy(&pTD->Mtx);
-	SysFree(pTD);
-
-	return 0;
-}
-
 static void *SysThreadStartup(void *pThreadData)
 {
 	int iExitCode;
@@ -959,55 +992,6 @@ SYS_THREAD SysCreateThread(unsigned int (*pThreadProc) (void *), void *pThreadDa
 	pthread_attr_destroy(&ThrAttr);
 
 	return (SYS_THREAD) pTD;
-}
-
-static int SysThreadSetup(ThrData *pTD)
-{
-	sigset_t SigMask;
-
-	sigemptyset(&SigMask);
-	sigaddset(&SigMask, SIGALRM);
-	sigaddset(&SigMask, SIGINT);
-	sigaddset(&SigMask, SIGHUP);
-	sigaddset(&SigMask, SIGSTOP);
-	sigaddset(&SigMask, SIGCHLD);
-
-	pthread_sigmask(SIG_BLOCK, &SigMask, NULL);
-
-	sigemptyset(&SigMask);
-	sigaddset(&SigMask, SIGQUIT);
-
-	pthread_sigmask(SIG_UNBLOCK, &SigMask, NULL);
-
-	SysSetSignal(SIGQUIT, SysIgnoreProc);
-	SysSetSignal(SIGPIPE, SysIgnoreProc);
-	SysSetSignal(SIGCHLD, SysIgnoreProc);
-
-	SysRunThreadExitHooks(pTD != NULL ? (SYS_THREAD) pTD: SYS_INVALID_THREAD,
-			      SYS_THREAD_ATTACH);
-
-	if (pTD != NULL) {
-
-	}
-
-	return 0;
-}
-
-static void SysThreadCleanup(ThrData *pTD)
-{
-	SysRunThreadExitHooks(pTD != NULL ? (SYS_THREAD) pTD: SYS_INVALID_THREAD,
-			      SYS_THREAD_DETACH);
-
-	if (pTD != NULL) {
-		pthread_mutex_lock(&pTD->Mtx);
-		pTD->iThreadEnded = 1;
-		pthread_cond_broadcast(&pTD->ExitWaitCond);
-		if (--pTD->iUseCount == 0) {
-			pthread_mutex_unlock(&pTD->Mtx);
-			SysFreeThreadData(pTD);
-		} else
-			pthread_mutex_unlock(&pTD->Mtx);
-	}
 }
 
 void SysCloseThread(SYS_THREAD ThreadID, int iForce)
@@ -1102,7 +1086,7 @@ static int SysWaitPID(pid_t PID, int *piExitCode, int iTimeout)
 	return 0;
 }
 
-int SysExec(const char *pszCommand, const char *const *pszArgs, int iWaitTimeout,
+int SysExec(char const *pszCommand, char const *const *pszArgs, int iWaitTimeout,
 	    int iPriority, int *piExitStatus)
 {
 	int iExitStatus;
@@ -1250,6 +1234,11 @@ void SysSetBreakHandler(void (*BreakHandler) (void))
 
 }
 
+unsigned long SysGetCurrentProcessId(void)
+{
+	return getpid();
+}
+
 int SysCreateTlsKey(SYS_TLSKEY &TlsKey, void (*pFreeProc) (void *))
 {
 	if (pthread_key_create(&TlsKey, pFreeProc) != 0) {
@@ -1322,7 +1311,7 @@ void *SysRealloc(void *pData, unsigned int uSize)
 	return pNewData;
 }
 
-int SysLockFile(const char *pszFileName, const char *pszLockExt)
+int SysLockFile(char const *pszFileName, char const *pszLockExt)
 {
 	int iFileID;
 	char szLockFile[SYS_MAX_PATH] = "";
@@ -1343,7 +1332,7 @@ int SysLockFile(const char *pszFileName, const char *pszLockExt)
 	return 0;
 }
 
-int SysUnlockFile(const char *pszFileName, const char *pszLockExt)
+int SysUnlockFile(char const *pszFileName, char const *pszLockExt)
 {
 	char szLockFile[SYS_MAX_PATH] = "";
 
@@ -1356,7 +1345,7 @@ int SysUnlockFile(const char *pszFileName, const char *pszLockExt)
 	return 0;
 }
 
-SYS_HANDLE SysOpenModule(const char *pszFilePath)
+SYS_HANDLE SysOpenModule(char const *pszFilePath)
 {
 	void *pModule = dlopen(pszFilePath, RTLD_LAZY);
 
@@ -1375,7 +1364,7 @@ int SysCloseModule(SYS_HANDLE hModule)
 	return 0;
 }
 
-void *SysGetSymbol(SYS_HANDLE hModule, const char *pszSymbol)
+void *SysGetSymbol(SYS_HANDLE hModule, char const *pszSymbol)
 {
 	void *pSymbol = dlsym((void *) hModule, pszSymbol);
 
@@ -1387,7 +1376,7 @@ void *SysGetSymbol(SYS_HANDLE hModule, const char *pszSymbol)
 	return pSymbol;
 }
 
-int SysEventLogV(int iLogLevel, const char *pszFormat, va_list Args)
+int SysEventLogV(int iLogLevel, char const *pszFormat, va_list Args)
 {
 	openlog(APP_NAME_STR, LOG_PID | LOG_CONS, LOG_DAEMON);
 
@@ -1402,7 +1391,7 @@ int SysEventLogV(int iLogLevel, const char *pszFormat, va_list Args)
 	return 0;
 }
 
-int SysEventLog(int iLogLevel, const char *pszFormat, ...)
+int SysEventLog(int iLogLevel, char const *pszFormat, ...)
 {
 	va_list Args;
 
@@ -1415,7 +1404,7 @@ int SysEventLog(int iLogLevel, const char *pszFormat, ...)
 	return 0;
 }
 
-int SysLogMessage(int iLogLevel, const char *pszFormat, ...)
+int SysLogMessage(int iLogLevel, char const *pszFormat, ...)
 {
 	extern bool bServerDebug;
 
@@ -1518,27 +1507,27 @@ SYS_INT64 SysMsTime(void)
 	return 1000 * (SYS_INT64) tv.tv_sec + (SYS_INT64) tv.tv_usec / 1000;
 }
 
-int SysExistFile(const char *pszFilePath)
+int SysExistFile(char const *pszFilePath)
 {
 	struct stat FStat;
 
 	if (stat(pszFilePath, &FStat) != 0)
 		return 0;
 
-	return (S_ISDIR(FStat.st_mode)) ? 0: 1;
+	return S_ISDIR(FStat.st_mode) ? 0: 1;
 }
 
-int SysExistDir(const char *pszDirPath)
+int SysExistDir(char const *pszDirPath)
 {
 	struct stat FStat;
 
 	if (stat(pszDirPath, &FStat) != 0)
 		return 0;
 
-	return (S_ISDIR(FStat.st_mode)) ? 1: 0;
+	return S_ISDIR(FStat.st_mode) ? 1: 0;
 }
 
-SYS_HANDLE SysFirstFile(const char *pszPath, char *pszFileName, int iSize)
+SYS_HANDLE SysFirstFile(char const *pszPath, char *pszFileName, int iSize)
 {
 	DIR *pDIR = opendir(pszPath);
 
@@ -1551,13 +1540,9 @@ SYS_HANDLE SysFirstFile(const char *pszPath, char *pszFileName, int iSize)
 	struct dirent *pDirEntry = NULL;
 
 #if (_POSIX_C_SOURCE - 0 >= 199506L) || defined(_POSIX_PTHREAD_SEMANTICS)
-
 	readdir_r(pDIR, &FDE.DE, &pDirEntry);
-
 #else
-
 	pDirEntry = readdir_r(pDIR, &FDE.DE);
-
 #endif
 
 	if (pDirEntry == NULL) {
@@ -1614,13 +1599,9 @@ int SysNextFile(SYS_HANDLE hFind, char *pszFileName, int iSize)
 	struct dirent *pDirEntry = NULL;
 
 #if (_POSIX_C_SOURCE - 0 >= 199506L) || defined(_POSIX_PTHREAD_SEMANTICS)
-
 	readdir_r(pFFD->pDIR, &pFFD->FDE.DE, &pDirEntry);
-
 #else
-
 	pDirEntry = readdir_r(pFFD->pDIR, &pFFD->FDE.DE);
-
 #endif
 
 	if (pDirEntry == NULL)
@@ -1630,7 +1611,8 @@ int SysNextFile(SYS_HANDLE hFind, char *pszFileName, int iSize)
 
 	char szFilePath[SYS_MAX_PATH] = "";
 
-	snprintf(szFilePath, sizeof(szFilePath) - 1, "%s%s", pFFD->szPath, pFFD->FDE.DE.d_name);
+	snprintf(szFilePath, sizeof(szFilePath) - 1, "%s%s", pFFD->szPath,
+		 pFFD->FDE.DE.d_name);
 	if (stat(szFilePath, &pFFD->FStat) != 0) {
 		ErrSetErrorCode(ERR_STAT);
 		return 0;
@@ -1647,7 +1629,7 @@ void SysFindClose(SYS_HANDLE hFind)
 	SysFree(pFFD);
 }
 
-int SysGetFileInfo(const char *pszFileName, SYS_FILE_INFO &FI)
+int SysGetFileInfo(char const *pszFileName, SYS_FILE_INFO &FI)
 {
 	struct stat stat_buffer;
 
@@ -1666,7 +1648,7 @@ int SysGetFileInfo(const char *pszFileName, SYS_FILE_INFO &FI)
 	return 0;
 }
 
-int SysSetFileModTime(const char *pszFileName, time_t tMod)
+int SysSetFileModTime(char const *pszFileName, time_t tMod)
 {
 	struct utimbuf TMB;
 
@@ -1680,7 +1662,7 @@ int SysSetFileModTime(const char *pszFileName, time_t tMod)
 	return 0;
 }
 
-char *SysStrDup(const char *pszString)
+char *SysStrDup(char const *pszString)
 {
 	int iStrLength = strlen(pszString);
 	char *pszBuffer = (char *) SysAllocNZ(iStrLength + 1);
@@ -1691,30 +1673,26 @@ char *SysStrDup(const char *pszString)
 	return pszBuffer;
 }
 
-char *SysGetEnv(const char *pszVarName)
+char *SysGetEnv(char const *pszVarName)
 {
-	const char *pszValue = getenv(pszVarName);
+	char const *pszValue = getenv(pszVarName);
 
 	return (pszValue != NULL) ? SysStrDup(pszValue): NULL;
 }
 
-char *SysGetTmpFile(char *pszFileName)
+char *SysGetTempDir(char *pszPath, int iMaxPath)
 {
-	unsigned long ulThreadID = SysGetCurrentThreadId(), ulFileID;
-	static unsigned long ulFileSeqNr = 0;
-	static pthread_mutex_t TmpFMutex = PTHREAD_MUTEX_INITIALIZER;
+	char const *pszEnv;
 
-	pthread_mutex_lock(&TmpFMutex);
-	ulFileID = ++ulFileSeqNr;
-	pthread_mutex_unlock(&TmpFMutex);
+	if ((pszEnv = getenv("XMAIL_TEMP")) == NULL)
+		pszEnv = "/tmp/";
+	StrNCpy(pszPath, pszEnv, iMaxPath - 1);
+	AppendSlash(pszPath);
 
-	SysSNPrintf(pszFileName, SYS_MAX_PATH - 1, "/tmp/msrv%lx.%lx.tmp", ulThreadID,
-		    ulFileID);
-
-	return pszFileName;
+	return pszPath;
 }
 
-int SysRemove(const char *pszFileName)
+int SysRemove(char const *pszFileName)
 {
 	if (unlink(pszFileName) != 0) {
 		ErrSetErrorCode(ERR_FILE_DELETE);
@@ -1724,7 +1702,7 @@ int SysRemove(const char *pszFileName)
 	return 0;
 }
 
-int SysMakeDir(const char *pszPath)
+int SysMakeDir(char const *pszPath)
 {
 	if (mkdir(pszPath, 0700) != 0) {
 		ErrSetErrorCode(ERR_DIR_CREATE);
@@ -1734,7 +1712,7 @@ int SysMakeDir(const char *pszPath)
 	return 0;
 }
 
-int SysRemoveDir(const char *pszPath)
+int SysRemoveDir(char const *pszPath)
 {
 	if (rmdir(pszPath) != 0) {
 		ErrSetErrorCode(ERR_DIR_DELETE);
@@ -1744,7 +1722,7 @@ int SysRemoveDir(const char *pszPath)
 	return 0;
 }
 
-int SysMoveFile(const char *pszOldName, const char *pszNewName)
+int SysMoveFile(char const *pszOldName, char const *pszNewName)
 {
 	if (rename(pszOldName, pszNewName) != 0) {
 		ErrSetErrorCode(ERR_FILE_MOVE);
@@ -1754,7 +1732,7 @@ int SysMoveFile(const char *pszOldName, const char *pszNewName)
 	return 0;
 }
 
-int SysVSNPrintf(char *pszBuffer, int iSize, const char *pszFormat, va_list Args)
+int SysVSNPrintf(char *pszBuffer, int iSize, char const *pszFormat, va_list Args)
 {
 	int iPrintResult = vsnprintf(pszBuffer, iSize, pszFormat, Args);
 
@@ -1771,7 +1749,7 @@ int SysFileSync(FILE *pFile)
 	return 0;
 }
 
-char *SysStrTok(char *pszData, const char *pszDelim, char **ppszSavePtr)
+char *SysStrTok(char *pszData, char const *pszDelim, char **ppszSavePtr)
 {
 	return strtok_r(pszData, pszDelim, ppszSavePtr);
 }
@@ -1779,10 +1757,8 @@ char *SysStrTok(char *pszData, const char *pszDelim, char **ppszSavePtr)
 char *SysCTime(time_t *pTimer, char *pszBuffer, int iBufferSize)
 {
 #if (_POSIX_C_SOURCE - 0 >= 199506L) || defined(_POSIX_PTHREAD_SEMANTICS)
-
 	return ctime_r(pTimer, pszBuffer);
 #else
-
 	return ctime_r(pTimer, pszBuffer, iBufferSize);
 #endif
 }
@@ -1800,10 +1776,8 @@ struct tm *SysGMTime(time_t *pTimer, struct tm *pTStruct)
 char *SysAscTime(struct tm *pTStruct, char *pszBuffer, int iBufferSize)
 {
 #if (_POSIX_C_SOURCE - 0 >= 199506L) || defined(_POSIX_PTHREAD_SEMANTICS)
-
 	return asctime_r(pTStruct, pszBuffer);
 #else
-
 	return asctime_r(pTStruct, pszBuffer, iBufferSize);
 #endif
 }
@@ -1815,10 +1789,10 @@ long SysGetDayLight(void)
 
 	localtime_r(&tCurr, &tmCurr);
 
-	return (long) ((tmCurr.tm_isdst <= 0) ? 0: 3600);
+	return (tmCurr.tm_isdst <= 0) ? 0: 3600;
 }
 
-SYS_MMAP SysCreateMMap(const char *pszFileName, unsigned long ulFlags)
+SYS_MMAP SysCreateMMap(char const *pszFileName, unsigned long ulFlags)
 {
 	int iFD = open(pszFileName, (ulFlags & SYS_MMAP_WRITE) ? O_RDWR: O_RDONLY);
 

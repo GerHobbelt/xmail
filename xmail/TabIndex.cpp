@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -74,17 +74,6 @@ struct IndexLookupData {
 	long lHTblI;
 };
 
-static int TbixCalcHashSize(FILE *pTabFile, char *pszLineBuffer, int iBufferSize);
-static int TbixFreeHash(HashNode *pHash, int iHashSize);
-static int TbixBuildKey(char *pszKey, va_list Args, bool bCaseSens);
-static int TbixBuildKey(char *pszKey, char const *const *ppszTabTokens,
-			int const *piFieldsIdx, bool bCaseSens);
-static TabIdxUINT TbixHashData(char const *pData, long lSize);
-static int TbixOpenIndex(char const *pszIndexFile, TabHashIndex &THI);
-static int TbixCloseIndex(TabHashIndex &THI);
-static int TbixCheckIndex(char const *pszIndexFile);
-static TabIdxUINT *TbixReadTable(TabHashIndex &THI, TabIdxUINT uHashVal);
-static char **TbixLoadRecord(FILE *pTabFile, TabIdxUINT uOffset);
 
 static int TbixCalcHashSize(FILE *pTabFile, char *pszLineBuffer, int iBufferSize)
 {
@@ -476,6 +465,22 @@ static TabIdxUINT *TbixReadTable(TabHashIndex &THI, TabIdxUINT uHashVal)
 	return pOffTable;
 }
 
+static char **TbixLoadRecord(FILE *pTabFile, TabIdxUINT uOffset)
+{
+	char szLineBuffer[TAB_RECORD_BUFFER_SIZE] = "";
+
+	if (fseek(pTabFile, uOffset, SEEK_SET) != 0) {
+		ErrSetErrorCode(ERR_BAD_INDEX_FILE);
+		return NULL;
+	}
+	if (MscGetString(pTabFile, szLineBuffer, sizeof(szLineBuffer) - 1) == NULL) {
+		ErrSetErrorCode(ERR_FILE_READ);
+		return NULL;
+	}
+
+	return StrGetTabLineStrings(szLineBuffer);
+}
+
 char **TbixLookup(char const *pszTabFilePath, int const *piFieldsIdx, bool bCaseSens, ...)
 {
 	/* Build index file name */
@@ -551,22 +556,6 @@ char **TbixLookup(char const *pszTabFilePath, int const *piFieldsIdx, bool bCase
 	ErrSetErrorCode(ERR_RECORD_NOT_FOUND);
 
 	return NULL;
-}
-
-static char **TbixLoadRecord(FILE *pTabFile, TabIdxUINT uOffset)
-{
-	char szLineBuffer[TAB_RECORD_BUFFER_SIZE] = "";
-
-	if (fseek(pTabFile, uOffset, SEEK_SET) != 0) {
-		ErrSetErrorCode(ERR_BAD_INDEX_FILE);
-		return NULL;
-	}
-	if (MscGetString(pTabFile, szLineBuffer, sizeof(szLineBuffer) - 1) == NULL) {
-		ErrSetErrorCode(ERR_FILE_READ);
-		return NULL;
-	}
-
-	return StrGetTabLineStrings(szLineBuffer);
 }
 
 int TbixCheckIndex(char const *pszTabFilePath, int const *piFieldsIdx, bool bCaseSens,

@@ -108,6 +108,7 @@ XMAIL_OBJS= \
 	"$(OUTDIR)\SSLConfig.obj" \
 	"$(OUTDIR)\Hash.obj" \
 	"$(OUTDIR)\Array.obj" \
+	"$(OUTDIR)\SSLMisc.obj" \
 
 XMCRYPT_TARGET=XMCrypt
 XMCRYPT_OBJS= \
@@ -129,6 +130,7 @@ CTRLCLNT_OBJS= \
 	"$(OUTDIR)\SysDepWin.obj" \
 	"$(OUTDIR)\SysDepCommon.obj" \
 	"$(OUTDIR)\SSLBind.obj" \
+	"$(OUTDIR)\SSLMisc.obj" \
 
 SENDMAIL_TARGET=SendMail
 SENDMAIL_OBJS= \

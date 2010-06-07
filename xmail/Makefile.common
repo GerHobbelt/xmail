@@ -52,20 +52,20 @@ SVRSRCS = $(MAINSRC) $(SYSSRCS) SysDepCommon.cpp BuffSock.cpp CTRLSvr.cpp DNS.cp
 	MiscUtils.cpp LMAILSvr.cpp AliasDomain.cpp POP3GwLink.cpp POP3Svr.cpp POP3Utils.cpp PSYNCSvr.cpp \
 	ResLocks.cpp SList.cpp SMAILSvr.cpp TabIndex.cpp SMAILUtils.cpp SMTPSvr.cpp SMTPUtils.cpp \
 	ShBlocks.cpp StrUtils.cpp MessQueue.cpp QueueUtils.cpp SvrUtils.cpp UsrMailList.cpp UsrAuth.cpp \
-	UsrUtils.cpp Base64Enc.cpp Filter.cpp SSLBind.cpp SSLConfig.cpp Hash.cpp Array.cpp
+	UsrUtils.cpp Base64Enc.cpp Filter.cpp SSLBind.cpp SSLConfig.cpp Hash.cpp Array.cpp SSLMisc.cpp
 
 SVROBJS = $(MAINOBJ) $(SYSOBJS) SysDepCommon.o BuffSock.o CTRLSvr.o DNS.o DNSCache.o Errors.o ExtAliases.o \
 	FINGSvr.o MailConfig.o MailSvr.o Maildir.o MailDomains.o MD5.o MiscUtils.o LMAILSvr.o \
 	AliasDomain.o POP3GwLink.o POP3Svr.o POP3Utils.o PSYNCSvr.o ResLocks.o SList.o SMAILSvr.o \
 	TabIndex.o SMAILUtils.o SMTPSvr.o SMTPUtils.o ShBlocks.o StrUtils.o MessQueue.o \
 	QueueUtils.o SvrUtils.o UsrMailList.o UsrAuth.o UsrUtils.o Base64Enc.o \
-	Filter.o SSLBind.o SSLConfig.o Hash.o Array.o
+	Filter.o SSLBind.o SSLConfig.o Hash.o Array.o SSLMisc.o
 
 CCLNSRCS = $(SYSSRCS) SysDepCommon.cpp Base64Enc.cpp BuffSock.cpp StrUtils.cpp MD5.cpp MiscUtils.cpp \
-	CTRLClient.cpp Errors.cpp SSLBind.cpp
+	CTRLClient.cpp Errors.cpp SSLBind.cpp SSLMisc.cpp
 
 CCLNOBJS = $(SYSOBJS) SysDepCommon.o Base64Enc.o BuffSock.o StrUtils.o MD5.o MiscUtils.o CTRLClient.o \
-	Errors.o SSLBind.o
+	Errors.o SSLBind.o SSLMisc.o
 
 XMCSRCS = XMCrypt.cpp
 

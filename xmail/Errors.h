@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -819,6 +819,9 @@ enum XMailErrors {
 
 	__ERR_TOO_MANY_ELEMENTS,
 #define ERR_TOO_MANY_ELEMENTS (-__ERR_TOO_MANY_ELEMENTS)
+
+	__ERR_GET_RAND_BYTES,
+#define ERR_GET_RAND_BYTES (-__ERR_GET_RAND_BYTES)
 
 	ERROR_COUNT
 };

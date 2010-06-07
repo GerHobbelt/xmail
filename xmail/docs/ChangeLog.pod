@@ -13,6 +13,22 @@ XMail Change Log as of Version 1.27
 
 =item *
 
+Fixed SMTP explicit routing address parsing.
+
+=item *
+
+Tweaked DNS resolution to cope with lame name servers.
+
+=item *
+
+Safer temporary file name generation.
+
+=item *
+
+Made the temporary directory on Unix, configurable via the "XMAIL_TEMP" environment variable.
+
+=item *
+
 Fixed a bug that was caused by the SSL code triggering the XMail binding locking code
 after XMail has already cleanup.
 

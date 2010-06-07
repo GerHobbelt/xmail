@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -103,14 +103,12 @@ static int UsrAliasLookupNameLK(const char *pszAlsFilePath, const char *pszDomai
 static int iIdxUser_Domain_Name[] = {
 	usrDomain,
 	usrName,
-
 	INDEX_SEQUENCE_TERMINATOR
 };
 
 static int iIdxAlias_Domain_Alias[] = {
 	alsDomain,
 	alsAlias,
-
 	INDEX_SEQUENCE_TERMINATOR
 };
 
@@ -763,7 +761,7 @@ int UsrRemoveAlias(const char *pszDomain, const char *pszAlias)
 
 	char szTmpFile[SYS_MAX_PATH] = "";
 
-	SysGetTmpFile(szTmpFile);
+	UsrGetTmpFile(NULL, szTmpFile, sizeof(szTmpFile));
 
 	char szResLock[SYS_MAX_PATH] = "";
 	RLCK_HANDLE hResLock = RLckLockEX(CfgGetBasedPath(szAlsFilePath, szResLock,
@@ -851,7 +849,7 @@ int UsrRemoveDomainAliases(const char *pszDomain)
 
 	char szTmpFile[SYS_MAX_PATH] = "";
 
-	SysGetTmpFile(szTmpFile);
+	UsrGetTmpFile(NULL, szTmpFile, sizeof(szTmpFile));
 
 	char szResLock[SYS_MAX_PATH] = "";
 	RLCK_HANDLE hResLock = RLckLockEX(CfgGetBasedPath(szAlsFilePath, szResLock,
@@ -937,7 +935,7 @@ static int UsrRemoveUserAlias(const char *pszDomain, const char *pszName)
 
 	char szTmpFile[SYS_MAX_PATH] = "";
 
-	SysGetTmpFile(szTmpFile);
+	UsrGetTmpFile(NULL, szTmpFile, sizeof(szTmpFile));
 
 	char szResLock[SYS_MAX_PATH] = "";
 	RLCK_HANDLE hResLock = RLckLockEX(CfgGetBasedPath(szAlsFilePath, szResLock,
@@ -1213,7 +1211,7 @@ int UsrRemoveUser(const char *pszDomain, const char *pszName, unsigned int uUser
 
 	char szTmpFile[SYS_MAX_PATH] = "";
 
-	SysGetTmpFile(szTmpFile);
+	UsrGetTmpFile(NULL, szTmpFile, sizeof(szTmpFile));
 
 	char szResLock[SYS_MAX_PATH] = "";
 	RLCK_HANDLE hResLock = RLckLockEX(CfgGetBasedPath(szUsrFilePath, szResLock,
@@ -1317,7 +1315,7 @@ int UsrModifyUser(UserInfo *pUI)
 
 	char szTmpFile[SYS_MAX_PATH] = "";
 
-	SysGetTmpFile(szTmpFile);
+	UsrGetTmpFile(NULL, szTmpFile, sizeof(szTmpFile));
 
 	char szResLock[SYS_MAX_PATH] = "";
 	RLCK_HANDLE hResLock = RLckLockEX(CfgGetBasedPath(szUsrFilePath, szResLock,
@@ -1420,7 +1418,7 @@ int UsrRemoveDomainUsers(const char *pszDomain)
 
 	char szTmpFile[SYS_MAX_PATH] = "";
 
-	SysGetTmpFile(szTmpFile);
+	UsrGetTmpFile(NULL, szTmpFile, sizeof(szTmpFile));
 
 	char szResLock[SYS_MAX_PATH] = "";
 	RLCK_HANDLE hResLock = RLckLockEX(CfgGetBasedPath(szUsrFilePath, szResLock,
@@ -1742,7 +1740,7 @@ USRF_HANDLE UsrOpenDB(void)
 	if (pUDBSD == NULL)
 		return INVALID_USRF_HANDLE;
 
-	SysGetTmpFile(pUDBSD->szTmpDBFile);
+	UsrGetTmpFile(NULL, pUDBSD->szTmpDBFile, sizeof(pUDBSD->szTmpDBFile));
 
 	if (UsrGetDBFileSnapShot(pUDBSD->szTmpDBFile) < 0) {
 		SysFree(pUDBSD);
@@ -1868,7 +1866,7 @@ int UsrClearPop3LocksDir(void)
  * This function is intended to create a temporary file name so that
  * a system move (rename) of such file into a user mailbox (or private directory)
  * will succeed. Since the system temporary directory may be on another
- * mount (or drive:), this is required insted of SysGetTmpFile().
+ * mount (or drive:), this is required insted of MscSafeGetTmpFile().
  * If the DOMAIN private directory exists, the temporary file will be
  * generated inside there, otherwise inside the XMail temporary directory.
  */
@@ -2095,7 +2093,7 @@ ALSF_HANDLE UsrAliasOpenDB(void)
 	if (pADBSD == NULL)
 		return INVALID_ALSF_HANDLE;
 
-	SysGetTmpFile(pADBSD->szTmpDBFile);
+	UsrGetTmpFile(NULL, pADBSD->szTmpDBFile, sizeof(pADBSD->szTmpDBFile));
 	if (UsrGetAliasDBFileSnapShot(pADBSD->szTmpDBFile) < 0) {
 		SysFree(pADBSD);
 		return INVALID_ALSF_HANDLE;

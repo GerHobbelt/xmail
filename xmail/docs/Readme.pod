@@ -417,53 +417,60 @@ Copy XMail executables to  /var/MailRoot/bin.
 
 =item 7.
 
-If you have 'B<inetd>' installed, comment out the lines of 'B</etc/inetd.conf>'
-that involve SMTP, POP3, and Finger. Restart 'B<inetd>' (kill -HUP ...).
+Optionally, you can setup a dedicated temporary files directory for XMail, by
+setting the environment variable XMAIL_TEMP, which defaults to /tmp/.
+XMail uses such directory when it has to create files that must be accessible to
+external programs like filters.
 
 =item 8.
 
-Since XMail uses syslog to log messages, enable syslogd if it's not running.
+If you have 'B<inetd>' installed, comment out the lines of 'B</etc/inetd.conf>'
+that involve SMTP, POP3, and Finger. Restart 'B<inetd>' (kill -HUP ...).
 
 =item 9.
+
+Since XMail uses syslog to log messages, enable syslogd if it's not running.
+
+=item 10.
 
 Setup the 'B<SERVER.TAB>' configuration file (after reading the rest of this
 document well).
 
-=item 10.
+=item 11.
 
 Add your users and domains (after reading the rest of this
 document well).
 
-=item 11.
+=item 12.
 
 Change or comment out (#) the example account in 'B<ctrlaccounts.tab>' by using
 a non-trivial username and password.
 
-=item 12.
+=item 13.
 
 Copy  the xmail startup script to your init.d directory
 (it's position depends on your distro).
 If you've setup XMail to work in a subdirectory other than 'B</var/MailRoot>' you
 must edit the xmail startup script to customize its boot parameters.
 
-=item 13.
+=item 14.
 
 Use the 'B<sysv_inst.sh>' shell script (from root user) to create SysV boot script -
 unless your distro has other tools to do this.
 
-=item 14.
+=item 15.
 
 To start XMail without reboot you can run (from root):
  /etc/rc.d/init.d/xmail start
 otherwise reboot your machine.
 
-=item 15.
+=item 16.
 
 Setup the file 'B<smtprelay.tab>' if you want to extend mail relaying to IPs outside
 of the internet's private IP blocks (or you want to deny even those - that comes enabled by
 default with XMail).
 
-=item 16
+=item 17
 
 Look at [L<SSL CONFIGURATION|"SSL CONFIGURATION">] for information about how to
 create the required 'B<server.key>' and 'B<server.cert>' files.
@@ -501,6 +508,8 @@ Copy XMail executables to 'B<C:\MailRoot\bin>'. Also copy the OpenSSL DLLs locat
 
 With 'B<regedit>', create 'B<GNU>' key inside 'B<HKEY_LOCAL_MACHINE\SOFTWARE\>' and then 'B<XMail>'
 key inside 'B<HKEY_LOCAL_MACHINE\SOFTWARE\GNU>'.
+Note: If you are using a 32bit binary with a 64bit Windows, replace 'B<HKEY_LOCAL_MACHINE\SOFTWARE\>' with
+'B<HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\>' here, and in the points below.
 
 =item 6.
 
@@ -717,69 +726,69 @@ The following sections explain each file's structure and use.
 
 =over 4
 
-=item L<"ALIASES.TAB">
+=item L<"ALIASES.TAB file"|"ALIASES.TAB">
 
-=item L<"ALIASDOMAIN.TAB">
+=item L<"ALIASDOMAIN.TAB file"|"ALIASDOMAIN.TAB">
 
-=item L<"DOMAINS.TAB">
+=item L<"DOMAINS.TAB file"|"DOMAINS.TAB">
 
-=item L<"DNSROOTS">
+=item L<"DNSROOTS file"|"DNSROOTS">
 
-=item L<"EXTALIASES.TAB">
+=item L<"EXTALIASES.TAB file"|"EXTALIASES.TAB">
 
-=item L<"MAILUSERS.TAB">
+=item L<"MAILUSERS.TAB file"|"MAILUSERS.TAB">
 
-=item L<"MESSAGE.ID">
+=item L<"MESSAGE.ID file"|"MESSAGE.ID">
 
-=item L<"POP3LINKS.TAB">
+=item L<"POP3LINKS.TAB file"|"POP3LINKS.TAB">
 
-=item L<"SERVER.TAB">
+=item L<"SERVER.TAB file"|"SERVER.TAB">
 
-=item L<"SMTPGW.TAB">
+=item L<"SMTPGW.TAB file"|"SMTPGW.TAB">
 
-=item L<"SMTPFWD.TAB">
+=item L<"SMTPFWD.TAB file"|"SMTPFWD.TAB">
 
-=item L<"SMTPRELAY.TAB">
+=item L<"SMTPRELAY.TAB file"|"SMTPRELAY.TAB">
 
-=item L<"SMTPAUTH.TAB">
+=item L<"SMTPAUTH.TAB file"|"SMTPAUTH.TAB">
 
-=item L<"SMTPEXTAUTH.TAB">
+=item L<"SMTPEXTAUTH.TAB file"|"SMTPEXTAUTH.TAB">
 
-=item L<"USERDEF.TAB">
+=item L<"USERDEF.TAB file"|"USERDEF.TAB">
 
-=item L<"CTRLACCOUNTS.TAB">
+=item L<"CTRLACCOUNTS.TAB file"|"CTRLACCOUNTS.TAB">
 
-=item L<"SPAMMERS.TAB">
+=item L<"SPAMMERS.TAB file"|"SPAMMERS.TAB">
 
-=item L<"SPAM-ADDRESS.TAB">
+=item L<"SPAM-ADDRESS.TAB file"|"SPAM-ADDRESS.TAB">
 
-=item L<"POP3.IPMAP.TAB">
+=item L<"POP3.IPMAP.TAB file"|"POP3.IPMAP.TAB">
 
-=item L<"SMTP.IPMAP.TAB">
+=item L<"SMTP.IPMAP.TAB file"|"SMTP.IPMAP.TAB">
 
-=item L<"CTRL.IPMAP.TAB">
+=item L<"CTRL.IPMAP.TAB file"|"CTRL.IPMAP.TAB">
 
-=item L<"FINGER.IPMAP.TAB">
+=item L<"FINGER.IPMAP.TAB file"|"FINGER.IPMAP.TAB">
 
-=item L<"USER.TAB">
+=item L<"USER.TAB file"|"USER.TAB">
 
-=item L<"MLUSERS.TAB">
+=item L<"MLUSERS.TAB file"|"MLUSERS.TAB">
 
-=item L<"MAILPROC.TAB">
+=item L<"MAILPROC.TAB file"|"MAILPROC.TAB">
 
-=item L<"SMTP.IPPROP.TAB">
+=item L<"SMTP.IPPROP.TAB file"|"SMTP.IPPROP.TAB">
 
-=item L<"SMTP.HNPROP.TAB">
+=item L<"SMTP.HNPROP.TAB file"|"SMTP.HNPROP.TAB">
 
-=item L<"FILTERS.IN.TAB">
+=item L<"FILTERS.IN.TAB file"|"FILTERS.IN.TAB">
 
-=item L<"FILTERS.OUT.TAB">
+=item L<"FILTERS.OUT.TAB file"|"FILTERS.OUT.TAB">
 
-=item L<"FILTERS.POST-RCPT.TAB">
+=item L<"FILTERS.POST-RCPT.TAB file"|"FILTERS.POST-RCPT.TAB">
 
-=item L<"FILTERS.PRE-DATA.TAB">
+=item L<"FILTERS.PRE-DATA.TAB file"|"FILTERS.PRE-DATA.TAB">
 
-=item L<"FILTERS.POST-DATA.TAB">
+=item L<"FILTERS.POST-DATA.TAB file"|"FILTERS.POST-DATA.TAB">
 
 =back end html
 
@@ -2979,6 +2988,8 @@ certificate with:
 
   C:> openssl req -new -x509 -key server.key -out server.cert -config openssl.cnf
 
+Remeber that the Common Name (CN) that you supply to the OpenSSL binary, is the fully
+qualified host name that answers to the IP where your XMail server is listening.
 If you want to have a certificate signed by an authority, you need to generate a certificate
 request file:
 
