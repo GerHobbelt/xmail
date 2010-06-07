@@ -1,0 +1,49 @@
+#
+#  XMail by Davide Libenzi ( Intranet and Internet mail server )
+#  Copyright (C) 1999,..,2004  Davide Libenzi
+#
+#  This program is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation; either version 2 of the License, or
+#  (at your option) any later version.
+#
+#  This program is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#
+#  You should have received a copy of the GNU General Public License
+#  along with this program; if not, write to the Free Software
+#  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+#
+#  Davide Libenzi <davidel@xmailserver.org>
+#
+SYSTYPE = linux
+CC = g++
+LD = g++
+STRIP = strip
+
+ifneq ("$(WITH_SSL_INCLUDE)", "")
+    CFLAGS := $(CFLAGS) -I$(WITH_SSL_INCLUDE)
+endif
+
+ifneq ("$(WITH_SSL_LIB)", "")
+    LDFLAGS := $(LDFLAGS) -L$(WITH_SSL_LIB)
+endif
+
+ifeq ("$(SSLLIBS)", "")
+    SSLLIBS = -lssl -lcrypto
+endif
+
+MAINSRC = MainLinux.cpp
+MAINOBJ = MainLinux.o
+SYSSRCS = SysDepLinux.cpp SysDepUnix.cpp
+SYSOBJS = SysDepLinux.o SysDepUnix.o
+
+CFLAGS := $(CFLAGS) -I. -D__UNIX__ -D__LINUX__ -D_REENTRANT=1 -D_THREAD_SAFE=1 -DHAS_SYSMACHINE \
+	-D_GNU_SOURCE -D_LARGEFILE64_SOURCE -D_POSIX_PTHREAD_SEMANTICS -DSYS_HAS_SENDFILE
+
+LDFLAGS := $(LDFLAGS) $(SSLLIBS) -ldl -lpthread
+
+include Makefile.common
+

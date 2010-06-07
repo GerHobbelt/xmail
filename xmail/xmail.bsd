@@ -1,0 +1,96 @@
+#!/bin/sh
+#
+# $NetBSD: xmail,2006/02/06 12:39:28 smartnet Exp $
+#
+# PROVIDE: mail
+# REQUIRE: DAEMON LOGIN
+# KEYWORD: shutdown
+#
+# NetBSD 3.0
+# XMail 1.23pre01.smartnet.1
+# xmail rc.d script
+# (c) 2006 smartnet-ro.com
+#
+
+################
+## NetBSD :
+## Disable any existing SMTP/POP3 server
+## set in /etc/rc.conf ::
+xmail=YES
+################
+
+
+####################### load subr
+. /etc/rc.subr
+####################### init
+name=xmail
+rcvar=$name
+start_cmd="xmail_start"
+stop_cmd="xmail_stop"
+pidfile=$PIDFILE
+####################### local
+XMAIL_ROOT="/var/MailRoot"
+XMAIL_CMD_LINE="-Lt 2 -Ph -Pt 30 -St 30 -Ct 30 -Qn 20 -SX 20 -PX 20 -CX 2
+-Yt 20"
+XPID="/usr/pkg/libexec/xmail/XMail"
+XNAME=XMail
+DESC="XMail Server"
+PIDDIR="/var/run"
+PIDFILE="$PIDDIR/XMail.pid"
+###
+# set exit on error
+set -e
+# limit maximum core size
+ulimit -c 20000
+####################### START
+xmail_start()
+{
+    MAIL_ROOT=$XMAIL_ROOT
+    export MAIL_ROOT
+    #
+    MAIL_CMD_LINE=$XMAIL_CMD_LINE
+    export MAIL_CMD_LINE
+    #
+    XMAIL_PID_DIR=$PIDDIR
+    export XMAIL_PID_DIR
+    #
+    echo -n "Starting xmail"
+
+  $XPID $XMAIL_CMD_LINE
+    while [ ! -f $PIDFILE ]
+    do
+        sleep 1
+    done
+    echo "."
+}
+####################### STOP
+xmail_stop()
+{
+    echo -n "Stopping xmail"
+    if [ -f $PIDFILE ]
+    then
+	kill -s INT `cat $PIDFILE`
+	while [ -f $PIDFILE ]
+	do
+    	    sleep 1
+	done
+	echo "."
+    else
+	echo "XMail NOT running ?"
+    fi
+}
+####################### management
+if [ -f /etc/rc.subr -a -d /etc/rc.d -a -f /etc/rc.d/DAEMON ]; then
+    if [ -d /var/MailRoot -a -d /usr/pkg/etc/xmail ]; then
+	load_rc_config $name
+	run_rc_command "$1"
+    else
+	echo -n "WARNING: /var/MailRoot or /usr/pkg/etc/xmail DOES NOT Exist.
+Please run 'xmail-setup' first."
+    fi
+fi
+#######################
+
+
+# END
+
