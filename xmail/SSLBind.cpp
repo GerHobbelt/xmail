@@ -453,14 +453,14 @@ int BSslBindClient(BSOCK_HANDLE hBSock, SslServerBind const *pSSLB,
 {
 	int iError;
 	SYS_SOCKET SockFD;
-	SSL_METHOD *pMethod;
+	SSL_METHOD const *pMethod;
 	SSL_CTX *pSCtx;
 	SSL *pSSL;
 	X509 *pCert;
 	SslBindCtx *pCtx;
 
 	pMethod = SSLv23_client_method();
-	if ((pSCtx = SSL_CTX_new(pMethod)) == NULL) {
+	if ((pSCtx = SSL_CTX_new((SSL_METHOD *) pMethod)) == NULL) {
 		ErrSetErrorCode(ERR_SSLCTX_CREATE);
 		return ERR_SSLCTX_CREATE;
 	}
@@ -527,14 +527,14 @@ int BSslBindServer(BSOCK_HANDLE hBSock, SslServerBind const *pSSLB,
 {
 	int iError;
 	SYS_SOCKET SockFD;
-	SSL_METHOD *pMethod;
+	SSL_METHOD const *pMethod;
 	SSL_CTX *pSCtx;
 	SSL *pSSL;
 	X509 *pCert;
 	SslBindCtx *pCtx;
 
 	pMethod = SSLv23_server_method();
-	if ((pSCtx = SSL_CTX_new(pMethod)) == NULL) {
+	if ((pSCtx = SSL_CTX_new((SSL_METHOD *) pMethod)) == NULL) {
 		ErrSetErrorCode(ERR_SSLCTX_CREATE);
 		return ERR_SSLCTX_CREATE;
 	}

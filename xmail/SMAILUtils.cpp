@@ -932,15 +932,16 @@ int USmlGetMsgFileSection(SPLF_HANDLE hFSpool, FileSection &FSect)
 	return 0;
 }
 
-int USmlWriteMailFile(SPLF_HANDLE hFSpool, FILE *pMsgFile)
+int USmlWriteMailFile(SPLF_HANDLE hFSpool, FILE *pMsgFile, bool bMBoxFile)
 {
 	SpoolFileData *pSFD = (SpoolFileData *) hFSpool;
+	const char *pszLF = bMBoxFile ? SYS_EOL: "\r\n";
 
 	/* Dump message tags */
-	if (USmlDumpHeaders(pMsgFile, pSFD->hTagList, SYS_EOL) < 0)
+	if (USmlDumpHeaders(pMsgFile, pSFD->hTagList, pszLF) < 0)
 		return ErrGetErrorCode();
 
-	fputs(SYS_EOL, pMsgFile);
+	fputs(pszLF, pMsgFile);
 
 	/* Dump message data */
 	FILE *pMessFile = fopen(pSFD->szMessFilePath, "rb");
@@ -949,19 +950,26 @@ int USmlWriteMailFile(SPLF_HANDLE hFSpool, FILE *pMsgFile)
 		ErrSetErrorCode(ERR_FILE_OPEN, pSFD->szMessFilePath);
 		return ERR_FILE_OPEN;
 	}
+
+	bool bWantCRLF = !bMBoxFile;
+
 #ifdef SYS_CRLF_EOL
-	if (MscCopyFile(pMsgFile, pMessFile, pSFD->llMailDataOffset,
-			(SYS_OFF_T) -1) < 0) {
-		fclose(pMessFile);
-		return ErrGetErrorCode();
-	}
-#else
-	Sys_fseek(pMessFile, pSFD->llMailDataOffset, SEEK_SET);
-	if (MscDos2UnixFile(pMsgFile, pMessFile) < 0) {
-		fclose(pMessFile);
-		return ErrGetErrorCode();
-	}
+	if (!bWantCRLF)
+		bWantCRLF = true;
 #endif
+	if (bWantCRLF) {
+		if (MscCopyFile(pMsgFile, pMessFile, pSFD->llMailDataOffset,
+				(SYS_OFF_T) -1) < 0) {
+			fclose(pMessFile);
+			return ErrGetErrorCode();
+		}
+	} else {
+		Sys_fseek(pMessFile, pSFD->llMailDataOffset, SEEK_SET);
+		if (MscDos2UnixFile(pMsgFile, pMessFile) < 0) {
+			fclose(pMessFile);
+			return ErrGetErrorCode();
+		}
+	}
 	fclose(pMessFile);
 
 	return 0;
@@ -1120,7 +1128,7 @@ int USmlCreateMBFile(UserInfo *pUI, const char *pszFileName, SPLF_HANDLE hFSpool
 		SysFree(pszReturnPath);
 
 	/* Write mail file */
-	if (USmlWriteMailFile(hFSpool, pMBFile) < 0) {
+	if (USmlWriteMailFile(hFSpool, pMBFile, true) < 0) {
 		ErrorPush();
 		fclose(pMBFile);
 		SysRemove(pszFileName);

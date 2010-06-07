@@ -6,7 +6,13 @@ NAME
 
 CHANGE LOG
 
-  Jan 4, 2008 v 1.26
+  May 16, 2009 v 1.26
+
+    *   Fixed a bug where STARTTLS was resetting the session too much, by
+        canceling certain flags/options read inside the SERVER.TAB.
+
+    *   Fixed a bug that happened if a message filter mistakenly remove the
+        message file from under XMail control.
 
     *   Changed the line termination used to store messages into the
         mailboxes of Unix versions of XMail. Now messages are stored with

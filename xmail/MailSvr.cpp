@@ -1669,7 +1669,8 @@ bool SvrInShutdown(bool bForceCheck)
 			SysShutdownLibrary();
 
 			bShutdown = true;
-		}
+		} else
+			bShutdown = false;
 	}
 
 	return bShutdown;

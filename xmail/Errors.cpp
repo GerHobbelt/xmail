@@ -102,7 +102,7 @@ static ErrorStrings Errors[] = {
 	{ ERR_DOMAINS_FILE_NOT_FOUND, "POP3 domains file not found" },
 	{ ERR_DOMAIN_NOT_HANDLED, "POP3 domain not handled" },
 	{ ERR_BAD_SMTP_RESPONSE, "Bad SMTP response" },
-	{ ERR_CFG_VAR_NOT_FOUND, "Config variabile not found" },
+	{ ERR_CFG_VAR_NOT_FOUND, "Config variable not found" },
 	{ ERR_BAD_DNS_RESPONSE, "Bad DNS response" },
 	{ ERR_SMTPGW_NOT_FOUND, "SMTP gateway not found" },
 	{ ERR_INCOMPLETE_CONFIG, "Incomplete server configuration file" },
