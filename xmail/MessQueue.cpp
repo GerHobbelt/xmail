@@ -513,9 +513,6 @@ QMSG_HANDLE QueCreateMessage(QUEUE_HANDLE hQueue)
 {
 	MessageQueue *pMQ = (MessageQueue *) hQueue;
 
-	/* Initialize random number generator */
-	SRand();
-
 	/* Build message file path */
 	int iLevel1 = rand() % pMQ->iNumDirsLevel;
 	int iLevel2 = rand() % pMQ->iNumDirsLevel;

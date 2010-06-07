@@ -67,11 +67,6 @@ struct DNSResourceRecord {
 	SYS_UINT8 const *pRespData;
 };
 
-static DNSRecord *DNS_AllocRec(DNSAnswer *pAns, int iType,
-			       DNSResourceRecord const *pRR);
-static SYS_UINT8 *DNS_AllocRespData(int iSize);
-static void DNS_FreeRespData(SYS_UINT8 *pRespData);
-static int DNS_RespDataSize(SYS_UINT8 const *pRespData);
 static int DNS_GetResourceRecord(SYS_UINT8 const *pBaseData, SYS_UINT8 const *pRespData,
 				 DNSResourceRecord *pRR = NULL, int *piRRLength = NULL);
 static int DNS_GetText(SYS_UINT8 const *pBaseData, SYS_UINT8 const *pRespData,
@@ -79,26 +74,9 @@ static int DNS_GetText(SYS_UINT8 const *pBaseData, SYS_UINT8 const *pRespData,
 static int DNS_GetQuery(SYS_UINT8 const *pBaseData, SYS_UINT8 const *pRespData,
 			char *pszInetName = NULL, int iMaxName = 0, SYS_UINT16 *pType = NULL,
 			SYS_UINT16 *pClass = NULL, int *piRRLength = NULL);
-static int DNS_NameCopy(SYS_UINT8 *pDNSQName, char const *pszInetName);
-static SYS_UINT16 DNS_GetUniqueQueryId(void);
-static int DNS_RequestSetup(DNSQuery **ppDNSQ, unsigned int uOpCode,
-			    unsigned int uQType, char const *pszInetName,
-			    int *piQLength, int iAskQR);
 static SYS_UINT8 *DNS_QueryExec(char const *pszDNSServer, int iPortNo, int iTimeout,
 				unsigned int uOpCode, unsigned int uQType,
 				char const *pszInetName, int iAskQR = 0);
-static SYS_UINT8 *DNS_QuerySendStream(char const *pszDNSServer, int iPortNo, int iTimeout,
-				      DNSQuery const *pDNSQ, int iQLenght);
-static SYS_UINT8 *DNS_QuerySendDGram(char const *pszDNSServer, int iPortNo, int iTimeout,
-				     DNSQuery const *pDNSQ, int iQLenght, int *piTrunc);
-static int DNS_DecodeRecord(DNSResourceRecord const *pRR, DNSAnswer *pAns);
-static int DNS_MapRCodeError(unsigned int uRCode);
-static int DNS_DecodeResponse(SYS_UINT8 *pRespData, DNSAnswer *pAns);
-static int DNS_RecurseQuery(SysListHead *pNsHead, char const *pszName,
-			    unsigned int uQType, DNSAnswer *pAns, int iDepth,
-			    int iMaxDepth);
-static char *DNS_GetRootsFile(char *pszRootsFilePath, int iMaxPath);
-static int DNS_LoadRoots(SysListHead *pHead);
 
 int DNS_InitAnswer(DNSAnswer *pAns)
 {
@@ -384,29 +362,6 @@ static int DNS_RequestSetup(DNSQuery **ppDNSQ, unsigned int uOpCode,
 	return 0;
 }
 
-static SYS_UINT8 *DNS_QueryExec(char const *pszDNSServer, int iPortNo, int iTimeout,
-				unsigned int uOpCode, unsigned int uQType,
-				char const *pszInetName, int iAskQR)
-{
-	int iTrunc = 0;
-	int iQLenght;
-	DNSQuery *pDNSQ;
-	SYS_UINT8 *pRespData;
-
-	if (DNS_RequestSetup(&pDNSQ, uOpCode, uQType, pszInetName, &iQLenght,
-			     iAskQR) < 0)
-		return NULL;
-
-	pRespData = DNS_QuerySendDGram(pszDNSServer, iPortNo, iTimeout,
-				       pDNSQ, iQLenght, &iTrunc);
-	if (pRespData == NULL && iTrunc)
-		pRespData = DNS_QuerySendStream(pszDNSServer, iPortNo, iTimeout,
-						pDNSQ, iQLenght);
-	SysFree(pDNSQ);
-
-	return pRespData;
-}
-
 static SYS_UINT8 *DNS_QuerySendStream(char const *pszDNSServer, int iPortNo, int iTimeout,
 				      DNSQuery const *pDNSQ, int iQLenght)
 {
@@ -533,6 +488,29 @@ static SYS_UINT8 *DNS_QuerySendDGram(char const *pszDNSServer, int iPortNo, int 
 
 	ErrSetErrorCode(ERR_NO_DGRAM_DNS_RESPONSE);
 	return NULL;
+}
+
+static SYS_UINT8 *DNS_QueryExec(char const *pszDNSServer, int iPortNo, int iTimeout,
+				unsigned int uOpCode, unsigned int uQType,
+				char const *pszInetName, int iAskQR)
+{
+	int iTrunc = 0;
+	int iQLenght;
+	DNSQuery *pDNSQ;
+	SYS_UINT8 *pRespData;
+
+	if (DNS_RequestSetup(&pDNSQ, uOpCode, uQType, pszInetName, &iQLenght,
+			     iAskQR) < 0)
+		return NULL;
+
+	pRespData = DNS_QuerySendDGram(pszDNSServer, iPortNo, iTimeout,
+				       pDNSQ, iQLenght, &iTrunc);
+	if (pRespData == NULL && iTrunc)
+		pRespData = DNS_QuerySendStream(pszDNSServer, iPortNo, iTimeout,
+						pDNSQ, iQLenght);
+	SysFree(pDNSQ);
+
+	return pRespData;
 }
 
 static int DNS_DecodeRecord(DNSResourceRecord const *pRR, DNSAnswer *pAns)

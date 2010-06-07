@@ -90,70 +90,9 @@ struct MacroSubstCtx {
 	FileSection FSect;
 };
 
-static MessageTagData *USmlAllocTag(const char *pszTagName, const char *pszTagData);
-static void USmlFreeTag(MessageTagData *pMTD);
-static MessageTagData *USmlFindTag(HSLIST &hTagList, const char *pszTagName,
-				   TAG_POSITION &TagPosition);
 static int USmlAddTag(HSLIST &hTagList, const char *pszTagName,
 		      const char *pszTagData, int iUpdate = 0);
-static void USmlFreeTagsList(HSLIST &hTagList);
-static int USmlLoadTags(FILE *pSpoolFile, HSLIST &hTagList);
-static int USmlDumpHeaders(FILE *pMsgFile, HSLIST &hTagList, const char *pszLF);
-static void USmlFreeData(SpoolFileData *pSFD);
-static void USmlInitHandle(SpoolFileData *pSFD);
-static SpoolFileData *USmlAllocEmptyHandle(void);
-static int USmlLoadHandle(SpoolFileData *pSFD, const char *pszMessFilePath);
-static int USmlFlushMessageFile(SpoolFileData *pSFD);
-static int USmlGetMailProcessFile(UserInfo *pUI, QUEUE_HANDLE hQueue, QMSG_HANDLE hMessage,
-				  char *pszMPFilePath);
-static int USmlLocalDelivery(SVRCFG_HANDLE hSvrConfig, UserInfo *pUI, SPLF_HANDLE hFSpool,
-			     QUEUE_HANDLE hQueue, QMSG_HANDLE hMessage, LocalMailProcConfig &LMPC);
-static int USmlProcessCustomMailingFile(SVRCFG_HANDLE hSvrConfig, UserInfo *pUI,
-					SPLF_HANDLE hFSpool, QUEUE_HANDLE hQueue,
-					QMSG_HANDLE hMessage, const char *pszMPFile,
-					LocalMailProcConfig &LMPC);
-static char *USmlMacroLkupProc(void *pPrivate, const char *pszName, int iSize);
-static int USmlCmdMacroSubstitutes(char **ppszCmdTokens, UserInfo *pUI, SPLF_HANDLE hFSpool);
-static int USmlCmd_external(char **ppszCmdTokens, int iNumTokens, SVRCFG_HANDLE hSvrConfig,
-			    UserInfo *pUI, SPLF_HANDLE hFSpool, QUEUE_HANDLE hQueue,
-			    QMSG_HANDLE hMessage, LocalMailProcConfig &LMPC);
-static int USmlCmd_filter(char **ppszCmdTokens, int iNumTokens, SVRCFG_HANDLE hSvrConfig,
-			  UserInfo *pUI, SPLF_HANDLE hFSpool, QUEUE_HANDLE hQueue,
-			  QMSG_HANDLE hMessage, LocalMailProcConfig &LMPC);
-static int USmlCmd_mailbox(char **ppszCmdTokens, int iNumTokens, SVRCFG_HANDLE hSvrConfig,
-			   UserInfo *pUI, SPLF_HANDLE hFSpool, QUEUE_HANDLE hQueue,
-			   QMSG_HANDLE hMessage, LocalMailProcConfig &LMPC);
-static int USmlCmd_redirect(char **ppszCmdTokens, int iNumTokens, SVRCFG_HANDLE hSvrConfig,
-			    UserInfo *pUI, SPLF_HANDLE hFSpool, QUEUE_HANDLE hQueue,
-			    QMSG_HANDLE hMessage, LocalMailProcConfig &LMPC);
-static int USmlCmd_lredirect(char **ppszCmdTokens, int iNumTokens, SVRCFG_HANDLE hSvrConfig,
-			     UserInfo *pUI, SPLF_HANDLE hFSpool, QUEUE_HANDLE hQueue,
-			     QMSG_HANDLE hMessage, LocalMailProcConfig &LMPC);
-static int USmlCmd_smtprelay(char **ppszCmdTokens, int iNumTokens, SVRCFG_HANDLE hSvrConfig,
-			     UserInfo *pUI, SPLF_HANDLE hFSpool, QUEUE_HANDLE hQueue,
-			     QMSG_HANDLE hMessage, LocalMailProcConfig &LMPC);
-static int USmlLogMessage(const char *pszSMTPDomain, const char *pszMessageID,
-			  const char *pszSmtpMessageID, const char *pszFrom, const char *pszRcpt,
-			  const char *pszMedium, const char *pszParam, const char *pszRmtMsgID);
-static int USmlRFC822_ATEXT(int c);
-static const char *USmlIPDomain(const char *pszAddress, const char *pszTop);
-const char *USmlParseHost(const char *pszHost, const char *pszTop);
-static int USmlExtractFromAddress(HSLIST &hTagList, char *pszFromAddr, int iMaxAddress);
-static const char *USmlAddressFromAtPtr(const char *pszAt, const char *pszBase,
-					char *pszAddress, int iMaxAddress);
-static const char *USmlAddSingleAddress(const char *pszCurr, const char *pszBase,
-					DynString *pAddrDS, const char *const *ppszMatchDomains,
-					int *piAdded);
-static int USmlAddAddresses(const char *pszAddrList, DynString *pAddrDS,
-			    const char *const *ppszMatchDomains);
-static char **USmlGetAddressList(HSLIST &hTagList, const char *const *ppszMatchDomains,
-				 const char *const *ppszAddrTags);
-static int USmlExtractToAddress(HSLIST &hTagList, char *pszToAddr, int iMaxAddress);
-static char **USmlBuildTargetRcptList(const char *pszRcptTo, HSLIST &hTagList,
-				      const char *pszFetchHdrTags);
-static int USmlCreateSpoolFile(FILE *pMailFile, const char *const *ppszInfo,
-			       const char *pszMailFrom, const char *pszRcptTo,
-			       const char *pszSpoolFile);
+
 
 int USmlLoadSpoolFileHeader(const char *pszSpoolFile, SpoolFileHeader &SFH)
 {
@@ -1203,6 +1142,73 @@ int USmlVCreateSpoolFile(SPLF_HANDLE hFSpool, const char *pszFromUser,
 	return 0;
 }
 
+static int USmlCreateSpoolFile(FILE *pMailFile, const char *const *ppszInfo,
+			       const char *pszMailFrom, const char *pszRcptTo,
+			       const char *pszSpoolFile)
+{
+	FILE *pSpoolFile = fopen(pszSpoolFile, "wb");
+
+	if (pSpoolFile == NULL) {
+		ErrSetErrorCode(ERR_FILE_CREATE, pszSpoolFile);
+		return ERR_FILE_CREATE;
+	}
+	/* Write info line */
+	if (ppszInfo != NULL)
+		USmtpWriteInfoLine(pSpoolFile, ppszInfo[smsgiClientAddr],
+				   ppszInfo[smsgiServerAddr], ppszInfo[smsgiTime]);
+	else {
+		char szTime[256] = "";
+
+		MscGetTimeStr(szTime, sizeof(szTime) - 1);
+		USmtpWriteInfoLine(pSpoolFile, LOCAL_ADDRESS_SQB ":0",
+				   LOCAL_ADDRESS_SQB ":0", szTime);
+	}
+
+	/* Write SMTP domain */
+	char szSmtpDomain[MAX_HOST_NAME] = "";
+
+	if (USmtpSplitEmailAddr(pszRcptTo, NULL, szSmtpDomain) < 0) {
+		ErrorPush();
+		fclose(pSpoolFile);
+		SysRemove(pszSpoolFile);
+		return ErrorPop();
+	}
+
+	fprintf(pSpoolFile, "%s\r\n", szSmtpDomain);
+
+	/* Write message ID */
+	SYS_UINT64 ullMessageID = 0;
+
+	if (SvrGetMessageID(&ullMessageID) < 0) {
+		ErrorPush();
+		fclose(pSpoolFile);
+		SysRemove(pszSpoolFile);
+		return ErrorPop();
+	}
+
+	fprintf(pSpoolFile, "P" SYS_LLX_FMT "\r\n", ullMessageID);
+
+	/* Write "MAIL FROM:" */
+	fprintf(pSpoolFile, "MAIL FROM: <%s>\r\n", pszMailFrom);
+
+	/* Write "RCPT TO:" */
+	fprintf(pSpoolFile, "RCPT TO: <%s>\r\n", pszRcptTo);
+
+	/* Write SPOOL_FILE_DATA_START */
+	fprintf(pSpoolFile, "%s\r\n", SPOOL_FILE_DATA_START);
+
+	/* Write message body */
+	if (MscCopyFile(pSpoolFile, pMailFile, 0, (unsigned long) -1) < 0) {
+		ErrorPush();
+		fclose(pSpoolFile);
+		SysRemove(pszSpoolFile);
+		return ErrorPop();
+	}
+	fclose(pSpoolFile);
+
+	return 0;
+}
+
 int USmlCreateSpoolFile(SPLF_HANDLE hFSpool, const char *pszFromUser,
 			const char *pszRcptUser, const char *pszFileName, ...)
 {
@@ -1282,147 +1288,6 @@ static int USmlLocalDelivery(SVRCFG_HANDLE hSvrConfig, UserInfo *pUI, SPLF_HANDL
 
 		USmlLogMessage(hFSpool, "LOCAL", NULL, UsrGetAddress(pUI, szLocalAddress));
 	}
-
-	return 0;
-}
-
-int USmlProcessLocalUserMessage(SVRCFG_HANDLE hSvrConfig, UserInfo *pUI, SPLF_HANDLE hFSpool,
-				QUEUE_HANDLE hQueue, QMSG_HANDLE hMessage,
-				LocalMailProcConfig &LMPC)
-{
-	/* Exist user custom message processing ? */
-	char szMPFile[SYS_MAX_PATH] = "";
-
-	if (USmlGetMailProcessFile(pUI, hQueue, hMessage, szMPFile) < 0) {
-		/*
-		 * Deliver the file locally.
-		 */
-		if (USmlLocalDelivery(hSvrConfig, pUI, hFSpool, hQueue, hMessage, LMPC) < 0)
-			return ErrGetErrorCode();
-	} else {
-		/* Process custom mailings */
-		if (USmlProcessCustomMailingFile(hSvrConfig, pUI, hFSpool, hQueue, hMessage,
-						 szMPFile, LMPC) < 0)
-			return ErrGetErrorCode();
-
-	}
-
-	return 0;
-}
-
-static int USmlProcessCustomMailingFile(SVRCFG_HANDLE hSvrConfig, UserInfo *pUI,
-					SPLF_HANDLE hFSpool, QUEUE_HANDLE hQueue,
-					QMSG_HANDLE hMessage, const char *pszMPFile,
-					LocalMailProcConfig &LMPC)
-{
-	/* Open the mail processing file */
-	FILE *pMPFile = fopen(pszMPFile, "rt");
-
-	if (pMPFile == NULL) {
-		ErrSetErrorCode(ERR_FILE_OPEN, pszMPFile);
-		return ERR_FILE_OPEN;
-	}
-	/* Create pushback command file */
-	char szTmpFile[SYS_MAX_PATH] = "";
-
-	SysGetTmpFile(szTmpFile);
-
-	FILE *pPushBFile = fopen(szTmpFile, "wt");
-
-	if (pPushBFile == NULL) {
-		fclose(pMPFile);
-
-		ErrSetErrorCode(ERR_FILE_CREATE, szTmpFile);
-		return ERR_FILE_CREATE;
-	}
-
-	int iPushBackCmds = 0;
-	char szCmdLine[CUSTOM_CMD_LINE_MAX] = "";
-
-	while (MscGetConfigLine(szCmdLine, sizeof(szCmdLine) - 1, pMPFile) != NULL) {
-		char **ppszCmdTokens = StrGetTabLineStrings(szCmdLine);
-
-		if (ppszCmdTokens == NULL)
-			continue;
-
-		int iFieldsCount = StrStringsCount(ppszCmdTokens);
-
-		if (iFieldsCount > 0) {
-			/* Do command line macro substitution */
-			USmlCmdMacroSubstitutes(ppszCmdTokens, pUI, hFSpool);
-
-			int iCmdResult = 0;
-
-			if (stricmp(ppszCmdTokens[0], "external") == 0)
-				iCmdResult =
-					USmlCmd_external(ppszCmdTokens, iFieldsCount, hSvrConfig, pUI,
-							 hFSpool, hQueue, hMessage, LMPC);
-			else if (stricmp(ppszCmdTokens[0], "filter") == 0)
-				iCmdResult =
-					USmlCmd_filter(ppszCmdTokens, iFieldsCount, hSvrConfig, pUI,
-						       hFSpool, hQueue, hMessage, LMPC);
-			else if (stricmp(ppszCmdTokens[0], "mailbox") == 0)
-				iCmdResult =
-					USmlCmd_mailbox(ppszCmdTokens, iFieldsCount, hSvrConfig, pUI,
-							hFSpool, hQueue, hMessage, LMPC);
-			else if (stricmp(ppszCmdTokens[0], "redirect") == 0)
-				iCmdResult =
-					USmlCmd_redirect(ppszCmdTokens, iFieldsCount, hSvrConfig, pUI,
-							 hFSpool, hQueue, hMessage, LMPC);
-			else if (stricmp(ppszCmdTokens[0], "lredirect") == 0)
-				iCmdResult =
-					USmlCmd_lredirect(ppszCmdTokens, iFieldsCount, hSvrConfig,
-							  pUI, hFSpool, hQueue, hMessage, LMPC);
-			else if (stricmp(ppszCmdTokens[0], "smtprelay") == 0)
-				iCmdResult =
-					USmlCmd_smtprelay(ppszCmdTokens, iFieldsCount, hSvrConfig,
-							  pUI, hFSpool, hQueue, hMessage, LMPC);
-			else {
-				SysLogMessage(LOG_LEV_ERROR,
-					      "Invalid command \"%s\" in file \"%s\"\n",
-					      ppszCmdTokens[0], pszMPFile);
-
-			}
-
-			/* Check for the stop-processing error code */
-			if (iCmdResult == SMAIL_STOP_PROCESSING) {
-				StrFreeStrings(ppszCmdTokens);
-				break;
-			}
-			/* Test if we must save a failed command */
-			/* <0 = Error ; ==0 = Success ; >0 = Transient error ( save the command ) */
-			if (iCmdResult > 0) {
-				fprintf(pPushBFile, "%s\n", szCmdLine);
-
-				++iPushBackCmds;
-			}
-			/* An error code might result if filters blocked the message. If this is the */
-			/* case QueCheckMessage() will return error and we MUST stop processing */
-			if (iCmdResult < 0 &&
-			    QueCheckMessage(hQueue, hMessage) < 0) {
-				ErrorPush();
-				StrFreeStrings(ppszCmdTokens);
-				fclose(pPushBFile);
-				fclose(pMPFile);
-				SysRemove(szTmpFile);
-				return ErrorPop();
-			}
-		}
-		StrFreeStrings(ppszCmdTokens);
-	}
-	fclose(pPushBFile);
-	fclose(pMPFile);
-	SysRemove(pszMPFile);
-
-	if (iPushBackCmds > 0) {
-		/* If commands left out of processing, push them into the custom file */
-		if (MscMoveFile(szTmpFile, pszMPFile) < 0)
-			return ErrGetErrorCode();
-
-		ErrSetErrorCode(ERR_INCOMPLETE_PROCESSING);
-		return ERR_INCOMPLETE_PROCESSING;
-	}
-	SysRemove(szTmpFile);
 
 	return 0;
 }
@@ -1775,20 +1640,8 @@ static int USmlCmd_smtprelay(char **ppszCmdTokens, int iNumTokens, SVRCFG_HANDLE
 	char **ppszRelays = NULL;
 
 	if (ppszCmdTokens[1][0] == '#') {
-		if ((ppszRelays = StrTokenize(ppszCmdTokens[1] + 1, ";")) != NULL) {
-			int iRelayCount = StrStringsCount(ppszRelays);
-
-			srand((unsigned int) time(NULL));
-			for (int i = 0; i < (iRelayCount / 2); i++) {
-				int iSwap1 = rand() % iRelayCount;
-				int iSwap2 = rand() % iRelayCount;
-				char *pszRly1 = ppszRelays[iSwap1];
-				char *pszRly2 = ppszRelays[iSwap2];
-
-				ppszRelays[iSwap1] = pszRly2;
-				ppszRelays[iSwap2] = pszRly1;
-			}
-		}
+		if ((ppszRelays = StrTokenize(ppszCmdTokens[1] + 1, ";")) != NULL)
+			MscRandomizeStringsOrder(ppszRelays);
 	} else
 		ppszRelays = StrTokenize(ppszCmdTokens[1], ";");
 
@@ -1886,6 +1739,147 @@ static int USmlCmd_smtprelay(char **ppszCmdTokens, int iNumTokens, SVRCFG_HANDLE
 	USmtpFreeGateways(ppGws);
 
 	return iReturnCode;
+}
+
+static int USmlProcessCustomMailingFile(SVRCFG_HANDLE hSvrConfig, UserInfo *pUI,
+					SPLF_HANDLE hFSpool, QUEUE_HANDLE hQueue,
+					QMSG_HANDLE hMessage, const char *pszMPFile,
+					LocalMailProcConfig &LMPC)
+{
+	/* Open the mail processing file */
+	FILE *pMPFile = fopen(pszMPFile, "rt");
+
+	if (pMPFile == NULL) {
+		ErrSetErrorCode(ERR_FILE_OPEN, pszMPFile);
+		return ERR_FILE_OPEN;
+	}
+	/* Create pushback command file */
+	char szTmpFile[SYS_MAX_PATH] = "";
+
+	SysGetTmpFile(szTmpFile);
+
+	FILE *pPushBFile = fopen(szTmpFile, "wt");
+
+	if (pPushBFile == NULL) {
+		fclose(pMPFile);
+
+		ErrSetErrorCode(ERR_FILE_CREATE, szTmpFile);
+		return ERR_FILE_CREATE;
+	}
+
+	int iPushBackCmds = 0;
+	char szCmdLine[CUSTOM_CMD_LINE_MAX] = "";
+
+	while (MscGetConfigLine(szCmdLine, sizeof(szCmdLine) - 1, pMPFile) != NULL) {
+		char **ppszCmdTokens = StrGetTabLineStrings(szCmdLine);
+
+		if (ppszCmdTokens == NULL)
+			continue;
+
+		int iFieldsCount = StrStringsCount(ppszCmdTokens);
+
+		if (iFieldsCount > 0) {
+			/* Do command line macro substitution */
+			USmlCmdMacroSubstitutes(ppszCmdTokens, pUI, hFSpool);
+
+			int iCmdResult = 0;
+
+			if (stricmp(ppszCmdTokens[0], "external") == 0)
+				iCmdResult =
+					USmlCmd_external(ppszCmdTokens, iFieldsCount, hSvrConfig, pUI,
+							 hFSpool, hQueue, hMessage, LMPC);
+			else if (stricmp(ppszCmdTokens[0], "filter") == 0)
+				iCmdResult =
+					USmlCmd_filter(ppszCmdTokens, iFieldsCount, hSvrConfig, pUI,
+						       hFSpool, hQueue, hMessage, LMPC);
+			else if (stricmp(ppszCmdTokens[0], "mailbox") == 0)
+				iCmdResult =
+					USmlCmd_mailbox(ppszCmdTokens, iFieldsCount, hSvrConfig, pUI,
+							hFSpool, hQueue, hMessage, LMPC);
+			else if (stricmp(ppszCmdTokens[0], "redirect") == 0)
+				iCmdResult =
+					USmlCmd_redirect(ppszCmdTokens, iFieldsCount, hSvrConfig, pUI,
+							 hFSpool, hQueue, hMessage, LMPC);
+			else if (stricmp(ppszCmdTokens[0], "lredirect") == 0)
+				iCmdResult =
+					USmlCmd_lredirect(ppszCmdTokens, iFieldsCount, hSvrConfig,
+							  pUI, hFSpool, hQueue, hMessage, LMPC);
+			else if (stricmp(ppszCmdTokens[0], "smtprelay") == 0)
+				iCmdResult =
+					USmlCmd_smtprelay(ppszCmdTokens, iFieldsCount, hSvrConfig,
+							  pUI, hFSpool, hQueue, hMessage, LMPC);
+			else {
+				SysLogMessage(LOG_LEV_ERROR,
+					      "Invalid command \"%s\" in file \"%s\"\n",
+					      ppszCmdTokens[0], pszMPFile);
+
+			}
+
+			/* Check for the stop-processing error code */
+			if (iCmdResult == SMAIL_STOP_PROCESSING) {
+				StrFreeStrings(ppszCmdTokens);
+				break;
+			}
+			/* Test if we must save a failed command */
+			/* <0 = Error ; ==0 = Success ; >0 = Transient error ( save the command ) */
+			if (iCmdResult > 0) {
+				fprintf(pPushBFile, "%s\n", szCmdLine);
+
+				++iPushBackCmds;
+			}
+			/* An error code might result if filters blocked the message. If this is the */
+			/* case QueCheckMessage() will return error and we MUST stop processing */
+			if (iCmdResult < 0 &&
+			    QueCheckMessage(hQueue, hMessage) < 0) {
+				ErrorPush();
+				StrFreeStrings(ppszCmdTokens);
+				fclose(pPushBFile);
+				fclose(pMPFile);
+				SysRemove(szTmpFile);
+				return ErrorPop();
+			}
+		}
+		StrFreeStrings(ppszCmdTokens);
+	}
+	fclose(pPushBFile);
+	fclose(pMPFile);
+	SysRemove(pszMPFile);
+
+	if (iPushBackCmds > 0) {
+		/* If commands left out of processing, push them into the custom file */
+		if (MscMoveFile(szTmpFile, pszMPFile) < 0)
+			return ErrGetErrorCode();
+
+		ErrSetErrorCode(ERR_INCOMPLETE_PROCESSING);
+		return ERR_INCOMPLETE_PROCESSING;
+	}
+	SysRemove(szTmpFile);
+
+	return 0;
+}
+
+int USmlProcessLocalUserMessage(SVRCFG_HANDLE hSvrConfig, UserInfo *pUI, SPLF_HANDLE hFSpool,
+				QUEUE_HANDLE hQueue, QMSG_HANDLE hMessage,
+				LocalMailProcConfig &LMPC)
+{
+	/* Exist user custom message processing ? */
+	char szMPFile[SYS_MAX_PATH] = "";
+
+	if (USmlGetMailProcessFile(pUI, hQueue, hMessage, szMPFile) < 0) {
+		/*
+		 * Deliver the file locally.
+		 */
+		if (USmlLocalDelivery(hSvrConfig, pUI, hFSpool, hQueue, hMessage, LMPC) < 0)
+			return ErrGetErrorCode();
+	} else {
+		/* Process custom mailings */
+		if (USmlProcessCustomMailingFile(hSvrConfig, pUI, hFSpool, hQueue, hMessage,
+						 szMPFile, LMPC) < 0)
+			return ErrGetErrorCode();
+
+	}
+
+	return 0;
 }
 
 int USmlGetDomainCustomDir(char *pszCustomDir, int iMaxPath, int iFinalSlash)
@@ -2708,73 +2702,6 @@ int USmlDeliverFetchedMsg(const char *pszSyncAddr, const char *pszFetchHdrTags,
 		ErrSetErrorCode(ERR_FETCHMSG_UNDELIVERED);
 		return ERR_FETCHMSG_UNDELIVERED;
 	}
-
-	return 0;
-}
-
-static int USmlCreateSpoolFile(FILE *pMailFile, const char *const *ppszInfo,
-			       const char *pszMailFrom, const char *pszRcptTo,
-			       const char *pszSpoolFile)
-{
-	FILE *pSpoolFile = fopen(pszSpoolFile, "wb");
-
-	if (pSpoolFile == NULL) {
-		ErrSetErrorCode(ERR_FILE_CREATE, pszSpoolFile);
-		return ERR_FILE_CREATE;
-	}
-	/* Write info line */
-	if (ppszInfo != NULL)
-		USmtpWriteInfoLine(pSpoolFile, ppszInfo[smsgiClientAddr],
-				   ppszInfo[smsgiServerAddr], ppszInfo[smsgiTime]);
-	else {
-		char szTime[256] = "";
-
-		MscGetTimeStr(szTime, sizeof(szTime) - 1);
-		USmtpWriteInfoLine(pSpoolFile, LOCAL_ADDRESS_SQB ":0",
-				   LOCAL_ADDRESS_SQB ":0", szTime);
-	}
-
-	/* Write SMTP domain */
-	char szSmtpDomain[MAX_HOST_NAME] = "";
-
-	if (USmtpSplitEmailAddr(pszRcptTo, NULL, szSmtpDomain) < 0) {
-		ErrorPush();
-		fclose(pSpoolFile);
-		SysRemove(pszSpoolFile);
-		return ErrorPop();
-	}
-
-	fprintf(pSpoolFile, "%s\r\n", szSmtpDomain);
-
-	/* Write message ID */
-	SYS_UINT64 ullMessageID = 0;
-
-	if (SvrGetMessageID(&ullMessageID) < 0) {
-		ErrorPush();
-		fclose(pSpoolFile);
-		SysRemove(pszSpoolFile);
-		return ErrorPop();
-	}
-
-	fprintf(pSpoolFile, "P" SYS_LLX_FMT "\r\n", ullMessageID);
-
-	/* Write "MAIL FROM:" */
-	fprintf(pSpoolFile, "MAIL FROM: <%s>\r\n", pszMailFrom);
-
-	/* Write "RCPT TO:" */
-	fprintf(pSpoolFile, "RCPT TO: <%s>\r\n", pszRcptTo);
-
-	/* Write SPOOL_FILE_DATA_START */
-	fprintf(pSpoolFile, "%s\r\n", SPOOL_FILE_DATA_START);
-
-	/* Write message body */
-	if (MscCopyFile(pSpoolFile, pMailFile, 0, (unsigned long) -1) < 0) {
-		ErrorPush();
-		fclose(pSpoolFile);
-		SysRemove(pszSpoolFile);
-		return ErrorPop();
-	}
-	fclose(pSpoolFile);
 
 	return 0;
 }

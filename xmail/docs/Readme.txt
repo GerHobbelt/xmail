@@ -69,7 +69,7 @@ VERSION
 
   current
 
-    1.26
+    1.27
 
   release type
 
@@ -782,7 +782,9 @@ CONFIGURATION
         command.
 
     POP3S
-        Establish a full POP3S connection with the remote server.
+        Establish a full POP3S connection with the remote server. Note that
+        the POP3S port (default 995) must be set inside the external domain
+        declaration.
 
     Leave
         Leave messages on the server, and download only the new ones. In
@@ -1538,9 +1540,9 @@ EXTERNAL AUTHENTICATION
     You can use external modules (executables) to perform user
     authentication instead of using XMail 'mailusers.tab' lookups. Inside
     the userauth directory you'll find one directory for each service whose
-    authentication can be handled externally (for now only POP3). Suppose We
-    must authenticate 'USERNAME' inside 'DOMAIN', XMail first tries to
-    lookup (inside userauth/pop3) a file named:
+    authentication can be handled externally (see "SMTPEXTAUTH.TAB" for
+    SMTP). Suppose We must authenticate 'USERNAME' inside 'DOMAIN', XMail
+    first tries to lookup (inside userauth/pop3) a file named:
 
     'DOMAIN.tab'
 
@@ -4406,7 +4408,7 @@ POD ERRORS
     Around line 784:
         =back doesn't take any parameters, but you said =back end html
 
-    Around line 1811:
-        You can't have =items (as at line 1817) unless the first thing after
+    Around line 1812:
+        You can't have =items (as at line 1818) unless the first thing after
         the =over is an =item
 

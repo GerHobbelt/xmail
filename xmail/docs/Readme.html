@@ -2,7 +2,7 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-<title>XMail mail server v 1.26</title>
+<title>XMail mail server v 1.27</title>
 <link rel="stylesheet" href="./xmail.css" type="text/css" />
 <meta http-equiv="content-type" content="text/html; charset=utf-8" />
 <link rev="made" href="mailto:root@localhost" />
@@ -227,7 +227,7 @@ Linux, FreeBSD, OpenBSD and Solaris and M$ Visual C++ for NT/2K.</p>
 <p>
 </p>
 <h2><a name="current">current</a></h2>
-<p>1.26</p>
+<p>1.27</p>
 <p>
 </p>
 <h2><a name="release_type">release type</a></h2>
@@ -975,7 +975,8 @@ Continue with the non-encrypted link if STLS is not supported</p>
 <dt><strong><a name="pop3s" class="item">POP3S</a></strong></dt>
 
 <dd>
-<p>Establish a full POP3S connection with the remote server.</p>
+<p>Establish a full POP3S connection with the remote server. Note that the POP3S port
+(default 995) must be set inside the external domain declaration.</p>
 </dd>
 <dt><strong><a name="leave" class="item">Leave</a></strong></dt>
 
@@ -1717,7 +1718,7 @@ inside the parameter declaration, like:</p>
 <p>You can use external modules (executables) to perform user authentication instead
 of using XMail  '<strong>mailusers.tab</strong>' lookups.
 Inside  the userauth  directory you'll find one directory for each service whose
-authentication can be handled externally (for now only POP3).
+authentication can be handled externally (see <a href="#smtpextauth_tab">SMTPEXTAUTH.TAB</a> for SMTP).
 Suppose We must authenticate '<strong>USERNAME</strong>' inside '<strong>DOMAIN</strong>', XMail first tries
 to lookup (inside  userauth/pop3) a file named:</p>
 <p>'<strong>DOMAIN.tab</strong>'</p>

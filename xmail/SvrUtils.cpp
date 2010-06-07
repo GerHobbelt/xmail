@@ -58,16 +58,6 @@ struct ServerConfigData {
 	HASH_HANDLE hHash;
 };
 
-static char *SvrGetProfileFilePath(char *pszFilePath, int iMaxPath);
-static void SvrFreeConfigVar(ServerInfoVar *pSIV);
-static void SvrHFreeConfigVar(void *pPrivate, HashNode *pHN);
-static ServerConfigData *SvrAllocConfig(RLCK_HANDLE hResLock, int iWriteLock);
-static ServerInfoVar *SvrAllocVar(const char *pszName, const char *pszValue);
-static ServerInfoVar *SvrGetUserVar(HASH_HANDLE hHash, const char *pszName);
-static int SvrWriteConfig(HASH_HANDLE hHash, FILE *pFile);
-static int SvrReadConfig(HASH_HANDLE hHash, const char *pszFilePath);
-static char *SvrGetProtoIPPropFile(const char *pszProto, char *pszFileName, int iMaxName);
-static char *SvrGetProtoHNPropFile(const char *pszProto, char *pszFileName, int iMaxName);
 
 static char *SvrGetProfileFilePath(char *pszFilePath, int iMaxPath)
 {
@@ -90,6 +80,75 @@ static void SvrHFreeConfigVar(void *pPrivate, HashNode *pHN)
 	ServerInfoVar *pSIV = SYS_LIST_ENTRY(pHN, ServerInfoVar, HN);
 
 	SvrFreeConfigVar(pSIV);
+}
+
+static ServerInfoVar *SvrAllocVar(const char *pszName, const char *pszValue)
+{
+	char *pszDName;
+	ServerInfoVar *pSIV;
+
+	if ((pSIV = (ServerInfoVar *) SysAlloc(sizeof(ServerInfoVar))) == NULL)
+		return NULL;
+	HashInitNode(&pSIV->HN);
+	pszDName = SysStrDup(pszName);
+	DatumStrSet(&pSIV->HN.Key, pszDName);
+	pSIV->pszValue = SysStrDup(pszValue);
+
+	return pSIV;
+}
+
+static ServerInfoVar *SvrGetUserVar(HASH_HANDLE hHash, const char *pszName)
+{
+	HashNode *pHNode;
+	HashEnum HEnum;
+	Datum Key;
+
+	DatumStrSet(&Key, pszName);
+	if (HashGetFirst(hHash, &Key, &HEnum, &pHNode) < 0)
+		return NULL;
+
+	return SYS_LIST_ENTRY(pHNode, ServerInfoVar, HN);
+}
+
+static int SvrReadConfig(HASH_HANDLE hHash, const char *pszFilePath)
+{
+	FILE *pFile;
+	RLCK_HANDLE hResLock;
+	char szResLock[SYS_MAX_PATH];
+	char szProfileLine[SVR_PROFILE_LINE_MAX];
+
+	if ((hResLock = RLckLockSH(CfgGetBasedPath(pszFilePath, szResLock,
+						   sizeof(szResLock)))) == INVALID_RLCK_HANDLE)
+		return ErrGetErrorCode();
+	if ((pFile = fopen(pszFilePath, "rt")) == NULL) {
+		RLckUnlockSH(hResLock);
+
+		ErrSetErrorCode(ERR_NO_USER_PRFILE, pszFilePath);
+		return ERR_NO_USER_PRFILE;
+	}
+	while (MscGetConfigLine(szProfileLine, sizeof(szProfileLine) - 1,
+				pFile) != NULL) {
+		char **ppszStrings = StrGetTabLineStrings(szProfileLine);
+
+		if (ppszStrings == NULL)
+			continue;
+		if (StrStringsCount(ppszStrings) >= 2) {
+			ServerInfoVar *pSIV = SvrAllocVar(ppszStrings[0], ppszStrings[1]);
+
+			if (pSIV != NULL && HashAdd(hHash, &pSIV->HN) < 0) {
+				SvrFreeConfigVar(pSIV);
+				StrFreeStrings(ppszStrings);
+				fclose(pFile);
+				RLckUnlockSH(hResLock);
+				return ErrGetErrorCode();
+			}
+		}
+		StrFreeStrings(ppszStrings);
+	}
+	fclose(pFile);
+	RLckUnlockSH(hResLock);
+
+	return 0;
 }
 
 static ServerConfigData *SvrAllocConfig(RLCK_HANDLE hResLock, int iWriteLock,
@@ -184,59 +243,6 @@ int SvrGetConfigInt(const char *pszName, int iDefault, SVRCFG_HANDLE hSvrConfig)
 		IsEmptyString(szValue) ? iDefault: atoi(szValue);
 }
 
-int SysFlushConfig(SVRCFG_HANDLE hSvrConfig)
-{
-	ServerConfigData *pSCD = (ServerConfigData *) hSvrConfig;
-	int iError;
-	FILE *pFile;
-	char szProfilePath[SYS_MAX_PATH];
-
-	if (!pSCD->iWriteLock) {
-		ErrSetErrorCode(ERR_SVR_PRFILE_NOT_LOCKED);
-		return ERR_SVR_PRFILE_NOT_LOCKED;
-	}
-
-	SvrGetProfileFilePath(szProfilePath, sizeof(szProfilePath));
-	if ((pFile = fopen(szProfilePath, "wt")) == NULL) {
-		ErrSetErrorCode(ERR_FILE_CREATE);
-		return ERR_FILE_CREATE;
-	}
-
-	iError = SvrWriteConfig(pSCD->hHash, pFile);
-
-	fclose(pFile);
-
-	return iError;
-}
-
-static ServerInfoVar *SvrAllocVar(const char *pszName, const char *pszValue)
-{
-	char *pszDName;
-	ServerInfoVar *pSIV;
-
-	if ((pSIV = (ServerInfoVar *) SysAlloc(sizeof(ServerInfoVar))) == NULL)
-		return NULL;
-	HashInitNode(&pSIV->HN);
-	pszDName = SysStrDup(pszName);
-	DatumStrSet(&pSIV->HN.Key, pszDName);
-	pSIV->pszValue = SysStrDup(pszValue);
-
-	return pSIV;
-}
-
-static ServerInfoVar *SvrGetUserVar(HASH_HANDLE hHash, const char *pszName)
-{
-	HashNode *pHNode;
-	HashEnum HEnum;
-	Datum Key;
-
-	DatumStrSet(&Key, pszName);
-	if (HashGetFirst(hHash, &Key, &HEnum, &pHNode) < 0)
-		return NULL;
-
-	return SYS_LIST_ENTRY(pHNode, ServerInfoVar, HN);
-}
-
 static int SvrWriteConfig(HASH_HANDLE hHash, FILE *pFile)
 {
 	SysListHead *pPos;
@@ -263,45 +269,29 @@ static int SvrWriteConfig(HASH_HANDLE hHash, FILE *pFile)
 	return 0;
 }
 
-static int SvrReadConfig(HASH_HANDLE hHash, const char *pszFilePath)
+int SysFlushConfig(SVRCFG_HANDLE hSvrConfig)
 {
+	ServerConfigData *pSCD = (ServerConfigData *) hSvrConfig;
+	int iError;
 	FILE *pFile;
-	RLCK_HANDLE hResLock;
-	char szResLock[SYS_MAX_PATH];
-	char szProfileLine[SVR_PROFILE_LINE_MAX];
+	char szProfilePath[SYS_MAX_PATH];
 
-	if ((hResLock = RLckLockSH(CfgGetBasedPath(pszFilePath, szResLock,
-						   sizeof(szResLock)))) == INVALID_RLCK_HANDLE)
-		return ErrGetErrorCode();
-	if ((pFile = fopen(pszFilePath, "rt")) == NULL) {
-		RLckUnlockSH(hResLock);
-
-		ErrSetErrorCode(ERR_NO_USER_PRFILE, pszFilePath);
-		return ERR_NO_USER_PRFILE;
+	if (!pSCD->iWriteLock) {
+		ErrSetErrorCode(ERR_SVR_PRFILE_NOT_LOCKED);
+		return ERR_SVR_PRFILE_NOT_LOCKED;
 	}
-	while (MscGetConfigLine(szProfileLine, sizeof(szProfileLine) - 1,
-				pFile) != NULL) {
-		char **ppszStrings = StrGetTabLineStrings(szProfileLine);
 
-		if (ppszStrings == NULL)
-			continue;
-		if (StrStringsCount(ppszStrings) >= 2) {
-			ServerInfoVar *pSIV = SvrAllocVar(ppszStrings[0], ppszStrings[1]);
-
-			if (pSIV != NULL && HashAdd(hHash, &pSIV->HN) < 0) {
-				SvrFreeConfigVar(pSIV);
-				StrFreeStrings(ppszStrings);
-				fclose(pFile);
-				RLckUnlockSH(hResLock);
-				return ErrGetErrorCode();
-			}
-		}
-		StrFreeStrings(ppszStrings);
+	SvrGetProfileFilePath(szProfilePath, sizeof(szProfilePath));
+	if ((pFile = fopen(szProfilePath, "wt")) == NULL) {
+		ErrSetErrorCode(ERR_FILE_CREATE);
+		return ERR_FILE_CREATE;
 	}
+
+	iError = SvrWriteConfig(pSCD->hHash, pFile);
+
 	fclose(pFile);
-	RLckUnlockSH(hResLock);
 
-	return 0;
+	return iError;
 }
 
 int SvrGetMessageID(SYS_UINT64 *pullMessageID)

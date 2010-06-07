@@ -70,7 +70,7 @@ Linux, FreeBSD, OpenBSD and Solaris and M$ Visual C++ for NT/2K.
 
 =head2 current
 
-1.26
+1.27
 
 =head2 release type
 
@@ -945,7 +945,8 @@ Establish an SSL link with the server by issuing a POP3 STLS command.
 
 =item POP3S
 
-Establish a full POP3S connection with the remote server.
+Establish a full POP3S connection with the remote server. Note that the POP3S port
+(default 995) must be set inside the external domain declaration.
 
 =item Leave
 
@@ -1768,7 +1769,7 @@ inside the parameter declaration, like:
 You can use external modules (executables) to perform user authentication instead
 of using XMail  'B<mailusers.tab>' lookups.
 Inside  the userauth  directory you'll find one directory for each service whose
-authentication can be handled externally (for now only POP3).
+authentication can be handled externally (see L<"SMTPEXTAUTH.TAB"> for SMTP).
 Suppose We must authenticate 'B<USERNAME>' inside 'B<DOMAIN>', XMail first tries
 to lookup (inside  userauth/pop3) a file named:
 

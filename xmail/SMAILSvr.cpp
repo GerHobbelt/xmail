@@ -1380,20 +1380,8 @@ static int SMAILCmd_smtprelay(SVRCFG_HANDLE hSvrConfig, SHB_HANDLE hShbSMAIL,
 	char **ppszRelays = NULL;
 
 	if (ppszCmdTokens[1][0] == '#') {
-		if ((ppszRelays = StrTokenize(ppszCmdTokens[1] + 1, ";")) != NULL) {
-			int iRelayCount = StrStringsCount(ppszRelays);
-
-			srand((unsigned int) time(NULL));
-			for (int i = 0; i < (iRelayCount / 2); i++) {
-				int iSwap1 = rand() % iRelayCount;
-				int iSwap2 = rand() % iRelayCount;
-				char *pszRly1 = ppszRelays[iSwap1];
-				char *pszRly2 = ppszRelays[iSwap2];
-
-				ppszRelays[iSwap1] = pszRly2;
-				ppszRelays[iSwap2] = pszRly1;
-			}
-		}
+		if ((ppszRelays = StrTokenize(ppszCmdTokens[1] + 1, ";")) != NULL)
+			MscRandomizeStringsOrder(ppszRelays);
 	} else
 		ppszRelays = StrTokenize(ppszCmdTokens[1], ";");
 

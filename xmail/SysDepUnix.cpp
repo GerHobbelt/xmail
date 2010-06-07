@@ -76,6 +76,7 @@ int SysInitLibrary(void)
 	if (SysDepInitLibrary() < 0 ||
 	    SysThreadSetup(NULL) < 0)
 		return ErrGetErrorCode();
+	SRand();
 
 	return 0;
 }
@@ -528,12 +529,12 @@ int SysSendFileMMap(SYS_SOCKET SockFD, const char *pszFileName, SYS_OFF_T llBase
 		return ERR_MMAP;
 	}
 	/* Send the file */
-	size_t iSndBuffSize = MIN_TCP_SEND_SIZE;
+	int iSndBuffSize = MIN_TCP_SEND_SIZE;
 	char *pszBuffer = (char *) pMapAddress + (llBaseOffset - llAlnOff);
 	time_t tStart;
 
 	while (llBaseOffset < llEndOffset) {
-		size_t iCurrSend = (size_t) Min(iSndBuffSize, llEndOffset - llBaseOffset);
+		int iCurrSend = (int) Min(iSndBuffSize, llEndOffset - llBaseOffset);
 
 		tStart = time(NULL);
 		if ((iCurrSend = SysSendData(SockFD, pszBuffer, iCurrSend, iTimeout)) < 0) {
@@ -1388,12 +1389,14 @@ void *SysGetSymbol(SYS_HANDLE hModule, const char *pszSymbol)
 
 int SysEventLogV(int iLogLevel, const char *pszFormat, va_list Args)
 {
-	openlog(APP_NAME_STR, LOG_PID, LOG_DAEMON);
+	openlog(APP_NAME_STR, LOG_PID | LOG_CONS, LOG_DAEMON);
 
 	char szBuffer[2048] = "";
 
 	vsnprintf(szBuffer, sizeof(szBuffer) - 1, pszFormat, Args);
-	syslog(LOG_DAEMON | LOG_ERR, "%s", szBuffer);
+	syslog(LOG_DAEMON | (iLogLevel == LOG_LEV_ERROR ? LOG_ERR:
+			     iLogLevel == LOG_LEV_WARNING ? LOG_WARNING: LOG_INFO),
+	       "%s", szBuffer);
 	closelog();
 
 	return 0;

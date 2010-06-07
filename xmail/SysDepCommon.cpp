@@ -270,12 +270,6 @@ void const *SysInetAddrData(SYS_INET_ADDR const &AddrInfo, int *piSize)
 	return NULL;
 }
 
-int SysSameAddress(SYS_INET_ADDR const &NetAddr1, SYS_INET_ADDR const &NetAddr2)
-{
-	return NetAddr1.iSize == NetAddr2.iSize &&
-		memcmp(NetAddr1.Addr, NetAddr2.Addr, NetAddr1.iSize) == 0;
-}
-
 int SysInetIPV6CompatIPV4(SYS_INET_ADDR const &Addr)
 {
 	int i, iASize;

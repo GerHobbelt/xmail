@@ -1198,7 +1198,6 @@ size_t SSL_get_peer_finished(const SSL *s, void *buf, size_t count);
 #define SSL_ERROR_ZERO_RETURN		6
 #define SSL_ERROR_WANT_CONNECT		7
 #define SSL_ERROR_WANT_ACCEPT		8
-#define SSL_ERROR_WANT_SHUTDOWN		9
 
 #define SSL_CTRL_NEED_TMP_RSA			1
 #define SSL_CTRL_SET_TMP_RSA			2

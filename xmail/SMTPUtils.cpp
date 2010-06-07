@@ -323,20 +323,8 @@ SMTPGateway **USmtpGetFwdGateways(SVRCFG_HANDLE hSvrConfig, const char *pszDomai
 
 			if (ppszStrings[fwdGateway][0] == '#') {
 				if ((ppszFwdGws =
-				     StrTokenize(ppszStrings[fwdGateway] + 1, ";")) != NULL) {
-					int iGwCount = StrStringsCount(ppszFwdGws);
-
-					srand((unsigned int) time(NULL));
-					for (int i = 0; i < (iGwCount / 2); i++) {
-						int iSwap1 = rand() % iGwCount;
-						int iSwap2 = rand() % iGwCount;
-						char *pszGw1 = ppszFwdGws[iSwap1];
-						char *pszGw2 = ppszFwdGws[iSwap2];
-
-						ppszFwdGws[iSwap1] = pszGw2;
-						ppszFwdGws[iSwap2] = pszGw1;
-					}
-				}
+				     StrTokenize(ppszStrings[fwdGateway] + 1, ";")) != NULL)
+					MscRandomizeStringsOrder(ppszFwdGws);
 			} else
 				ppszFwdGws = StrTokenize(ppszStrings[fwdGateway], ";");
 			if (ppszFwdGws != NULL) {

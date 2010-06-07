@@ -37,9 +37,9 @@
 #define STD_CTRL_TIMEOUT            90
 #define CTRL_LISTFOLLOW_RESULT      100
 #define CTRL_WAITDATA_RESULT        101
-#define CCLN_ERROR_BASE             -10000
-#define CCLN_ERR_BAD_USAGE          -10000
-#define CCLN_ERR_SSL_KEYCERT        -10001
+#define CCLN_ERROR_BASE             (-10000)
+#define CCLN_ERR_BAD_USAGE          (-10000)
+#define CCLN_ERR_SSL_KEYCERT        (-10001)
 
 #define CCLN_CHF_USEMD5 (1 << 0)
 #define CCLN_CHF_SSLSWITCH (1 << 1)
@@ -188,7 +188,6 @@ static int CClnSslEnvCB(void *pPrivate, int iID, void const *pData)
 {
 	SslBindEnv *pSslE = (SslBindEnv *) pPrivate;
 
-
 	return 0;
 }
 
@@ -323,7 +322,6 @@ BSOCK_HANDLE CClnConnectServer(char const *pszServer, int iPortNo,
 
 int CClnQuitConnection(BSOCK_HANDLE hBSock, int iTimeout)
 {
-
 	CClnSubmitCommand(hBSock, "\"quit\"", NULL, 0, NULL, iTimeout);
 	BSckDetach(hBSock, 1);
 
@@ -485,8 +483,7 @@ int CClnExec(int iArgCount, char *pszArgs[])
 		return CCLN_ERR_SSL_KEYCERT;
 	}
 
-	int iFirstParam = i;
-	int iCmdLength = 0;
+	int iFirstParam = i, iCmdLength = 0;
 
 	for (; i < iArgCount; i++)
 		iCmdLength += strlen(pszArgs[i]) + 4;
@@ -545,6 +542,7 @@ int main(int iArgCount, char *pszArgs[])
 		SysCleanupLibrary();
 		return 2;
 	}
+
 	int iExecResult = CClnExec(iArgCount, pszArgs);
 
 	if (iExecResult == CCLN_ERR_BAD_USAGE) {

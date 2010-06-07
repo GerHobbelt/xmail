@@ -1519,3 +1519,16 @@ void MscSysFreeCB(void *pPrivate, void *pData)
 	SysFree(pData);
 }
 
+void MscRandomizeStringsOrder(char **ppszStrings)
+{
+	int i, iCount = StrStringsCount(ppszStrings);
+
+	for (i = 0; i < iCount - 1; i++) {
+		int iChoice = rand() % (iCount - i);
+		char *pszTmp = ppszStrings[i];
+
+		ppszStrings[i] = ppszStrings[i + iChoice];
+		ppszStrings[i + iChoice] = pszTmp;
+	}
+}
+

@@ -58,7 +58,8 @@ struct UAuthMacroSubstCtx {
 
 static int UAthGetConfigPath(char const *pszService, char const *pszDomain, char *pszConfigPath);
 static int UAthExecAuthOp(char const *pszService, char const *pszAuthOp,
-			  char const *pszDomain, char const *pszUsername, UserInfo *pUI);
+			  char const *pszDomain, char const *pszUsername,
+			  char const *pszPassword, UserInfo *pUI);
 static char *UAthAuthMacroLkupProc(void *pPrivate, char const *pszName, int iSize);
 static int UAthMacroSubstitutes(char **ppszCmdTokens, char const *pszDomain,
 				char const *pszUsername, char const *pszPassword, UserInfo *pUI);

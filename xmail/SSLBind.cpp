@@ -71,22 +71,21 @@ static int BSslCertVerifyCB(int iOK, X509_STORE_CTX *pXsCtx);
 static int BSslSetupVerify(SSL_CTX *pSCtx, SslServerBind const *pSSLB);
 
 
-
 static SYS_MUTEX *pSslMtxs;
-
 
 
 static void BSslLockingCB(int iMode, int iType, const char *pszFile, int iLine)
 {
-	if (iMode & CRYPTO_LOCK)
-		SysLockMutex(pSslMtxs[iType], SYS_INFINITE_TIMEOUT);
-	else
-		SysUnlockMutex(pSslMtxs[iType]);
+	if (pSslMtxs != NULL) {
+		if (iMode & CRYPTO_LOCK)
+			SysLockMutex(pSslMtxs[iType], SYS_INFINITE_TIMEOUT);
+		else
+			SysUnlockMutex(pSslMtxs[iType]);
+	}
 }
 
 static void BSslThreadExit(void *pPrivate, SYS_THREAD ThreadID, int iMode)
 {
-
 	if (iMode == SYS_THREAD_DETACH) {
 		/*
 		 * This needs to be called at every thread exit, in order to give
@@ -122,7 +121,7 @@ int BSslInit(void)
 			ErrorPush();
 			for (i--; i >= 0; i--)
 				SysCloseMutex(pSslMtxs[i]);
-			SysFree(pSslMtxs);
+			SysFreeNullify(pSslMtxs);
 			return ErrorPop();
 		}
 	}
@@ -157,7 +156,7 @@ void BSslCleanup(void)
 	 */
 	for (i = 0; i < iNumLocks; i++)
 		SysCloseMutex(pSslMtxs[i]);
-	SysFree(pSslMtxs);
+	SysFreeNullify(pSslMtxs);
 }
 
 static int BSslHandleAsync(SslBindCtx *pCtx, int iCode, int iDefError, int iTimeo)
@@ -240,7 +239,6 @@ static int BSslShutdown(SslBindCtx *pCtx)
 
 static char const *BSslCtx__Name(void *pPrivate)
 {
-
 	return BSSL_BIO_NAME;
 }
 

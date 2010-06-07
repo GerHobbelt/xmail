@@ -249,6 +249,7 @@ int SysInitLibrary(void)
 		DeleteCriticalSection(&csTLS);
 		return ErrorPop();
 	}
+	SRand();
 
 	return 0;
 }

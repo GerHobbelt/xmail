@@ -70,8 +70,13 @@ ifeq ($(OSTYPE),GNU/kFreeBSD)
 	LDFLAGS := $(LDFLAGS) $(SSLLIBS) -lkvm -pthread
 else
 	SYSTYPE = freebsd
+	ifeq ($(wildcard /usr/lib/libc_r.*), )
+		LIBC_R =
+	else
+		LIBC_R = -lc_r
+	endif
 	CFLAGS := $(CFLAGS) -I. -D__UNIX__ -D__BSD__ -D__FREEBSD__ -D_REENTRANT=1 -D_THREAD_SAFE=1 -DHAS_SYSMACHINE
-	LDFLAGS := $(LDFLAGS) $(SSLLIBS) -lkvm -lcrypt -pthread -lc_r
+	LDFLAGS := $(LDFLAGS) $(SSLLIBS) -lkvm -lcrypt -pthread $(LIBC_R)
 endif
 endif
 endif

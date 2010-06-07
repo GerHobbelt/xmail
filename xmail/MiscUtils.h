@@ -141,6 +141,7 @@ int MscSslEnvCB(void *pPrivate, int iID, void const *pData);
 int MscParseOptions(const char *pszOpts, int (*pfAssign)(void *, const char *, const char *),
 		    void *pPrivate);
 void MscSysFreeCB(void *pPrivate, void *pData);
+void MscRandomizeStringsOrder(char **ppszStrings);
 
 #endif
 

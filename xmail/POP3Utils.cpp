@@ -108,57 +108,14 @@ struct POP3SessionData {
 	int iTimeout;
 };
 
-static int UPopMailFileNameFilter(const char *pszFileName);
-static int UPopFillMessageList(const char *pszBasePath, const char *pszSubPath,
-			       HSLIST &hMessageList, int &iMsgCount, unsigned long &ulMBSize);
 static int UPopBuildMessageList(UserInfo *pUI, HSLIST &hMessageList,
 				int *piMsgCount = NULL, unsigned long *pulMBSize = NULL);
-static void UPopFreeMsgData(POP3MsgData *pPOPMD);
-static void UPopFreeMessageList(HSLIST &hMessageList);
-static unsigned long UPopMessagesSize(HSLIST &hMessageList);
-static POP3MsgData *UPopMessageFromIndex(POP3SessionData *pPOPSD, int iMsgIndex);
-static int UPopCheckPeerIP(UserInfo *pUI, SYS_INET_ADDR const &PeerInfo);
-static int UPopUpdateMailbox(POP3SessionData *pPOPSD);
 static int UPopCheckResponse(const char *pszResponse, char *pszMessage = NULL);
-static int UPopGetResponse(BSOCK_HANDLE hBSock, char *pszResponse, int iMaxChars,
-			   int iTimeout);
-static char *UPopExtractServerTimeStamp(const char *pszResponse, char *pszTimeStamp,
-					int iMaxTimeStamp);
-static int UPopSendCommand(BSOCK_HANDLE hBSock, const char *pszCommand, char *pszResponse,
-			   int iMaxChars, int iTimeout);
-static int UPopDoClearTextAuth(BSOCK_HANDLE hBSock, const char *pszUsername,
-			       const char *pszPassword, char *pszRespBuffer, int iMaxRespChars);
-static int UPopDoAPOPAuth(BSOCK_HANDLE hBSock, const char *pszUsername,
-			  const char *pszPassword, const char *pszTimeStamp,
-			  char *pszRespBuffer, int iMaxRespChars);
-static int UPopSwitchToTLS(BSOCK_HANDLE hBSock, const char *pszServer,
-			   POP3ChannelCfg const *pChCfg);
-static int UPopInitiateTLS(BSOCK_HANDLE hBSock, const char *pszServer, char *pszRespBuffer,
-			   int iMaxRespChars, POP3ChannelCfg const *pChCfg);
-static BSOCK_HANDLE UPopCreateChannel(const char *pszServer, const char *pszUsername,
-				      const char *pszPassword, POP3ChannelCfg const *pChCfg);
 static int UPopCloseChannel(BSOCK_HANDLE hBSock, int iHardClose = 0);
-static int UPopGetMailboxStatus(BSOCK_HANDLE hBSock, int &iMsgCount,
-				unsigned long &ulMailboxSize);
-static int UPopRetrieveMessage(BSOCK_HANDLE hBSock, int iMsgIndex, const char *pszFileName,
-			       unsigned long *pulMsgSize);
-static int UPopDeleteMessage(BSOCK_HANDLE hBSock, int iMsgIndex);
-static int UPopChanConfigAssign(void *pPrivate, const char *pszName, const char *pszValue);
-static int UPopSetChanConfig(const char *pszAuthType, POP3ChannelCfg *pChCfg);
-static void UPopFreeChanConfig(POP3ChannelCfg *pChCfg);
-static POP3SyncMsg *UPopSChanMsgAlloc(int iMsgSeq, const char *pszMsgID);
-static void UPopSChanMsgFree(POP3SyncMsg *pSMsg);
-static int UPopSChanFilterSeen(POP3SyncChannel *pPSChan);
-static int UPopSChanWriteSeenDB(POP3SyncChannel *pPSChan);
-static int UPopSChanFillStatus(POP3SyncChannel *pPSChan);
-static POP3SyncChannel *UPopSChanCreate(const char *pszRmtServer, const char *pszRmtName,
-					const char *pszRmtPassword, const char *pszSyncCfg);
-static void UPopSChanFree(POP3SyncChannel *pPSChan);
-static int UPopGetIpLogFilePath(UserInfo *pUI, char *pszFilePath, int iMaxPath);
 
 static int UPopMailFileNameFilter(const char *pszFileName)
 {
-	return (*pszFileName != '.') ? 1: 0;
+	return *pszFileName != '.' ? 1: 0;
 }
 
 int UPopGetMailboxSize(UserInfo *pUI, SYS_OFF_T &llMBSize, unsigned long &ulNumMessages)
@@ -268,6 +225,19 @@ static int UPopFillMessageList(const char *pszBasePath, const char *pszSubPath,
 	return 0;
 }
 
+static void UPopFreeMsgData(POP3MsgData *pPOPMD)
+{
+	SysFree(pPOPMD);
+}
+
+static void UPopFreeMessageList(HSLIST &hMessageList)
+{
+	POP3MsgData *pPOPMD;
+
+	while ((pPOPMD = (POP3MsgData *) ListRemove(hMessageList)) != INVALID_SLIST_PTR)
+		UPopFreeMsgData(pPOPMD);
+}
+
 static int UPopBuildMessageList(UserInfo *pUI, HSLIST &hMessageList,
 				int *piMsgCount, unsigned long *pulMBSize)
 {
@@ -314,20 +284,6 @@ static int UPopBuildMessageList(UserInfo *pUI, HSLIST &hMessageList,
 		*pulMBSize = ulMBSize;
 
 	return 0;
-}
-
-static void UPopFreeMsgData(POP3MsgData *pPOPMD)
-{
-	SysFree(pPOPMD);
-
-}
-
-static void UPopFreeMessageList(HSLIST &hMessageList)
-{
-	POP3MsgData *pPOPMD;
-
-	while ((pPOPMD = (POP3MsgData *) ListRemove(hMessageList)) != INVALID_SLIST_PTR)
-		UPopFreeMsgData(pPOPMD);
 }
 
 static unsigned long UPopMessagesSize(HSLIST &hMessageList)
@@ -449,26 +405,6 @@ POP3_HANDLE UPopBuildSession(const char *pszDomain, const char *pszUsrName,
 	return (POP3_HANDLE) pPOPSD;
 }
 
-void UPopReleaseSession(POP3_HANDLE hPOPSession, int iUpdate)
-{
-	POP3SessionData *pPOPSD = (POP3SessionData *) hPOPSession;
-
-	if (iUpdate)
-		UPopUpdateMailbox(pPOPSD);
-	UsrPOP3Unlock(pPOPSD->pUI);
-	UsrFreeUserInfo(pPOPSD->pUI);
-	UPopFreeMessageList(pPOPSD->hMessageList);
-	SysFree(pPOPSD->ppMsgArray);
-	SysFree(pPOPSD);
-}
-
-char *UPopGetUserInfoVar(POP3_HANDLE hPOPSession, const char *pszName, const char *pszDefault)
-{
-	POP3SessionData *pPOPSD = (POP3SessionData *) hPOPSession;
-
-	return UsrGetUserInfoVar(pPOPSD->pUI, pszName, pszDefault);
-}
-
 static int UPopUpdateMailbox(POP3SessionData *pPOPSD)
 {
 	char szMBPath[SYS_MAX_PATH] = "";
@@ -497,6 +433,26 @@ static int UPopUpdateMailbox(POP3SessionData *pPOPSD)
 	RLckUnlockEX(hResLock);
 
 	return 0;
+}
+
+void UPopReleaseSession(POP3_HANDLE hPOPSession, int iUpdate)
+{
+	POP3SessionData *pPOPSD = (POP3SessionData *) hPOPSession;
+
+	if (iUpdate)
+		UPopUpdateMailbox(pPOPSD);
+	UsrPOP3Unlock(pPOPSD->pUI);
+	UsrFreeUserInfo(pPOPSD->pUI);
+	UPopFreeMessageList(pPOPSD->hMessageList);
+	SysFree(pPOPSD->ppMsgArray);
+	SysFree(pPOPSD);
+}
+
+char *UPopGetUserInfoVar(POP3_HANDLE hPOPSession, const char *pszName, const char *pszDefault)
+{
+	POP3SessionData *pPOPSD = (POP3SessionData *) hPOPSession;
+
+	return UsrGetUserInfoVar(pPOPSD->pUI, pszName, pszDefault);
 }
 
 int UPopGetSessionMsgCurrent(POP3_HANDLE hPOPSession)
@@ -761,6 +717,14 @@ int UPopSessionTopMsg(POP3_HANDLE hPOPSession, int iMsgIndex, int iNumLines, BSO
 
 	pPOPSD->iLastAccessed = iMsgIndex;
 	pPOPMD->ulFlags |= POPF_MSG_TOP;
+
+	return 0;
+}
+
+static int UPopGetIpLogFilePath(UserInfo *pUI, char *pszFilePath, int iMaxPath)
+{
+	UsrGetUserPath(pUI, pszFilePath, iMaxPath, 1);
+	StrNCat(pszFilePath, POP3_IP_LOGFILE, iMaxPath);
 
 	return 0;
 }
@@ -1388,6 +1352,31 @@ static int UPopSChanFillStatus(POP3SyncChannel *pPSChan)
 	return 0;
 }
 
+static void UPopSChanFree(POP3SyncChannel *pPSChan)
+{
+	SysListHead *pPos;
+	POP3SyncMsg *pSMsg;
+
+	if (pPSChan->ChCfg.ulFlags & POPCHF_LEAVE_MSGS)
+		UPopSChanWriteSeenDB(pPSChan);
+	while ((pPos = SYS_LIST_FIRST(&pPSChan->SyncMList)) != NULL) {
+		pSMsg = SYS_LIST_ENTRY(pPos, POP3SyncMsg, LLnk);
+		SYS_LIST_DEL(&pSMsg->LLnk);
+		UPopSChanMsgFree(pSMsg);
+	}
+	while ((pPos = SYS_LIST_FIRST(&pPSChan->SeenMList)) != NULL) {
+		pSMsg = SYS_LIST_ENTRY(pPos, POP3SyncMsg, LLnk);
+		SYS_LIST_DEL(&pSMsg->LLnk);
+		UPopSChanMsgFree(pSMsg);
+	}
+	SysFree(pPSChan->ppSMsg);
+	UPopCloseChannel(pPSChan->hBSock);
+	UPopFreeChanConfig(&pPSChan->ChCfg);
+	SysFree(pPSChan->pszRmtServer);
+	SysFree(pPSChan->pszRmtName);
+	SysFree(pPSChan);
+}
+
 static POP3SyncChannel *UPopSChanCreate(const char *pszRmtServer, const char *pszRmtName,
 					const char *pszRmtPassword, const char *pszSyncCfg)
 {
@@ -1416,31 +1405,6 @@ static POP3SyncChannel *UPopSChanCreate(const char *pszRmtServer, const char *ps
 	}
 
 	return pPSChan;
-}
-
-static void UPopSChanFree(POP3SyncChannel *pPSChan)
-{
-	SysListHead *pPos;
-	POP3SyncMsg *pSMsg;
-
-	if (pPSChan->ChCfg.ulFlags & POPCHF_LEAVE_MSGS)
-		UPopSChanWriteSeenDB(pPSChan);
-	while ((pPos = SYS_LIST_FIRST(&pPSChan->SyncMList)) != NULL) {
-		pSMsg = SYS_LIST_ENTRY(pPos, POP3SyncMsg, LLnk);
-		SYS_LIST_DEL(&pSMsg->LLnk);
-		UPopSChanMsgFree(pSMsg);
-	}
-	while ((pPos = SYS_LIST_FIRST(&pPSChan->SeenMList)) != NULL) {
-		pSMsg = SYS_LIST_ENTRY(pPos, POP3SyncMsg, LLnk);
-		SYS_LIST_DEL(&pSMsg->LLnk);
-		UPopSChanMsgFree(pSMsg);
-	}
-	SysFree(pPSChan->ppSMsg);
-	UPopCloseChannel(pPSChan->hBSock);
-	UPopFreeChanConfig(&pPSChan->ChCfg);
-	SysFree(pPSChan->pszRmtServer);
-	SysFree(pPSChan->pszRmtName);
-	SysFree(pPSChan);
 }
 
 int UPopSyncRemoteLink(const char *pszSyncAddr, const char *pszRmtServer,
@@ -1519,14 +1483,6 @@ int UPopSyncRemoteLink(const char *pszSyncAddr, const char *pszRmtServer,
 
 	pSRep->iMsgErr -= Min(pSRep->iMsgErr, pSRep->iMsgSync);
 	pSRep->ulSizeErr -= Min(pSRep->ulSizeErr, pSRep->ulSizeSync);
-
-	return 0;
-}
-
-static int UPopGetIpLogFilePath(UserInfo *pUI, char *pszFilePath, int iMaxPath)
-{
-	UsrGetUserPath(pUI, pszFilePath, iMaxPath, 1);
-	StrNCat(pszFilePath, POP3_IP_LOGFILE, iMaxPath);
 
 	return 0;
 }

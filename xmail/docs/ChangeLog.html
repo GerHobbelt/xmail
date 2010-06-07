@@ -2,7 +2,7 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-<title>XMail Change Log v 1.26</title>
+<title>XMail Change Log v 1.27</title>
 <link rel="stylesheet" href="./xmail.css" type="text/css" />
 <meta http-equiv="content-type" content="text/html; charset=utf-8" />
 <link rev="made" href="mailto:root@localhost" />
@@ -21,6 +21,7 @@
 	<li><a href="#change_log">CHANGE LOG</a></li>
 	<ul>
 
+		<li><a href="#jun_27__2009_v_1_27">Jun 27, 2009 v 1.27</a></li>
 		<li><a href="#jun_27__2009_v_1_26">Jun 27, 2009 v 1.26</a></li>
 		<li><a href="#jan_3__2008_v_1_25">Jan 3, 2008 v 1.25</a></li>
 		<li><a href="#jan_1__2007_v_1_24">Jan 1, 2007 v 1.24</a></li>
@@ -119,12 +120,30 @@
 <p>
 </p>
 <h1><a name="name">NAME</a></h1>
-<p>XMail Change Log as of Version 1.26</p>
+<p>XMail Change Log as of Version 1.27</p>
 <p>[<a href="#__index__">top</a>]</p>
 <p>
 </p>
 <hr />
 <h1><a name="change_log">CHANGE LOG</a></h1>
+<p>
+</p>
+<h2><a name="jun_27__2009_v_1_27">Jun 27, 2009 v 1.27</a></h2>
+<ul>
+<li>
+<p>Fixed a bug that was caused by the SSL code triggering the XMail binding locking code
+after XMail has already cleanup.</p>
+</li>
+<li>
+<p>Fixed a bug in the SMTP external authentication.</p>
+</li>
+<li>
+<p>Fixed Unix syslog logging facility to consider different logging levels.</p>
+</li>
+<li>
+<p>Changed SMTP HELP response code to 214.</p>
+</li>
+</ul>
 <p>
 </p>
 <h2><a name="jun_27__2009_v_1_26">Jun 27, 2009 v 1.26</a></h2>

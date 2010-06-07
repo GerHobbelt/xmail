@@ -51,14 +51,6 @@ struct ADomainScanData {
 	char **ppszStrings;
 };
 
-static bool ADomIsWildAlias(char const *pszAlias);
-static int ADomCalcAliasHash(char const *const *ppszTabTokens, int const *piFieldsIdx,
-			     TabIdxUINT *puHashVal, bool bCaseSens);
-static int ADomRebuildADomainIndexes(char const *pszADomainFilePath);
-static char *ADomGetADomainFilePath(char *pszADomainFilePath, int iMaxPath);
-static int ADomLookupDomainLK(const char *pszADomainFilePath, const char *pszADomain,
-			      char *pszDomain, bool bWildMatch);
-
 static int iIdxADomain_Alias[] = {
 	adomADomain,
 
@@ -85,6 +77,14 @@ static int ADomCalcAliasHash(char const *const *ppszTabTokens, int const *piFiel
 	return TbixCalculateHash(ppszTabTokens, piFieldsIdx, puHashVal, bCaseSens);
 }
 
+static char *ADomGetADomainFilePath(char *pszADomainFilePath, int iMaxPath)
+{
+	CfgGetRootPath(pszADomainFilePath, iMaxPath);
+	StrNCat(pszADomainFilePath, ADOMAIN_FILE, iMaxPath);
+
+	return pszADomainFilePath;
+}
+
 int ADomCheckDomainsIndexes(void)
 {
 	char szADomainFilePath[SYS_MAX_PATH] = "";
@@ -105,14 +105,6 @@ static int ADomRebuildADomainIndexes(char const *pszADomainFilePath)
 		return ErrGetErrorCode();
 
 	return 0;
-}
-
-static char *ADomGetADomainFilePath(char *pszADomainFilePath, int iMaxPath)
-{
-	CfgGetRootPath(pszADomainFilePath, iMaxPath);
-	StrNCat(pszADomainFilePath, ADOMAIN_FILE, iMaxPath);
-
-	return pszADomainFilePath;
 }
 
 static int ADomLookupDomainLK(const char *pszADomainFilePath, const char *pszADomain,
@@ -142,8 +134,6 @@ static int ADomLookupDomainLK(const char *pszADomainFilePath, const char *pszADo
 						   &uLkHVal, 1);
 
 	if (hIndexLookup != INVALID_INDEX_HANDLE) {
-		char **ppszTabTokens;
-
 		for (ppszTabTokens = TbixFirstRecord(hIndexLookup); ppszTabTokens != NULL;
 		     ppszTabTokens = TbixNextRecord(hIndexLookup)) {
 			int iFieldsCount = StrStringsCount(ppszTabTokens);

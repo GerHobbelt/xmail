@@ -103,7 +103,6 @@ int SysGetSockInfo(SYS_SOCKET SockFD, SYS_INET_ADDR &AddrInfo);
 char *SysInetNToA(SYS_INET_ADDR const &AddrInfo, char *pszIP, int iSize);
 char *SysInetRevNToA(SYS_INET_ADDR const &AddrInfo, char *pszRevIP, int iSize);
 void const *SysInetAddrData(SYS_INET_ADDR const &AddrInfo, int *piSize);
-int SysSameAddress(SYS_INET_ADDR const &NetAddr1, SYS_INET_ADDR const &NetAddr2);
 int SysInetIPV6CompatIPV4(SYS_INET_ADDR const &Addr);
 int SysInetIPV6ToIPV4(SYS_INET_ADDR const &SAddr, SYS_INET_ADDR &DAddr);
 int SysInetAddrMatch(SYS_INET_ADDR const &Addr, SYS_UINT8 const *pMask, int iMaskSize,

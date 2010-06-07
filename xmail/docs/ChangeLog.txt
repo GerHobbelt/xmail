@@ -1,10 +1,22 @@
 NAME
 
-    XMail Change Log as of Version 1.26
+    XMail Change Log as of Version 1.27
 
     [top]
 
 CHANGE LOG
+
+  Jun 27, 2009 v 1.27
+
+    *   Fixed a bug that was caused by the SSL code triggering the XMail
+        binding locking code after XMail has already cleanup.
+
+    *   Fixed a bug in the SMTP external authentication.
+
+    *   Fixed Unix syslog logging facility to consider different logging
+        levels.
+
+    *   Changed SMTP HELP response code to 214.
 
   Jun 27, 2009 v 1.26
 
