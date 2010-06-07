@@ -684,8 +684,7 @@ int MscMoveFile(char const *pszOldName, char const *pszNewName)
 	return SysRemove(pszOldName);
 }
 
-char *MscStringRead(FILE *pFile, char *pszBuffer, int iMaxChars,
-		    int *piGotNL)
+char *MscGetString(FILE *pFile, char *pszBuffer, int iMaxChars, int *piGotNL)
 {
 	int iLength;
 
@@ -702,19 +701,9 @@ char *MscStringRead(FILE *pFile, char *pszBuffer, int iMaxChars,
 	return pszBuffer;
 }
 
-/*
- * You may ask yourself, why you got to have those two dups?
- * Well, no reason at all, and I'm too lasy to change all the instances
- * at the moment.
- */
-char *MscGetString(FILE *pFile, char *pszBuffer, int iMaxChars)
-{
-	return MscStringRead(pFile, pszBuffer, iMaxChars, NULL);
-}
-
 char *MscFGets(char *pszLine, int iLineSize, FILE *pFile)
 {
-	return MscStringRead(pFile, pszLine, iLineSize, NULL);
+	return MscGetString(pFile, pszLine, iLineSize, NULL);
 }
 
 char *MscGetConfigLine(char *pszLine, int iLineSize, FILE *pFile, bool bSkipComments)

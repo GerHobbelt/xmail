@@ -196,7 +196,6 @@ static void USmlFreeTag(MessageTagData *pMTD)
 	SysFree(pMTD->pszTagName);
 	SysFree(pMTD->pszTagData);
 	SysFree(pMTD);
-
 }
 
 static MessageTagData *USmlFindTag(HSLIST &hTagList, char const *pszTagName,
@@ -212,7 +211,6 @@ static MessageTagData *USmlFindTag(HSLIST &hTagList, char const *pszTagName,
 			return pMTD;
 		}
 	}
-
 	TagPosition = (TAG_POSITION) INVALID_SLIST_PTR;
 
 	return NULL;
@@ -257,7 +255,7 @@ static void USmlFreeTagsList(HSLIST &hTagList)
 
 static int USmlLoadTags(FILE *pSpoolFile, HSLIST &hTagList)
 {
-	int iGotNL;
+	int iPrevGotNL, iGotNL;
 	unsigned long ulFilePos;
 	DynString TagDS;
 	char szTagName[256] = "", szSpoolLine[MAX_SPOOL_LINE];
@@ -265,8 +263,9 @@ static int USmlLoadTags(FILE *pSpoolFile, HSLIST &hTagList)
 	ulFilePos = (unsigned long) ftell(pSpoolFile);
 	StrDynInit(&TagDS);
 
-	while (MscStringRead(pSpoolFile, szSpoolLine, sizeof(szSpoolLine) - 1,
-			     &iGotNL) != NULL) {
+	for (iPrevGotNL = 1;
+	     MscGetString(pSpoolFile, szSpoolLine, sizeof(szSpoolLine) - 1,
+			  &iGotNL) != NULL; iPrevGotNL = iGotNL) {
 		if (IsEmptyString(szSpoolLine)) {
 			if (StrDynSize(&TagDS) > 0) {
 				if (USmlAddTag(hTagList, szTagName, StrDynGet(&TagDS)) < 0) {
@@ -282,7 +281,7 @@ static int USmlLoadTags(FILE *pSpoolFile, HSLIST &hTagList)
 			break;
 		}
 		if (szSpoolLine[0] == ' ' || szSpoolLine[0] == '\t' ||
-		    !iGotNL) {
+		    !iPrevGotNL) {
 			if (IsEmptyString(szTagName)) {
 				StrDynFree(&TagDS);
 				fseek(pSpoolFile, ulFilePos, SEEK_SET);
@@ -290,7 +289,7 @@ static int USmlLoadTags(FILE *pSpoolFile, HSLIST &hTagList)
 				ErrSetErrorCode(ERR_INVALID_MESSAGE_FORMAT);
 				return ERR_INVALID_MESSAGE_FORMAT;
 			}
-			if ((iGotNL && StrDynAdd(&TagDS, "\r\n") < 0) ||
+			if ((iPrevGotNL && StrDynAdd(&TagDS, "\r\n") < 0) ||
 			    StrDynAdd(&TagDS, szSpoolLine) < 0) {
 				ErrorPush();
 				StrDynFree(&TagDS);

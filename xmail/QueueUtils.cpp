@@ -531,8 +531,8 @@ static int QueUtBuildErrorResponse(char const *pszSMTPDomain, SPLF_HANDLE hFSpoo
 	int iGotNL;
 	bool bInHeaders = true;
 
-	while (MscStringRead(pMsgFile, szBuffer, sizeof(szBuffer) - 1,
-			     &iGotNL) != NULL) {
+	while (MscGetString(pMsgFile, szBuffer, sizeof(szBuffer) - 1,
+			    &iGotNL) != NULL) {
 		char *pszXDomain, *pszTmp;
 
 		/* Mail error loop deteced */
