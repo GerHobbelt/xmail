@@ -105,7 +105,6 @@ static void SysThreadCleanup(ThrData *pTD)
 {
 	SysRunThreadExitHooks(pTD != NULL ? (SYS_THREAD) pTD: SYS_INVALID_THREAD,
 			      SYS_THREAD_DETACH);
-
 	if (pTD != NULL) {
 		pthread_mutex_lock(&pTD->Mtx);
 		pTD->iThreadEnded = 1;
@@ -215,7 +214,6 @@ SYS_SOCKET SysCreateSocket(int iAddressFamily, int iType, int iProtocol)
 	}
 	if (SysSetSocketsOptions((SYS_SOCKET) SockFD) < 0) {
 		SysCloseSocket((SYS_SOCKET) SockFD);
-
 		return SYS_INVALID_SOCKET;
 	}
 
@@ -571,13 +569,12 @@ int SysSendFileMMap(SYS_SOCKET SockFD, char const *pszFileName, SYS_OFF_T llBase
 		return ERR_MMAP;
 	}
 	/* Send the file */
-	int iSndBuffSize = MIN_TCP_SEND_SIZE;
+	int iCurrSend, iSndBuffSize = MIN_TCP_SEND_SIZE;
 	char *pszBuffer = (char *) pMapAddress + (llBaseOffset - llAlnOff);
 	time_t tStart;
 
 	while (llBaseOffset < llEndOffset) {
-		int iCurrSend = (int) Min(iSndBuffSize, llEndOffset - llBaseOffset);
-
+		iCurrSend = (int) Min(iSndBuffSize, llEndOffset - llBaseOffset);
 		tStart = time(NULL);
 		if ((iCurrSend = SysSendData(SockFD, pszBuffer, iCurrSend, iTimeout)) < 0) {
 			ErrorPush();
@@ -586,8 +583,8 @@ int SysSendFileMMap(SYS_SOCKET SockFD, char const *pszFileName, SYS_OFF_T llBase
 			return ErrorPop();
 		}
 
-		if ((((time(NULL) - tStart) * K_IO_TIME_RATIO) < iTimeout) &&
-		    (iSndBuffSize < MAX_TCP_SEND_SIZE))
+		if (((time(NULL) - tStart) * K_IO_TIME_RATIO) < iTimeout &&
+		    iSndBuffSize < MAX_TCP_SEND_SIZE)
 			iSndBuffSize = Min(iSndBuffSize * 2, MAX_TCP_SEND_SIZE);
 
 		pszBuffer += iCurrSend;
@@ -639,9 +636,11 @@ int SysCloseSemaphore(SYS_SEMAPHORE hSemaphore)
 {
 	SemData *pSD = (SemData *) hSemaphore;
 
-	pthread_cond_destroy(&pSD->WaitCond);
-	pthread_mutex_destroy(&pSD->Mtx);
-	SysFree(pSD);
+	if (pSD != NULL) {
+		pthread_cond_destroy(&pSD->WaitCond);
+		pthread_mutex_destroy(&pSD->Mtx);
+		SysFree(pSD);
+	}
 
 	return 0;
 }
@@ -746,9 +745,11 @@ int SysCloseMutex(SYS_MUTEX hMutex)
 {
 	MutexData *pMD = (MutexData *) hMutex;
 
-	pthread_cond_destroy(&pMD->WaitCond);
-	pthread_mutex_destroy(&pMD->Mtx);
-	SysFree(pMD);
+	if (pMD != NULL) {
+		pthread_cond_destroy(&pMD->WaitCond);
+		pthread_mutex_destroy(&pMD->Mtx);
+		SysFree(pMD);
+	}
 
 	return 0;
 }
@@ -839,7 +840,6 @@ SYS_EVENT SysCreateEvent(int iManualReset)
 		ErrSetErrorCode(ERR_CONDINIT);
 		return SYS_INVALID_EVENT;
 	}
-
 	pED->iSignaled = 0;
 	pED->iManualReset = iManualReset;
 
@@ -850,9 +850,11 @@ int SysCloseEvent(SYS_EVENT hEvent)
 {
 	EventData *pED = (EventData *) hEvent;
 
-	pthread_cond_destroy(&pED->WaitCond);
-	pthread_mutex_destroy(&pED->Mtx);
-	SysFree(pED);
+	if (pED != NULL) {
+		pthread_cond_destroy(&pED->WaitCond);
+		pthread_mutex_destroy(&pED->Mtx);
+		SysFree(pED);
+	}
 
 	return 0;
 }
@@ -998,15 +1000,17 @@ void SysCloseThread(SYS_THREAD ThreadID, int iForce)
 {
 	ThrData *pTD = (ThrData *) ThreadID;
 
-	pthread_mutex_lock(&pTD->Mtx);
-	pthread_detach(pTD->ThreadId);
-	if (iForce && !pTD->iThreadEnded)
-		pthread_cancel(pTD->ThreadId);
-	if (--pTD->iUseCount == 0) {
-		pthread_mutex_unlock(&pTD->Mtx);
-		SysFreeThreadData(pTD);
-	} else
-		pthread_mutex_unlock(&pTD->Mtx);
+	if (pTD != NULL) {
+		pthread_mutex_lock(&pTD->Mtx);
+		pthread_detach(pTD->ThreadId);
+		if (iForce && !pTD->iThreadEnded)
+			pthread_cancel(pTD->ThreadId);
+		if (--pTD->iUseCount == 0) {
+			pthread_mutex_unlock(&pTD->Mtx);
+			SysFreeThreadData(pTD);
+		} else
+			pthread_mutex_unlock(&pTD->Mtx);
+	}
 }
 
 int SysWaitThread(SYS_THREAD ThreadID, int iTimeout)
@@ -1079,7 +1083,6 @@ static int SysWaitPID(pid_t PID, int *piExitCode, int iTimeout)
 	} while (iTimeout > 0);
 	if (PID != ExitPID)
 		return ERR_TIMEOUT;
-
 	if (piExitCode != NULL)
 		*piExitCode = iExitStatus;
 
@@ -1231,7 +1234,6 @@ void SysSetBreakHandler(void (*BreakHandler) (void))
 	sigaddset(&SigMask, SIGHUP);
 
 	pthread_sigmask(SIG_UNBLOCK, &SigMask, NULL);
-
 }
 
 unsigned long SysGetCurrentProcessId(void)
@@ -1323,7 +1325,7 @@ int SysLockFile(char const *pszFileName, char const *pszLockExt)
 		return ERR_LOCKED;
 	}
 
-	char szLock[128] = "";
+	char szLock[128];
 
 	sprintf(szLock, "%lu", (unsigned long) SysGetCurrentThreadId());
 	write(iFileID, szLock, strlen(szLock) + 1);
@@ -1334,7 +1336,7 @@ int SysLockFile(char const *pszFileName, char const *pszLockExt)
 
 int SysUnlockFile(char const *pszFileName, char const *pszLockExt)
 {
-	char szLockFile[SYS_MAX_PATH] = "";
+	char szLockFile[SYS_MAX_PATH];
 
 	snprintf(szLockFile, sizeof(szLockFile) - 1, "%s%s", pszFileName, pszLockExt);
 	if (unlink(szLockFile) != 0) {
@@ -1359,7 +1361,8 @@ SYS_HANDLE SysOpenModule(char const *pszFilePath)
 
 int SysCloseModule(SYS_HANDLE hModule)
 {
-	dlclose((void *) hModule);
+	if (hModule != SYS_INVALID_HANDLE)
+		dlclose((void *) hModule);
 
 	return 0;
 }
@@ -1380,7 +1383,7 @@ int SysEventLogV(int iLogLevel, char const *pszFormat, va_list Args)
 {
 	openlog(APP_NAME_STR, LOG_PID | LOG_CONS, LOG_DAEMON);
 
-	char szBuffer[2048] = "";
+	char szBuffer[2048];
 
 	vsnprintf(szBuffer, sizeof(szBuffer) - 1, pszFormat, Args);
 	syslog(LOG_DAEMON | (iLogLevel == LOG_LEV_ERROR ? LOG_ERR:
@@ -1393,15 +1396,14 @@ int SysEventLogV(int iLogLevel, char const *pszFormat, va_list Args)
 
 int SysEventLog(int iLogLevel, char const *pszFormat, ...)
 {
+	int iError;
 	va_list Args;
 
 	va_start(Args, pszFormat);
-
-	int iLogResult = SysEventLogV(iLogLevel, pszFormat, Args);
-
+	iError = SysEventLogV(iLogLevel, pszFormat, Args);
 	va_end(Args);
 
-	return 0;
+	return iError;
 }
 
 int SysLogMessage(int iLogLevel, char const *pszFormat, ...)
@@ -1564,7 +1566,7 @@ SYS_HANDLE SysFirstFile(char const *pszPath, char *pszFileName, int iSize)
 
 	StrNCpy(pszFileName, pFFD->FDE.DE.d_name, iSize);
 
-	char szFilePath[SYS_MAX_PATH] = "";
+	char szFilePath[SYS_MAX_PATH];
 
 	snprintf(szFilePath, sizeof(szFilePath) - 1, "%s%s", pFFD->szPath,
 		 pFFD->FDE.DE.d_name);
@@ -1583,7 +1585,7 @@ int SysIsDirectory(SYS_HANDLE hFind)
 {
 	FileFindData *pFFD = (FileFindData *) hFind;
 
-	return (S_ISDIR(pFFD->FStat.st_mode)) ? 1: 0;
+	return S_ISDIR(pFFD->FStat.st_mode) ? 1: 0;
 }
 
 SYS_OFF_T SysGetSize(SYS_HANDLE hFind)
@@ -1609,7 +1611,7 @@ int SysNextFile(SYS_HANDLE hFind, char *pszFileName, int iSize)
 
 	StrNCpy(pszFileName, pFFD->FDE.DE.d_name, iSize);
 
-	char szFilePath[SYS_MAX_PATH] = "";
+	char szFilePath[SYS_MAX_PATH];
 
 	snprintf(szFilePath, sizeof(szFilePath) - 1, "%s%s", pFFD->szPath,
 		 pFFD->FDE.DE.d_name);
@@ -1625,8 +1627,10 @@ void SysFindClose(SYS_HANDLE hFind)
 {
 	FileFindData *pFFD = (FileFindData *) hFind;
 
-	closedir(pFFD->pDIR);
-	SysFree(pFFD);
+	if (pFFD != NULL) {
+		closedir(pFFD->pDIR);
+		SysFree(pFFD);
+	}
 }
 
 int SysGetFileInfo(char const *pszFileName, SYS_FILE_INFO &FI)
@@ -1829,11 +1833,13 @@ void SysCloseMMap(SYS_MMAP hMap)
 {
 	MMapData *pMMD = (MMapData *) hMap;
 
-	if (pMMD->iNumMaps > 0) {
+	if (pMMD != NULL) {
+		if (pMMD->iNumMaps > 0) {
 
+		}
+		close(pMMD->iFD);
+		SysFree(pMMD);
 	}
-	close(pMMD->iFD);
-	SysFree(pMMD);
 }
 
 SYS_OFF_T SysMMapSize(SYS_MMAP hMap)

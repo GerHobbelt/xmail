@@ -1334,8 +1334,7 @@ static int SvrSetup(int iArgCount, char *pszArgs[])
 	iNumShCtxs = 0;
 	bServerDebug = false;
 
-	int iSndBufSize = -1;
-	int iRcvBufSize = -1;
+	int iSndBufSize = -1, iRcvBufSize = -1;
 	int iDnsCacheDirs = DNS_HASH_NUM_DIRS;
 
 	for (int i = 0; i < iArgCount; i++) {

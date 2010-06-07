@@ -114,7 +114,6 @@ static void SysInitTlsKeys(void)
 static void SysCleanupTlsKeys(void)
 {
 	EnterCriticalSection(&csTLS);
-
 	for (int i = 0; i < MAX_TLS_KEYS; i++) {
 		if (TlsKeyEntries[i].pFreeProc != UNUSED_TLS_KEY_PROC &&
 		    TlsKeyEntries[i].pFreeProc != NULL)
@@ -122,7 +121,6 @@ static void SysCleanupTlsKeys(void)
 
 		TlsKeys[i].pData = NULL;
 	}
-
 	LeaveCriticalSection(&csTLS);
 }
 
@@ -177,7 +175,6 @@ static int SysCrtReportHook(int iType, char *pszMsg, int *piRetVal)
 	default:
 		return FALSE;
 	}
-
 	SysLogMessage(iLogLevel, "%s: %s\n", pszType, pszMsg);
 
 	return iRetCode;
@@ -376,7 +373,8 @@ int SysBlockSocket(SYS_SOCKET SockFD, int iBlocking)
 
 void SysCloseSocket(SYS_SOCKET SockFD)
 {
-	closesocket(SockFD);
+	if (SockFD != SYS_INVALID_SOCKET)
+		closesocket(SockFD);
 }
 
 int SysShutdownSocket(SYS_SOCKET SockFD, int iHow)
@@ -870,9 +868,11 @@ SYS_SEMAPHORE SysCreateSemaphore(int iInitCount, int iMaxCount)
 
 int SysCloseSemaphore(SYS_SEMAPHORE hSemaphore)
 {
-	if (!CloseHandle((HANDLE) hSemaphore)) {
-		ErrSetErrorCode(ERR_CLOSEHANDLE);
-		return ERR_CLOSEHANDLE;
+	if (hSemaphore != SYS_INVALID_SEMAPHORE) {
+		if (!CloseHandle((HANDLE) hSemaphore)) {
+			ErrSetErrorCode(ERR_CLOSEHANDLE);
+			return ERR_CLOSEHANDLE;
+		}
 	}
 
 	return 0;
@@ -923,9 +923,11 @@ SYS_MUTEX SysCreateMutex(void)
 
 int SysCloseMutex(SYS_MUTEX hMutex)
 {
-	if (!CloseHandle((HANDLE) hMutex)) {
-		ErrSetErrorCode(ERR_CLOSEHANDLE);
-		return ERR_CLOSEHANDLE;
+	if (hMutex != SYS_INVALID_MUTEX) {
+		if (!CloseHandle((HANDLE) hMutex)) {
+			ErrSetErrorCode(ERR_CLOSEHANDLE);
+			return ERR_CLOSEHANDLE;
+		}
 	}
 
 	return 0;
@@ -973,9 +975,11 @@ SYS_EVENT SysCreateEvent(int iManualReset)
 
 int SysCloseEvent(SYS_EVENT hEvent)
 {
-	if (!CloseHandle((HANDLE) hEvent)) {
-		ErrSetErrorCode(ERR_CLOSEHANDLE);
-		return ERR_CLOSEHANDLE;
+	if (hEvent != SYS_INVALID_EVENT) {
+		if (!CloseHandle((HANDLE) hEvent)) {
+			ErrSetErrorCode(ERR_CLOSEHANDLE);
+			return ERR_CLOSEHANDLE;
+		}
 	}
 
 	return 0;
@@ -1061,9 +1065,11 @@ SYS_THREAD SysCreateThread(unsigned int (*pThreadProc) (void *), void *pThreadDa
 
 void SysCloseThread(SYS_THREAD ThreadID, int iForce)
 {
-	if (iForce)
-		TerminateThread((HANDLE) ThreadID, (DWORD) -1);
-	CloseHandle((HANDLE) ThreadID);
+	if (ThreadID != SYS_INVALID_THREAD) {
+		if (iForce)
+			TerminateThread((HANDLE) ThreadID, (DWORD) -1);
+		CloseHandle((HANDLE) ThreadID);
+	}
 }
 
 int SysSetThreadPriority(SYS_THREAD ThreadID, int iPriority)
@@ -1160,9 +1166,8 @@ int SysExec(char const *pszCommand, char const *const *pszArgs, int iWaitTimeout
 			else
 				*piExitStatus = (int) dwExitCode;
 		}
-	} else if (piExitStatus != NULL) {
+	} else if (piExitStatus != NULL)
 		*piExitStatus = -1;
-	}
 	CloseHandle(PI.hThread);
 	CloseHandle(PI.hProcess);
 
@@ -1179,7 +1184,6 @@ static BOOL WINAPI SysBreakHandlerRoutine(DWORD dwCtrlType)
 	case CTRL_SHUTDOWN_EVENT:
 		if (SysBreakHandler != NULL)
 			SysBreakHandler(), bReturnValue = TRUE;
-
 		break;
 	}
 
@@ -1202,19 +1206,15 @@ unsigned long SysGetCurrentProcessId(void)
 int SysCreateTlsKey(SYS_TLSKEY &TlsKey, void (*pFreeProc) (void *))
 {
 	EnterCriticalSection(&csTLS);
-
 	for (int i = 0; i < MAX_TLS_KEYS; i++) {
 		if (TlsKeyEntries[i].pFreeProc == UNUSED_TLS_KEY_PROC) {
 			TlsKeyEntries[i].pFreeProc = pFreeProc;
-
 			LeaveCriticalSection(&csTLS);
-
 			TlsKey = (SYS_TLSKEY) i;
 
 			return 0;
 		}
 	}
-
 	LeaveCriticalSection(&csTLS);
 
 	ErrSetErrorCode(ERR_NOMORE_TLSKEYS);
@@ -1317,7 +1317,7 @@ void *SysRealloc(void *pData, unsigned int uSize)
 
 int SysLockFile(char const *pszFileName, char const *pszLockExt)
 {
-	char szLockFile[SYS_MAX_PATH] = "";
+	char szLockFile[SYS_MAX_PATH];
 
 	SysSNPrintf(szLockFile, sizeof(szLockFile) - 1, "%s%s", pszFileName, pszLockExt);
 
@@ -1336,7 +1336,7 @@ int SysLockFile(char const *pszFileName, char const *pszLockExt)
 	}
 
 	DWORD dwWritten = 0;
-	char szLock[128] = "";
+	char szLock[128];
 
 	sprintf(szLock, "%lu", (unsigned long) GetCurrentThreadId());
 	if (!WriteFile(hFile, szLock, strlen(szLock) + 1, &dwWritten, NULL)) {
@@ -1376,7 +1376,8 @@ SYS_HANDLE SysOpenModule(char const *pszFilePath)
 
 int SysCloseModule(SYS_HANDLE hModule)
 {
-	FreeLibrary((HMODULE) hModule);
+	if (hModule != SYS_INVALID_HANDLE)
+		FreeLibrary((HMODULE) hModule);
 
 	return 0;
 }
@@ -1420,15 +1421,14 @@ int SysEventLogV(int iLogLevel, char const *pszFormat, va_list Args)
 
 int SysEventLog(int iLogLevel, char const *pszFormat, ...)
 {
+	int iError;
 	va_list Args;
 
 	va_start(Args, pszFormat);
-
-	int iLogResult = SysEventLogV(iLogLevel, pszFormat, Args);
-
+	iError = SysEventLogV(iLogLevel, pszFormat, Args);
 	va_end(Args);
 
-	return 0;
+	return iError;
 }
 
 int SysLogMessage(int iLogLevel, char const *pszFormat, ...)
@@ -1519,9 +1519,9 @@ int SysExistDir(char const *pszDirPath)
 
 SYS_HANDLE SysFirstFile(char const *pszPath, char *pszFileName, int iSize)
 {
-	char szMatch[SYS_MAX_PATH] = "";
+	char szMatch[SYS_MAX_PATH];
 
-	strcpy(szMatch, pszPath);
+	StrNCpy(szMatch, pszPath, sizeof(szMatch) - 2);
 	AppendSlash(szMatch);
 	strcat(szMatch, "*");
 
@@ -1541,7 +1541,7 @@ SYS_HANDLE SysFirstFile(char const *pszPath, char *pszFileName, int iSize)
 		return SYS_INVALID_HANDLE;
 	}
 
-	strcpy(pFFD->szFindPath, pszPath);
+	StrNCpy(pFFD->szFindPath, pszPath, sizeof(pFFD->szFindPath) - 1);
 	AppendSlash(pFFD->szFindPath);
 
 	pFFD->hFind = hFind;
@@ -1581,8 +1581,10 @@ void SysFindClose(SYS_HANDLE hFind)
 {
 	FileFindData *pFFD = (FileFindData *) hFind;
 
-	FindClose(pFFD->hFind);
-	SysFree(pFFD);
+	if (pFFD != NULL) {
+		FindClose(pFFD->hFind);
+		SysFree(pFFD);
+	}
 }
 
 int SysGetFileInfo(char const *pszFileName, SYS_FILE_INFO &FI)
@@ -1643,17 +1645,17 @@ char *SysStrDup(char const *pszString)
 char *SysGetEnv(char const *pszVarName)
 {
 	HKEY hKey;
-	char szRKeyPath[256] = "";
+	char szRKeyPath[256];
 
 	SysSNPrintf(szRKeyPath, sizeof(szRKeyPath) - 1, "SOFTWARE\\%s\\%s",
 		    APP_PRODUCER, szServerName);
 	if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, szRKeyPath, 0, KEY_QUERY_VALUE,
 			 &hKey) == ERROR_SUCCESS) {
 		char szKeyValue[2048] = "";
-		DWORD dwSize = sizeof(szKeyValue);
-		DWORD dwKeyType;
+		DWORD dwKeyType, dwSize = sizeof(szKeyValue);
 
-		if (RegQueryValueEx(hKey, pszVarName, NULL, &dwKeyType, (u_char *) szKeyValue,
+		if (RegQueryValueEx(hKey, pszVarName, NULL, &dwKeyType,
+				    (u_char *) szKeyValue,
 				    &dwSize) == ERROR_SUCCESS) {
 			RegCloseKey(hKey);
 
@@ -1835,8 +1837,7 @@ SYS_MMAP SysCreateMMap(char const *pszFileName, unsigned long ulFlags)
 		return SYS_INVALID_MMAP;
 	}
 
-	DWORD dwFileSizeHi = 0;
-	DWORD dwFileSizeLo = GetFileSize(hFile, &dwFileSizeHi);
+	DWORD dwFileSizeHi = 0, dwFileSizeLo = GetFileSize(hFile, &dwFileSizeHi);
 	HANDLE hFileMap = CreateFileMapping(hFile, NULL, (ulFlags & SYS_MMAP_WRITE) ?
 					    PAGE_READWRITE: PAGE_READONLY,
 					    dwFileSizeHi, dwFileSizeLo, NULL);
@@ -1871,12 +1872,14 @@ void SysCloseMMap(SYS_MMAP hMap)
 {
 	MMapData *pMMD = (MMapData *) hMap;
 
-	if (pMMD->iNumMaps > 0) {
+	if (pMMD != NULL) {
+		if (pMMD->iNumMaps > 0) {
 
+		}
+		CloseHandle(pMMD->hFileMap);
+		CloseHandle(pMMD->hFile);
+		SysFree(pMMD);
 	}
-	CloseHandle(pMMD->hFileMap);
-	CloseHandle(pMMD->hFile);
-	SysFree(pMMD);
 }
 
 SYS_OFF_T SysMMapSize(SYS_MMAP hMap)
