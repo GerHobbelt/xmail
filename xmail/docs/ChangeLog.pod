@@ -17,6 +17,10 @@ Fixed SMTP explicit routing address parsing.
 
 =item *
 
+Fixed a bug that made XMail incorrectly handle extremely long header line lengths.
+
+=item *
+
 Faster shutdown time on Unix systems.
 
 =item *

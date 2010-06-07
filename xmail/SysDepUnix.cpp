@@ -781,7 +781,7 @@ int SysSendFileMMap(SYS_SOCKET SockFD, char const *pszFileName, SYS_OFF_T llBase
 		return ERR_INVALID_PARAMETER;
 	}
 	if ((pMapAddress = mmap((char *) 0, llEndOffset - llAlnOff, PROT_READ,
-				MAP_SHARED, iFD, llAlnOff)) == (void *) -1) {
+				MAP_SHARED, iFD, llAlnOff)) == (void *) -1L) {
 		close(iFD);
 		ErrSetErrorCode(ERR_MMAP);
 		return ERR_MMAP;
@@ -805,7 +805,7 @@ int SysSendFileMMap(SYS_SOCKET SockFD, char const *pszFileName, SYS_OFF_T llBase
 		pszBuffer += iCurrSend;
 		llBaseOffset += iCurrSend;
 	}
-	munmap(pMapAddress, (long) (llEndOffset - llAlnOff));
+	munmap((char *) pMapAddress, (long) (llEndOffset - llAlnOff));
 	close(iFD);
 
 	return 0;
@@ -1932,7 +1932,7 @@ void *SysMapMMap(SYS_MMAP hMap, SYS_OFF_T llOffset, SYS_SIZE_T lSize)
 	void *pMapAddress = (void *) mmap((char *) 0, (size_t) lSize, iMapFlags,
 					  MAP_SHARED, pMMD->iFD, llOffset);
 
-	if (pMapAddress == (void *) -1) {
+	if (pMapAddress == (void *) -1L) {
 		ErrSetErrorCode(ERR_MMAP);
 		return NULL;
 	}

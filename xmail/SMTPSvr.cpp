@@ -965,7 +965,6 @@ static int SMTPAddMessageInfo(SMTPSession &SMTPS)
 {
 	return USmtpAddMessageInfo(SMTPS.pMsgFile, SMTPS.szClientDomain, SMTPS.PeerInfo,
 				   SMTPS.szSvrDomain, SMTPS.SockInfo, SMTP_SERVER_NAME);
-
 }
 
 static int SMTPHandleCmd_MAIL(char const *pszCommand, BSOCK_HANDLE hBSock, SMTPSession &SMTPS)

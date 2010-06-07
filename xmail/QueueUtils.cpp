@@ -528,9 +528,11 @@ static int QueUtBuildErrorResponse(char const *pszSMTPDomain, SPLF_HANDLE hFSpoo
 
 	fprintf(pRespFile, "[<05>] Here is listed the initial part of the message:\r\n\r\n");
 
+	int iGotNL;
 	bool bInHeaders = true;
 
-	while (MscGetString(pMsgFile, szBuffer, sizeof(szBuffer) - 1) != NULL) {
+	while (MscStringRead(pMsgFile, szBuffer, sizeof(szBuffer) - 1,
+			     &iGotNL) != NULL) {
 		char *pszXDomain, *pszTmp;
 
 		/* Mail error loop deteced */
@@ -545,14 +547,13 @@ static int QueUtBuildErrorResponse(char const *pszSMTPDomain, SPLF_HANDLE hFSpoo
 			ErrSetErrorCode(ERR_MAIL_ERROR_LOOP);
 			return ERR_MAIL_ERROR_LOOP;
 		}
-
 		if (bInHeaders && IsEmptyString(szBuffer))
 			bInHeaders = false;
 
-		if (!bInHeaders && (iLinesExtra-- < 0))
+		if (!bInHeaders && iGotNL && (iLinesExtra-- < 0))
 			break;
 
-		fprintf(pRespFile, "%s\r\n", szBuffer);
+		fprintf(pRespFile, "%s%s", szBuffer, iGotNL ? "\r\n": "");
 	}
 	fclose(pMsgFile);
 	fclose(pRespFile);

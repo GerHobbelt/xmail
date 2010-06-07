@@ -10,6 +10,9 @@ CHANGE LOG
 
     *   Fixed SMTP explicit routing address parsing.
 
+    *   Fixed a bug that made XMail incorrectly handle extremely long header
+        line lengths.
+
     *   Faster shutdown time on Unix systems.
 
     *   Tweaked DNS resolution to cope with lame name servers.

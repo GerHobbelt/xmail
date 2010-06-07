@@ -92,6 +92,8 @@ int MscCopyFile(FILE *pFileOut, FILE *pFileIn, SYS_OFF_T llBaseOffset,
 		SYS_OFF_T llCopySize);
 int MscDos2UnixFile(FILE *pFileOut, FILE *pFileIn);
 int MscMoveFile(char const *pszOldName, char const *pszNewName);
+char *MscStringRead(FILE *pFile, char *pszBuffer, int iMaxChars,
+		    int *piGotNL);
 char *MscGetString(FILE *pFile, char *pszBuffer, int iMaxChars);
 char *MscFGets(char *pszLine, int iLineSize, FILE *pFile);
 char *MscGetConfigLine(char *pszLine, int iLineSize, FILE *pFile, bool bSkipComments = true);

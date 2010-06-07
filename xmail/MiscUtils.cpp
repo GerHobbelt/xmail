@@ -684,15 +684,37 @@ int MscMoveFile(char const *pszOldName, char const *pszNewName)
 	return SysRemove(pszOldName);
 }
 
+char *MscStringRead(FILE *pFile, char *pszBuffer, int iMaxChars,
+		    int *piGotNL)
+{
+	int iLength;
+
+	if (fgets(pszBuffer, iMaxChars, pFile) == NULL)
+		return NULL;
+	iLength = strlen(pszBuffer);
+	if (piGotNL != NULL)
+		*piGotNL = (iLength > 0 &&
+			    strchr("\r\n", pszBuffer[iLength - 1]) != NULL);
+	for (; iLength > 0 && strchr("\r\n", pszBuffer[iLength - 1]) != NULL;
+	     iLength--);
+	pszBuffer[iLength] = '\0';
+
+	return pszBuffer;
+}
+
+/*
+ * You may ask yourself, why you got to have those two dups?
+ * Well, no reason at all, and I'm too lasy to change all the instances
+ * at the moment.
+ */
 char *MscGetString(FILE *pFile, char *pszBuffer, int iMaxChars)
 {
-	return fgets(pszBuffer, iMaxChars, pFile) != NULL ?
-		StrRTrim(pszBuffer, "\r\n"): NULL;
+	return MscStringRead(pFile, pszBuffer, iMaxChars, NULL);
 }
 
 char *MscFGets(char *pszLine, int iLineSize, FILE *pFile)
 {
-	return MscGetString(pFile, pszLine, iLineSize);
+	return MscStringRead(pFile, pszLine, iLineSize, NULL);
 }
 
 char *MscGetConfigLine(char *pszLine, int iLineSize, FILE *pFile, bool bSkipComments)
