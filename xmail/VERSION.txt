@@ -1,1 +1,1 @@
-xmail-1.26-pre06
+xmail-1.26

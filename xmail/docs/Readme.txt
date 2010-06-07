@@ -77,7 +77,7 @@ VERSION
 
   release date
 
-    Jan 4, 2008
+    Jun 27, 2009
 
   project by
 

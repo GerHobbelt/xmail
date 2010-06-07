@@ -2054,11 +2054,11 @@ static int SMTPHandleCmd_DATA(const char *pszCommand, BSOCK_HANDLE hBSock, SMTPS
 				SMTPLogSession(SMTPS, SMTPS.pszFrom, SMTPS.pszRcpt, "RECV=OK",
 					       ulMessageSize);
 
-			SMTPResetSession(SMTPS);
-
 			/* Send the ack only when everything is OK */
 			BSckVSendString(hBSock, SMTPS.pSMTPCfg->iTimeout, "250 OK <%s>",
 					SMTPS.szMessageID);
+
+			SMTPResetSession(SMTPS);
 		}
 	} else {
 		SMTPResetSession(SMTPS);

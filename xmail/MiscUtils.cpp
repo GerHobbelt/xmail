@@ -1207,16 +1207,17 @@ int MscRootedName(const char *pszHostName)
 int MscCramMD5(const char *pszSecret, const char *pszChallenge, char *pszDigest)
 {
 	int iLenght = (int) strlen(pszSecret);
-	struct md5_ctx ctx;
+	md5_ctx_t ctx;
 	unsigned char isecret[64];
 	unsigned char osecret[64];
-	unsigned char md5secret[16];
+	unsigned char md5secret[MD5_DIGEST_LEN];
 
 	if (iLenght > 64) {
-		md5_init_ctx(&ctx);
-		md5_process_bytes(pszSecret, iLenght, &ctx);
-		md5_finish_ctx(&ctx, md5secret);
+		md5_init(&ctx);
+		md5_update(&ctx, (unsigned char const *) pszSecret, iLenght);
+		md5_final(&ctx);
 
+		memcpy(md5secret, ctx.digest, MD5_DIGEST_LEN);
 		pszSecret = (const char *) md5secret;
 		iLenght = 16;
 	}
@@ -1232,17 +1233,18 @@ int MscCramMD5(const char *pszSecret, const char *pszChallenge, char *pszDigest)
 		osecret[i] ^= 0x5c;
 	}
 
-	md5_init_ctx(&ctx);
-	md5_process_bytes(isecret, 64, &ctx);
-	md5_process_bytes((unsigned char *) pszChallenge, (int) strlen(pszChallenge), &ctx);
-	md5_finish_ctx(&ctx, md5secret);
+	md5_init(&ctx);
+	md5_update(&ctx, isecret, 64);
+	md5_update(&ctx, (unsigned char *) pszChallenge, (int) strlen(pszChallenge));
+	md5_final(&ctx);
+	memcpy(md5secret, ctx.digest, MD5_DIGEST_LEN);
 
-	md5_init_ctx(&ctx);
-	md5_process_bytes(osecret, 64, &ctx);
-	md5_process_bytes(md5secret, 16, &ctx);
-	md5_finish_ctx(&ctx, md5secret);
+	md5_init(&ctx);
+	md5_update(&ctx, osecret, 64);
+	md5_update(&ctx, md5secret, MD5_DIGEST_LEN);
+	md5_final(&ctx);
 
-	md5_hex(md5secret, pszDigest);
+	md5_hex(ctx.digest, pszDigest);
 
 	return 0;
 }

@@ -21,7 +21,7 @@
 	<li><a href="#change_log">CHANGE LOG</a></li>
 	<ul>
 
-		<li><a href="#may_16__2009_v_1_26">May 16, 2009 v 1.26</a></li>
+		<li><a href="#jun_27__2009_v_1_26">Jun 27, 2009 v 1.26</a></li>
 		<li><a href="#jan_3__2008_v_1_25">Jan 3, 2008 v 1.25</a></li>
 		<li><a href="#jan_1__2007_v_1_24">Jan 1, 2007 v 1.24</a></li>
 		<li><a href="#nov_19__2006_v_1_23">Nov 19, 2006 v 1.23</a></li>
@@ -127,7 +127,7 @@
 <h1><a name="change_log">CHANGE LOG</a></h1>
 <p>
 </p>
-<h2><a name="may_16__2009_v_1_26">May 16, 2009 v 1.26</a></h2>
+<h2><a name="jun_27__2009_v_1_26">Jun 27, 2009 v 1.26</a></h2>
 <ul>
 <li>
 <p>Fixed a bug where STARTTLS was resetting the session too much, by canceling
@@ -136,6 +136,10 @@ certain flags/options read inside the SERVER.TAB.</p>
 <li>
 <p>Fixed a bug that happened if a message filter mistakenly remove the message file
 from under XMail control.</p>
+</li>
+<li>
+<p>Fixed a bug that make XMail to wrongly report virtual memory sizes on 32 bit
+systems with larger than 4GB VM space.</p>
 </li>
 <li>
 <p>Changed the line termination used to store messages into the mailboxes
