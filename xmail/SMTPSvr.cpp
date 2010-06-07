@@ -1741,7 +1741,7 @@ static int SMTPSubmitPackedFile(SMTPSession &SMTPS, char const *pszPkgFile)
 		return ERR_INVALID_SPOOL_FILE;
 	}
 	/* Get the offset at which the message data begin and rewind the file */
-	unsigned long ulMsgOffset = (unsigned long) ftell(pPkgFile);
+	SYS_OFF_T llMsgOffset = Sys_ftell(pPkgFile);
 
 	rewind(pPkgFile);
 
@@ -1839,18 +1839,20 @@ static int SMTPSubmitPackedFile(SMTPSession &SMTPS, char const *pszPkgFile)
 		fprintf(pSpoolFile, "%s\r\n", SPOOL_FILE_DATA_START);
 
 		/* Write "X-AuthUser:" tag */
-		if (!IsEmptyString(SMTPS.szLogonUser) && !(SMTPS.ulFlags & SMTPF_NOEMIT_AUTH))
+		if (!IsEmptyString(SMTPS.szLogonUser) &&
+		    !(SMTPS.ulFlags & SMTPF_NOEMIT_AUTH))
 			fprintf(pSpoolFile, "X-AuthUser: %s\r\n", SMTPS.szLogonUser);
 
 		/* Write "Received:" tag */
 		SMTPAddReceived(iReceivedType,
 				IsEmptyString(SMTPS.szLogonUser) ? NULL: SMTPS.szLogonUser,
-				ppszMsgInfo, szMailFrom, szSpoolLine, szMessageID, pSpoolFile);
+				ppszMsgInfo, szMailFrom, szSpoolLine, szMessageID,
+				pSpoolFile);
 
 		/* Write mail data, saving and restoring the current file pointer */
-		unsigned long ulCurrOffset = (unsigned long) ftell(pPkgFile);
+		SYS_OFF_T llCurrOffset = Sys_ftell(pPkgFile);
 
-		if (MscCopyFile(pSpoolFile, pPkgFile, ulMsgOffset, (unsigned long) -1) < 0) {
+		if (MscCopyFile(pSpoolFile, pPkgFile, llMsgOffset, (SYS_OFF_T) -1) < 0) {
 			ErrorPush();
 			fclose(pSpoolFile);
 			QueCleanupMessage(hSpoolQueue, hMessage);
@@ -1876,7 +1878,7 @@ static int SMTPSubmitPackedFile(SMTPSession &SMTPS, char const *pszPkgFile)
 			ErrSetErrorCode(ERR_FILE_WRITE, szQueueFilePath);
 			return ERR_FILE_WRITE;
 		}
-		fseek(pPkgFile, ulCurrOffset, SEEK_SET);
+		Sys_fseek(pPkgFile, llCurrOffset, SEEK_SET);
 
 		/* Transfer file to the spool */
 		if (QueCommitMessage(hSpoolQueue, hMessage) < 0) {

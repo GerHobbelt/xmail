@@ -54,7 +54,8 @@ struct ResLocator {
 	int iResIdx;
 };
 
-static SYS_UINT32 RLckHashString(char const *pData, SYS_UINT32 uHashInit = STD_RLCK_HASH_INIT);
+static unsigned long RLckHashString(char const *pData,
+				    unsigned long ulHashInit = STD_RLCK_HASH_INIT);
 
 static SYS_MUTEX hRLMutex = SYS_INVALID_MUTEX;
 static ResWaitGate RLGates[STD_WAIT_GATES];
@@ -66,40 +67,35 @@ int RLckInitLockers(void)
 		return ErrGetErrorCode();
 
 	/* Initialize wait gates */
-	for (int ii = 0; ii < STD_WAIT_GATES; ii++) {
-		if ((RLGates[ii].hSemaphore = SysCreateSemaphore(0,
-								 SYS_DEFAULT_MAXCOUNT)) ==
+	for (int i = 0; i < STD_WAIT_GATES; i++) {
+		if ((RLGates[i].hSemaphore = SysCreateSemaphore(0,
+								SYS_DEFAULT_MAXCOUNT)) ==
 		    SYS_INVALID_SEMAPHORE) {
 			ErrorPush();
-
-			for (--ii; ii >= 0; ii--) {
-				SysFree(RLGates[ii].pResList);
-				SysCloseSemaphore(RLGates[ii].hSemaphore);
+			for (--i; i >= 0; i--) {
+				SysFree(RLGates[i].pResList);
+				SysCloseSemaphore(RLGates[i].hSemaphore);
 			}
-
 			SysCloseMutex(hRLMutex);
 			return ErrorPop();
 		}
 
-		RLGates[ii].iWaitingProcesses = 0;
-		RLGates[ii].iHashSize = STD_RES_HASH_SIZE;
+		RLGates[i].iWaitingProcesses = 0;
+		RLGates[i].iHashSize = STD_RES_HASH_SIZE;
 
-		if ((RLGates[ii].pResList = (SysListHead *)
-		     SysAlloc(RLGates[ii].iHashSize * sizeof(SysListHead))) == NULL) {
+		if ((RLGates[i].pResList = (SysListHead *)
+		     SysAlloc(RLGates[i].iHashSize * sizeof(SysListHead))) == NULL) {
 			ErrorPush();
-
-			SysCloseSemaphore(RLGates[ii].hSemaphore);
-			for (--ii; ii >= 0; ii--) {
-				SysFree(RLGates[ii].pResList);
-				SysCloseSemaphore(RLGates[ii].hSemaphore);
+			SysCloseSemaphore(RLGates[i].hSemaphore);
+			for (--i; i >= 0; i--) {
+				SysFree(RLGates[i].pResList);
+				SysCloseSemaphore(RLGates[i].hSemaphore);
 			}
-
 			SysCloseMutex(hRLMutex);
 			return ErrorPop();
 		}
-
-		for (int jj = 0; jj < RLGates[ii].iHashSize; jj++)
-			SYS_INIT_LIST_HEAD(&RLGates[ii].pResList[jj]);
+		for (int j = 0; j < RLGates[i].iHashSize; j++)
+			SYS_INIT_LIST_HEAD(&RLGates[i].pResList[j]);
 	}
 
 	return 0;
@@ -114,53 +110,52 @@ static int RLckFreeEntry(ResLockEntry * pRLE)
 
 int RLckCleanupLockers(void)
 {
-	SysLockMutex(hRLMutex, SYS_INFINITE_TIMEOUT);
-
-	for (int ii = 0; ii < STD_WAIT_GATES; ii++) {
-		for (int jj = 0; jj < RLGates[ii].iHashSize; jj++) {
-			SysListHead *pHead = &RLGates[ii].pResList[jj];
+	if (SysLockMutex(hRLMutex, SYS_INFINITE_TIMEOUT) < 0)
+		return ErrGetErrorCode();
+	for (int i = 0; i < STD_WAIT_GATES; i++) {
+		for (int j = 0; j < RLGates[i].iHashSize; j++) {
+			SysListHead *pHead = &RLGates[i].pResList[j];
 			SysListHead *pLLink;
 
 			while ((pLLink = SYS_LIST_FIRST(pHead)) != NULL) {
 				ResLockEntry *pRLE = SYS_LIST_ENTRY(pLLink, ResLockEntry, LLink);
 
 				SYS_LIST_DEL(&pRLE->LLink);
-
 				RLckFreeEntry(pRLE);
 			}
 		}
-
-		SysFree(RLGates[ii].pResList);
-		SysCloseSemaphore(RLGates[ii].hSemaphore);
+		SysFree(RLGates[i].pResList);
+		SysCloseSemaphore(RLGates[i].hSemaphore);
 	}
-
 	SysUnlockMutex(hRLMutex);
-
 	SysCloseMutex(hRLMutex);
 
 	return 0;
 }
 
-static SYS_UINT32 RLckHashString(char const *pData, SYS_UINT32 uHashInit)
+static unsigned long RLckHashString(char const *pData, unsigned long ulHashInit)
 {
-	SYS_UINT32 uHashVal = uHashInit;
+	unsigned long ulHashVal = ulHashInit;
 
-	while (*pData) {
-		uHashVal += (uHashVal << 5);
-		uHashVal ^= (SYS_UINT32) ToLower(*pData);
+	while (*pData != 0) {
+		ulHashVal += ToLower(*(unsigned char const *) pData);
 		pData++;
+		ulHashVal += (ulHashVal << 10);
+		ulHashVal ^= (ulHashVal >> 6);
 	}
+	ulHashVal += (ulHashVal << 3);
+	ulHashVal ^= (ulHashVal >> 11);
+	ulHashVal += (ulHashVal << 15);
 
-	return uHashVal;
+	return ulHashVal;
 }
 
 static void RLckGetResLocator(char const *pszResourceName, ResLocator * pRL)
 {
-	SYS_UINT32 uResHash = RLckHashString(pszResourceName);
+	unsigned long ulResHash = RLckHashString(pszResourceName);
 
-	pRL->iWaitGate = (int) (uResHash % STD_WAIT_GATES);
-	pRL->iResIdx = (int) (uResHash % (SYS_UINT32) RLGates[pRL->iWaitGate].iHashSize);
-
+	pRL->iWaitGate = (int) (ulResHash % STD_WAIT_GATES);
+	pRL->iResIdx = (int) (ulResHash % RLGates[pRL->iWaitGate].iHashSize);
 }
 
 static ResLockEntry *RLckGetEntry(ResLocator const *pRL, char const *pszResourceName)
@@ -173,7 +168,6 @@ static ResLockEntry *RLckGetEntry(ResLocator const *pRL, char const *pszResource
 
 		if (stricmp(pszResourceName, pRLE->szName) == 0)
 			return pRLE;
-
 	}
 
 	ErrSetErrorCode(ERR_LOCK_ENTRY_NOT_FOUND);
@@ -191,9 +185,7 @@ static int RLckRemoveEntry(ResLocator const *pRL, ResLockEntry * pRLE)
 
 		if (pCurrRLE == pRLE) {
 			SYS_LIST_DEL(&pRLE->LLink);
-
 			RLckFreeEntry(pRLE);
-
 			return 0;
 		}
 	}
@@ -211,8 +203,6 @@ static ResLockEntry *RLckAllocEntry(char const *pszResourceName)
 		return NULL;
 
 	SYS_INIT_LIST_LINK(&pRLE->LLink);
-	pRLE->iShLocks = 0;
-	pRLE->iExLocks = 0;
 	strcpy(pRLE->szName, pszResourceName);
 
 	return pRLE;
@@ -227,18 +217,13 @@ static int RLckTryLockEX(ResLocator const *pRL, char const *pszResourceName)
 
 		if ((pRLE = RLckAllocEntry(pszResourceName)) == NULL)
 			return ErrGetErrorCode();
-
 		pRLE->iExLocks = 1;
-
-		/* Insert new entry in resource list */
 		SYS_LIST_ADDH(&pRLE->LLink, pHead);
-
 	} else {
-		if ((pRLE->iExLocks > 0) || (pRLE->iShLocks > 0)) {
+		if (pRLE->iExLocks > 0 || pRLE->iShLocks > 0) {
 			ErrSetErrorCode(ERR_LOCKED_RESOURCE);
 			return ERR_LOCKED_RESOURCE;
 		}
-
 		pRLE->iExLocks = 1;
 	}
 
@@ -249,7 +234,7 @@ static int RLckDoUnlockEX(ResLocator const *pRL, char const *pszResourceName)
 {
 	ResLockEntry *pRLE = RLckGetEntry(pRL, pszResourceName);
 
-	if ((pRLE == NULL) || (pRLE->iExLocks == 0)) {
+	if (pRLE == NULL || pRLE->iExLocks == 0) {
 		ErrSetErrorCode(ERR_RESOURCE_NOT_LOCKED);
 		return ERR_RESOURCE_NOT_LOCKED;
 	}
@@ -280,18 +265,13 @@ static int RLckTryLockSH(ResLocator const *pRL, char const *pszResourceName)
 
 		if ((pRLE = RLckAllocEntry(pszResourceName)) == NULL)
 			return ErrGetErrorCode();
-
 		pRLE->iShLocks = 1;
-
-		/* Insert new entry in resource list */
 		SYS_LIST_ADDH(&pRLE->LLink, pHead);
-
 	} else {
 		if (pRLE->iExLocks > 0) {
 			ErrSetErrorCode(ERR_LOCKED_RESOURCE);
 			return ERR_LOCKED_RESOURCE;
 		}
-
 		++pRLE->iShLocks;
 	}
 
@@ -302,11 +282,10 @@ static int RLckDoUnlockSH(ResLocator const *pRL, char const *pszResourceName)
 {
 	ResLockEntry *pRLE = RLckGetEntry(pRL, pszResourceName);
 
-	if ((pRLE == NULL) || (pRLE->iShLocks == 0)) {
+	if (pRLE == NULL || pRLE->iShLocks == 0) {
 		ErrSetErrorCode(ERR_RESOURCE_NOT_LOCKED);
 		return ERR_RESOURCE_NOT_LOCKED;
 	}
-
 	if (--pRLE->iShLocks == 0) {
 		/* Remove entry from list and delete entry heap memory */
 		if (RLckRemoveEntry(pRL, pRLE) < 0)
@@ -330,31 +309,26 @@ static RLCK_HANDLE RLckLock(char const *pszResourceName,
 	ResLocator RL;
 
 	RLckGetResLocator(pszResourceName, &RL);
-
 	for (;;) {
 		/* Lock resources list access */
 		if (SysLockMutex(hRLMutex, SYS_INFINITE_TIMEOUT) < 0)
 			return INVALID_RLCK_HANDLE;
 
-		int iLockResult = pLockProc(&RL, pszResourceName);
+		int iLockResult = (*pLockProc)(&RL, pszResourceName);
 
 		if (iLockResult == ERR_LOCKED_RESOURCE) {
 			SYS_SEMAPHORE SemID = RLGates[RL.iWaitGate].hSemaphore;
 
 			++RLGates[RL.iWaitGate].iWaitingProcesses;
-
 			SysUnlockMutex(hRLMutex);
 
 			if (SysWaitSemaphore(SemID, SYS_INFINITE_TIMEOUT) < 0)
 				return INVALID_RLCK_HANDLE;
-
 		} else if (iLockResult == 0) {
 			SysUnlockMutex(hRLMutex);
-
 			break;
 		} else {
 			SysUnlockMutex(hRLMutex);
-
 			return INVALID_RLCK_HANDLE;
 		}
 	}
@@ -362,7 +336,8 @@ static RLCK_HANDLE RLckLock(char const *pszResourceName,
 	return (RLCK_HANDLE) SysStrDup(pszResourceName);
 }
 
-static int RLckUnlock(RLCK_HANDLE hLock, int (*pUnlockProc) (ResLocator const *, char const *))
+static int RLckUnlock(RLCK_HANDLE hLock,
+		      int (*pUnlockProc) (ResLocator const *, char const *))
 {
 	char *pszResourceName = (char *) hLock;
 	ResLocator RL;
@@ -373,15 +348,13 @@ static int RLckUnlock(RLCK_HANDLE hLock, int (*pUnlockProc) (ResLocator const *,
 	if (SysLockMutex(hRLMutex, SYS_INFINITE_TIMEOUT) < 0)
 		return ErrGetErrorCode();
 
-	if (pUnlockProc(&RL, pszResourceName) < 0) {
+	if ((*pUnlockProc)(&RL, pszResourceName) < 0) {
 		ErrorPush();
 		SysUnlockMutex(hRLMutex);
 		SysFree(pszResourceName);
 		return ErrorPop();
 	}
-
 	SysUnlockMutex(hRLMutex);
-
 	SysFree(pszResourceName);
 
 	return 0;
@@ -394,7 +367,7 @@ RLCK_HANDLE RLckLockEX(char const *pszResourceName)
 
 int RLckUnlockEX(RLCK_HANDLE hLock)
 {
-	return RLckUnlock(hLock, RLckDoUnlockEX);
+	return hLock != INVALID_RLCK_HANDLE ? RLckUnlock(hLock, RLckDoUnlockEX): 0;
 }
 
 RLCK_HANDLE RLckLockSH(char const *pszResourceName)
@@ -404,5 +377,6 @@ RLCK_HANDLE RLckLockSH(char const *pszResourceName)
 
 int RLckUnlockSH(RLCK_HANDLE hLock)
 {
-	return RLckUnlock(hLock, RLckDoUnlockSH);
+	return hLock != INVALID_RLCK_HANDLE ? RLckUnlock(hLock, RLckDoUnlockSH): 0;
 }
+

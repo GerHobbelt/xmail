@@ -272,33 +272,43 @@ char *MscTranslatePath(char *pszPath)
 
 void *MscLoadFile(char const *pszFilePath, unsigned long *pulFileSize)
 {
-	FILE *pFile = fopen(pszFilePath, "rb");
+	size_t FileSize, RdBytes;
+	SYS_OFF_T llFileSize;
+	FILE *pFile;
+	void *pFileData;
 
-	if (pFile == NULL) {
+	if ((pFile = fopen(pszFilePath, "rb")) == NULL) {
 		ErrSetErrorCode(ERR_FILE_OPEN, pszFilePath);
 		return NULL;
 	}
-	fseek(pFile, 0, SEEK_END);
-
-	unsigned long ulFileSize = (unsigned long) ftell(pFile);
+	Sys_fseek(pFile, 0, SEEK_END);
+	llFileSize = Sys_ftell(pFile);
+	if (llFileSize >= (1LL << (CHAR_BIT * sizeof(size_t) - 1))) {
+		fclose(pFile);
+		ErrSetErrorCode(ERR_TOO_BIG, pszFilePath);
+		return NULL;
+	}
+	FileSize = (size_t) llFileSize;
 
 	/*
 	 * Alloc one extra byte to enable placing a '\0' to terminate an eventual
 	 * string representation and to avoid SysAlloc() to fail if ulFileSize == 0
 	 */
-	void *pFileData = SysAlloc(ulFileSize + 1);
-
-	if (pFileData == NULL) {
+	if ((pFileData = SysAlloc(FileSize + 1)) == NULL) {
 		fclose(pFile);
 		return NULL;
 	}
 	rewind(pFile);
-	if (ulFileSize != 0)
-		fread(pFileData, ulFileSize, 1, pFile);
+	RdBytes = fread(pFileData, FileSize, 1, pFile);
 	fclose(pFile);
-	((char *) pFileData)[ulFileSize] = 0;
+	if (RdBytes != FileSize) {
+		SysFree(pFileData);
+		ErrSetErrorCode(ERR_FILE_READ, pszFilePath);
+		return NULL;
+	}
+	((char *) pFileData)[FileSize] = 0;
 	if (pulFileSize != NULL)
-		*pulFileSize = ulFileSize;
+		*pulFileSize = FileSize;
 
 	return pFileData;
 }
@@ -306,12 +316,12 @@ void *MscLoadFile(char const *pszFilePath, unsigned long *pulFileSize)
 int MscLockFile(char const *pszFileName, int iMaxWait, int iWaitStep)
 {
 	while (iMaxWait > 0 && SysLockFile(pszFileName) < 0) {
-		SysSleep(iWaitStep);
-
+		if (SysSleep(iWaitStep) < 0)
+			return ErrGetErrorCode();
 		iMaxWait -= iWaitStep;
 	}
 
-	return (iMaxWait > 0) ? 0: SysLockFile(pszFileName);
+	return iMaxWait > 0 ? 0: SysLockFile(pszFileName);
 }
 
 int MscGetTimeNbrString(char *pszTimeStr, int iStringSize, time_t tTime)
@@ -332,21 +342,20 @@ int MscGetTimeNbrString(char *pszTimeStr, int iStringSize, time_t tTime)
 
 int MscGetTime(struct tm &tmLocal, int &iDiffHours, int &iDiffMins, time_t tCurr)
 {
+	time_t tLocal, tGM;
+	struct tm tmTimeLOC, tmTimeGM;
+
 	if (tCurr == 0)
 		time(&tCurr);
-
 	SysLocalTime(&tCurr, &tmLocal);
-
-	struct tm tmTimeLOC = tmLocal;
-	struct tm tmTimeGM;
-
+	tmTimeLOC = tmLocal;
 	SysGMTime(&tCurr, &tmTimeGM);
 
 	tmTimeLOC.tm_isdst = 0;
 	tmTimeGM.tm_isdst = 0;
 
-	time_t tLocal = mktime(&tmTimeLOC);
-	time_t tGM = mktime(&tmTimeGM);
+	tLocal = mktime(&tmTimeLOC);
+	tGM = mktime(&tmTimeGM);
 
 	int iSecsDiff = (int) difftime(tLocal, tGM);
 	int iSignDiff = Sign(iSecsDiff);
@@ -360,9 +369,12 @@ int MscGetTime(struct tm &tmLocal, int &iDiffHours, int &iDiffMins, time_t tCurr
 
 char *MscStrftime(struct tm const *ptmTime, char *pszDateStr, int iSize)
 {
-	char const *pszWDays[] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
-	char const *pszMonths[] = { "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-				    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+	static char const * const pszWDays[] = {
+		"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
+	};
+	static char const * const pszMonths[] = {
+		"Jan", "Feb", "Mar", "Apr", "May", "Jun",
+		"Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
 	};
 
 	SysSNPrintf(pszDateStr, iSize, "%s, %d %s %d %02d:%02d:%02d",
@@ -378,16 +390,13 @@ int MscGetTimeStr(char *pszTimeStr, int iStringSize, time_t tCurr)
 	int iDiffHours = 0;
 	int iDiffMins = 0;
 	struct tm tmTime;
+	char szDiffTime[128];
 
 	MscGetTime(tmTime, iDiffHours, iDiffMins, tCurr);
-
-	char szDiffTime[128] = "";
-
 	if (iDiffHours > 0)
 		sprintf(szDiffTime, " +%02d%02d", iDiffHours, iDiffMins);
 	else
 		sprintf(szDiffTime, " -%02d%02d", -iDiffHours, iDiffMins);
-
 	MscStrftime(&tmTime, pszTimeStr, iStringSize - strlen(szDiffTime) - 1);
 	strcat(pszTimeStr, szDiffTime);
 
@@ -397,7 +406,7 @@ int MscGetTimeStr(char *pszTimeStr, int iStringSize, time_t tCurr)
 int MscGetDirectorySize(char const *pszPath, bool bRecurse, SYS_OFF_T &llDirSize,
 			unsigned long &ulNumFiles, int (*pFNValidate) (char const *))
 {
-	char szFileName[SYS_MAX_PATH] = "";
+	char szFileName[SYS_MAX_PATH];
 	SYS_HANDLE hFind = SysFirstFile(pszPath, szFileName, sizeof(szFileName));
 
 	if (hFind == SYS_INVALID_HANDLE)
@@ -408,7 +417,7 @@ int MscGetDirectorySize(char const *pszPath, bool bRecurse, SYS_OFF_T &llDirSize
 			if (bRecurse && SYS_IS_VALID_FILENAME(szFileName)) {
 				SYS_OFF_T llSubDirSize = 0;
 				unsigned long ulSubNumFiles = 0;
-				char szSubPath[SYS_MAX_PATH] = "";
+				char szSubPath[SYS_MAX_PATH];
 
 				StrSNCpy(szSubPath, pszPath);
 				AppendSlash(szSubPath);
@@ -435,9 +444,10 @@ int MscGetDirectorySize(char const *pszPath, bool bRecurse, SYS_OFF_T &llDirSize
 
 FSCAN_HANDLE MscFirstFile(char const *pszPath, int iListDirs, char *pszFileName, int iSize)
 {
-	FileScan *pFS = (FileScan *) SysAlloc(sizeof(FileScan));
+	FileScan *pFS;
+	LstDatum *pLDm;
 
-	if (pFS == NULL)
+	if ((pFS = (FileScan *) SysAlloc(sizeof(FileScan))) == NULL)
 		return INVALID_FSCAN_HANDLE;
 
 	SYS_INIT_LIST_HEAD(&pFS->FList);
@@ -450,8 +460,7 @@ FSCAN_HANDLE MscFirstFile(char const *pszPath, int iListDirs, char *pszFileName,
 		SysFree(pFS);
 		return INVALID_FSCAN_HANDLE;
 	}
-
-	LstDatum *pLDm = SYS_LIST_ENTRY(pFS->pPos, LstDatum, LLnk);
+	pLDm = SYS_LIST_ENTRY(pFS->pPos, LstDatum, LLnk);
 
 	pFS->pPos = SYS_LIST_NEXT(pFS->pPos, &pFS->FList);
 	StrNCpy(pszFileName, pLDm->Data.pData, iSize);
@@ -462,11 +471,11 @@ FSCAN_HANDLE MscFirstFile(char const *pszPath, int iListDirs, char *pszFileName,
 int MscNextFile(FSCAN_HANDLE hFileScan, char *pszFileName, int iSize)
 {
 	FileScan *pFS = (FileScan *) hFileScan;
+	LstDatum *pLDm;
 
 	if (pFS->pPos == NULL)
 		return 0;
-
-	LstDatum *pLDm = SYS_LIST_ENTRY(pFS->pPos, LstDatum, LLnk);
+	pLDm = SYS_LIST_ENTRY(pFS->pPos, LstDatum, LLnk);
 
 	pFS->pPos = SYS_LIST_NEXT(pFS->pPos, &pFS->FList);
 	StrNCpy(pszFileName, pLDm->Data.pData, iSize);
@@ -484,7 +493,7 @@ void MscCloseFindFile(FSCAN_HANDLE hFileScan)
 
 int MscGetFileList(char const *pszPath, int iListDirs, SysListHead *pHead)
 {
-	char szFileName[SYS_MAX_PATH] = "";
+	char szFileName[SYS_MAX_PATH];
 	SYS_HANDLE hFind = SysFirstFile(pszPath, szFileName, sizeof(szFileName));
 
 	SYS_INIT_LIST_HEAD(pHead);
@@ -507,7 +516,7 @@ int MscCreateEmptyFile(char const *pszFileName)
 	FILE *pFile = fopen(pszFileName, "wb");
 
 	if (pFile == NULL) {
-		ErrSetErrorCode(ERR_FILE_CREATE);
+		ErrSetErrorCode(ERR_FILE_CREATE, pszFileName);
 		return ERR_FILE_CREATE;
 	}
 	fclose(pFile);
@@ -517,17 +526,19 @@ int MscCreateEmptyFile(char const *pszFileName)
 
 int MscClearDirectory(char const *pszPath, int iRecurseSubs)
 {
-	char szFileName[SYS_MAX_PATH] = "";
+	SYS_HANDLE hFind;
+	SysListHead *pPos;
 	SysListHead FList;
-	SYS_HANDLE hFind = SysFirstFile(pszPath, szFileName, sizeof(szFileName));
+	char szFileName[SYS_MAX_PATH];
 
-	if (hFind == SYS_INVALID_HANDLE)
+	if ((hFind = SysFirstFile(pszPath, szFileName,
+				  sizeof(szFileName))) == SYS_INVALID_HANDLE)
 		return 0;
 	SYS_INIT_LIST_HEAD(&FList);
 	do {
 		if (SysIsDirectory(hFind)) {
 			if (iRecurseSubs && SYS_IS_VALID_FILENAME(szFileName)) {
-				char szSubPath[SYS_MAX_PATH] = "";
+				char szSubPath[SYS_MAX_PATH];
 
 				StrSNCpy(szSubPath, pszPath);
 				AppendSlash(szSubPath);
@@ -547,8 +558,6 @@ int MscClearDirectory(char const *pszPath, int iRecurseSubs)
 
 	} while (SysNextFile(hFind, szFileName, sizeof(szFileName)));
 	SysFindClose(hFind);
-
-	SysListHead *pPos;
 
 	for (pPos = SYS_LIST_FIRST(&FList); pPos != NULL;
 	     pPos = SYS_LIST_NEXT(pPos, &FList)) {
@@ -570,38 +579,31 @@ int MscClearDirectory(char const *pszPath, int iRecurseSubs)
 static int MscCopyFileLL(char const *pszCopyTo, char const *pszCopyFrom,
 			 char const *pszMode)
 {
-	FILE *pFileIn = fopen(pszCopyFrom, "rb");
-
-	if (pFileIn == NULL) {
-		ErrSetErrorCode(ERR_FILE_OPEN);
-		return ERR_FILE_OPEN;
-	}
-
-	FILE *pFileOut = fopen(pszCopyTo, pszMode);
-
-	if (pFileOut == NULL) {
-		fclose(pFileIn);
-		ErrSetErrorCode(ERR_FILE_CREATE);
-		return ERR_FILE_CREATE;
-	}
-
-	unsigned int uReaded;
+	int iRead;
+	FILE *pFileIn, *pFileOut;
 	char szBuffer[2048];
 
+	if ((pFileIn = fopen(pszCopyFrom, "rb")) == NULL) {
+		ErrSetErrorCode(ERR_FILE_OPEN, pszCopyFrom);
+		return ERR_FILE_OPEN;
+	}
+	if ((pFileOut = fopen(pszCopyTo, pszMode)) == NULL) {
+		fclose(pFileIn);
+		ErrSetErrorCode(ERR_FILE_CREATE, pszCopyTo);
+		return ERR_FILE_CREATE;
+	}
 	do {
-		uReaded = fread(szBuffer, 1, sizeof(szBuffer), pFileIn);
-
-		if (uReaded > 0) {
-			if (fwrite(szBuffer, 1, uReaded, pFileOut) != uReaded) {
+		if ((iRead = fread(szBuffer, 1, sizeof(szBuffer), pFileIn)) > 0) {
+			if (fwrite(szBuffer, 1, iRead, pFileOut) != iRead) {
 				fclose(pFileOut);
 				fclose(pFileIn);
 				SysRemove(pszCopyTo);
 
-				ErrSetErrorCode(ERR_FILE_WRITE);
+				ErrSetErrorCode(ERR_FILE_WRITE, pszCopyTo);
 				return ERR_FILE_WRITE;
 			}
 		}
-	} while (uReaded == sizeof(szBuffer));
+	} while (iRead == sizeof(szBuffer));
 	fclose(pFileOut);
 	fclose(pFileIn);
 
@@ -621,36 +623,29 @@ int MscAppendFile(char const *pszCopyTo, char const *pszCopyFrom)
 int MscCopyFile(FILE *pFileOut, FILE *pFileIn, SYS_OFF_T llBaseOffset,
 		SYS_OFF_T llCopySize)
 {
-	/* Setup copy size and seek start byte */
+	int iToRead, iRead;
+	SYS_OFF_T llFileSize;
+	char szBuffer[2048];
+
 	if (llBaseOffset == (SYS_OFF_T) -1)
-		llBaseOffset = (SYS_OFF_T) ftell(pFileIn);
-
-	fseek(pFileIn, 0, SEEK_END);
-
-	SYS_OFF_T llFileSize = (SYS_OFF_T) ftell(pFileIn);
-
+		llBaseOffset = Sys_ftell(pFileIn);
+	Sys_fseek(pFileIn, 0, SEEK_END);
+	llFileSize = Sys_ftell(pFileIn);
 	if (llCopySize == (SYS_OFF_T) -1)
 		llCopySize = llFileSize - llBaseOffset;
 	else
 		llCopySize = Min(llCopySize, llFileSize - llBaseOffset);
-
 	Sys_fseek(pFileIn, llBaseOffset, SEEK_SET);
-
-	/* Copy bytes */
-	char szBuffer[2048];
-
 	while (llCopySize > 0) {
-		unsigned int uToRead = (unsigned int) Min(llCopySize, sizeof(szBuffer));
-		unsigned int uReaded = fread(szBuffer, 1, uToRead, pFileIn);
-
-		if (uReaded > 0) {
-			if (fwrite(szBuffer, 1, uReaded, pFileOut) != uReaded) {
+		iToRead = (int) Min(llCopySize, sizeof(szBuffer));
+		if ((iRead = fread(szBuffer, 1, iToRead, pFileIn)) > 0) {
+			if (fwrite(szBuffer, 1, iRead, pFileOut) != iRead) {
 				ErrSetErrorCode(ERR_FILE_WRITE);
 				return ERR_FILE_WRITE;
 			}
-			llCopySize -= uReaded;
+			llCopySize -= iRead;
 		}
-		if (uReaded != uToRead) {
+		if (iRead != iToRead) {
 			ErrSetErrorCode(ERR_FILE_READ);
 			return ERR_FILE_READ;
 		}
@@ -691,7 +686,7 @@ int MscMoveFile(char const *pszOldName, char const *pszNewName)
 
 char *MscGetString(FILE *pFile, char *pszBuffer, int iMaxChars)
 {
-	return (fgets(pszBuffer, iMaxChars, pFile) != NULL) ?
+	return fgets(pszBuffer, iMaxChars, pFile) != NULL ?
 		StrRTrim(pszBuffer, "\r\n"): NULL;
 }
 
@@ -734,7 +729,7 @@ int MscGetSockHost(SYS_SOCKET SockFD, char *pszFQDN, int iSize)
 
 int MscGetServerAddress(char const *pszServer, SYS_INET_ADDR &SvrAddr, int iPortNo)
 {
-	char szServer[MAX_HOST_NAME] = "";
+	char szServer[MAX_HOST_NAME];
 
 	if (MscSplitAddressPort(pszServer, szServer, iPortNo, iPortNo) < 0 ||
 	    SysGetHostByName(szServer, iAddrFamily, SvrAddr) < 0 ||
@@ -783,7 +778,7 @@ char *MscLogFilePath(char const *pszLogFile, char *pszLogFilePath)
 	time_t tLogFileTime = (time_t) (NbrFloor((SYS_INT64) tCurrent - lTimeZone + lDayLight,
 						 lRotStep) + lTimeZone - lDayLight);
 	struct tm tmLocTime;
-	char szLogsDir[SYS_MAX_PATH] = "";
+	char szLogsDir[SYS_MAX_PATH];
 
 	SysLocalTime(&tLogFileTime, &tmLocTime);
 
@@ -800,25 +795,18 @@ char *MscLogFilePath(char const *pszLogFile, char *pszLogFilePath)
 
 int MscFileLog(char const *pszLogFile, char const *pszFormat, ...)
 {
-	char szLogFilePath[SYS_MAX_PATH] = "";
+	FILE *pLogFile;
+	va_list Args;
+	char szLogFilePath[SYS_MAX_PATH];
 
 	MscLogFilePath(pszLogFile, szLogFilePath);
-
-	FILE *pLogFile = fopen(szLogFilePath, "a+t");
-
-	if (pLogFile == NULL) {
+	if ((pLogFile = fopen(szLogFilePath, "a+t")) == NULL) {
 		ErrSetErrorCode(ERR_FILE_OPEN);
 		return ERR_FILE_OPEN;
 	}
-
-	va_list Args;
-
 	va_start(Args, pszFormat);
-
 	vfprintf(pLogFile, pszFormat, Args);
-
 	va_end(Args);
-
 	fclose(pLogFile);
 
 	return 0;
@@ -828,7 +816,7 @@ int MscSplitPath(char const *pszFilePath, char *pszDir, int iDSize,
 		 char *pszFName, int iFSize, char *pszExt, int iESize)
 {
 	char const *pszSlash = strrchr(pszFilePath, SYS_SLASH_CHAR);
-	char const *pszFile = NULL;
+	char const *pszFile = NULL, *pszDot;
 
 	if (pszSlash != NULL) {
 		pszFile = pszSlash + 1;
@@ -844,10 +832,7 @@ int MscSplitPath(char const *pszFilePath, char *pszDir, int iDSize,
 		if (pszDir != NULL)
 			SetEmptyString(pszDir);
 	}
-
-	char const *pszDot = strrchr(pszFile, '.');
-
-	if (pszDot != NULL) {
+	if ((pszDot = strrchr(pszFile, '.')) != NULL) {
 		if (pszFName != NULL) {
 			int iNameLength = (int) (pszDot - pszFile);
 
@@ -970,9 +955,9 @@ int MscCreateServerSockets(int iNumAddr, SYS_INET_ADDR const *pSvrAddr, int iFam
 
 int MscGetMaxSockFD(SYS_SOCKET const *pSockFDs, int iNumSockFDs)
 {
-	int iMaxFD = 0;
+	int i, iMaxFD = 0;
 
-	for (int i = 0; i < iNumSockFDs; i++)
+	for (i = 0; i < iNumSockFDs; i++)
 		if (iMaxFD < (int) pSockFDs[i])
 			iMaxFD = (int) pSockFDs[i];
 
@@ -998,7 +983,6 @@ int MscAcceptServerConnection(SYS_SOCKET const *pSockFDs, int iNumSockFDs,
 		return ErrGetErrorCode();
 
 	iNumConnSockFD = 0;
-
 	for (i = 0; i < iNumSockFDs; i++) {
 		if (SYS_FD_ISSET(pSockFDs[i], &fdReadSet)) {
 			SYS_INET_ADDR ConnAddr;
@@ -1036,10 +1020,11 @@ int MscLoadAddressFilter(char const *const *ppszFilter, int iNumTokens, AddressF
 
 		ZeroData(AF.Mask);
 		iMaskBits = Min(iMaskBits, 8 * sizeof(AF.Mask));
-		for (i = 0; (i + 8) <= iMaskBits; i += 8)
-			AF.Mask[i / 8] = 0xff;
+		for (i = 0; (i + CHAR_BIT) <= iMaskBits; i += CHAR_BIT)
+			AF.Mask[i / CHAR_BIT] = 0xff;
 		if (i < iMaskBits)
-			AF.Mask[i / 8] = (SYS_UINT8) (((1 << (iMaskBits - i)) - 1) << (8 - iMaskBits + i));
+			AF.Mask[i / CHAR_BIT] = (SYS_UINT8)
+				(((1 << (iMaskBits - i)) - 1) << (CHAR_BIT - iMaskBits + i));
 	} else if (iNumTokens > 1) {
 		/*
 		 * This is for the old IPV4 representation. They both must
@@ -1077,7 +1062,7 @@ int MscCheckAllowedIP(char const *pszMapFile, const SYS_INET_ADDR &PeerInfo, boo
 	bool bAllow = bDefault;
 	int iPrecedence = -1, iFieldsCount;
 	AddressFilter AF;
-	char szMapLine[512] = "";
+	char szMapLine[512];
 
 	while (MscGetConfigLine(szMapLine, sizeof(szMapLine) - 1, pMapFile) != NULL) {
 		char **ppszStrings = StrGetTabLineStrings(szMapLine);
@@ -1120,7 +1105,7 @@ char **MscGetIPProperties(char const *pszFileName, const SYS_INET_ADDR *pPeerInf
 
 	int iFieldsCount;
 	AddressFilter AFPeer;
-	char szLine[IPPROP_LINE_MAX] = "";
+	char szLine[IPPROP_LINE_MAX];
 
 	while (MscGetConfigLine(szLine, sizeof(szLine) - 1, pFile) != NULL) {
 		char **ppszTokens = StrGetTabLineStrings(szLine);
@@ -1162,16 +1147,14 @@ int MscHostSubMatch(char const *pszHostName, char const *pszHostMatch)
 
 char **MscGetHNProperties(char const *pszFileName, char const *pszHostName)
 {
-	FILE *pFile = fopen(pszFileName, "rt");
+	int iFieldsCount;
+	FILE *pFile;
+	char szLine[IPPROP_LINE_MAX];
 
-	if (pFile == NULL) {
+	if ((pFile = fopen(pszFileName, "rt")) == NULL) {
 		ErrSetErrorCode(ERR_FILE_OPEN);
 		return NULL;
 	}
-
-	int iFieldsCount;
-	char szLine[IPPROP_LINE_MAX] = "";
-
 	while (MscGetConfigLine(szLine, sizeof(szLine) - 1, pFile) != NULL) {
 		char **ppszTokens = StrGetTabLineStrings(szLine);
 
@@ -1194,10 +1177,10 @@ char **MscGetHNProperties(char const *pszFileName, char const *pszHostName)
 
 int MscMD5Authenticate(char const *pszPassword, char const *pszTimeStamp, char const *pszDigest)
 {
-	char *pszHash = StrSprint("%s%s", pszTimeStamp, pszPassword);
-	char szMD5[128] = "";
+	char *pszHash;
+	char szMD5[128];
 
-	if (pszHash == NULL)
+	if ((pszHash = StrSprint("%s%s", pszTimeStamp, pszPassword)) == NULL)
 		return ErrGetErrorCode();
 	do_md5_string(pszHash, strlen(pszHash), szMD5);
 	SysFree(pszHash);
@@ -1211,14 +1194,13 @@ int MscMD5Authenticate(char const *pszPassword, char const *pszTimeStamp, char c
 
 char *MscExtractServerTimeStamp(char const *pszResponse, char *pszTimeStamp, int iMaxTimeStamp)
 {
+	int iLengthTS;
 	char const *pszStartTS, *pszEndTS;
 
 	if ((pszStartTS = strchr(pszResponse, '<')) == NULL ||
 	    (pszEndTS = strchr(pszStartTS + 1, '>')) == NULL)
 		return NULL;
-
-	int iLengthTS = (int) (pszEndTS - pszStartTS) + 1;
-
+	iLengthTS = (int) (pszEndTS - pszStartTS) + 1;
 	iLengthTS = Min(iLengthTS, iMaxTimeStamp - 1);
 	Cpy2Sz(pszTimeStamp, pszStartTS, iLengthTS);
 
@@ -1229,15 +1211,14 @@ int MscRootedName(char const *pszHostName)
 {
 	char const *pszDot = strrchr(pszHostName, '.');
 
-	return (pszDot == NULL) ? 0: ((strlen(pszDot) == 0) ? 1: 0);
+	return pszDot == NULL ? 0: (strlen(pszDot) == 0 ? 1: 0);
 }
 
 int MscCramMD5(char const *pszSecret, char const *pszChallenge, char *pszDigest)
 {
 	int iLenght = (int) strlen(pszSecret);
 	md5_ctx_t ctx;
-	unsigned char isecret[64];
-	unsigned char osecret[64];
+	unsigned char isecret[64], osecret[64];
 	unsigned char md5secret[MD5_DIGEST_LEN];
 
 	if (iLenght > 64) {
@@ -1277,15 +1258,24 @@ int MscCramMD5(char const *pszSecret, char const *pszChallenge, char *pszDigest)
 	return 0;
 }
 
+/*
+ * NOTE: This is used by TabIndex.cpp to compute the hash of its indexes.
+ *       If this function gets changed in any way, the TAB_INDEX_CURR_VERSION
+ *       value in TabIndex.cpp must be bumped to reflect a different file format.
+ */
 unsigned long MscHashString(char const *pszBuffer, int iLength, unsigned long ulHashInit)
 {
 	unsigned long ulHashVal = ulHashInit;
 
 	while (iLength > 0) {
 		--iLength;
-		ulHashVal += (ulHashVal << 5);
-		ulHashVal ^= (SYS_UINT32) *pszBuffer++;
+		ulHashVal += *(unsigned char const *) pszBuffer++;
+		ulHashVal += (ulHashVal << 10);
+		ulHashVal ^= (ulHashVal >> 6);
 	}
+	ulHashVal += (ulHashVal << 3);
+	ulHashVal ^= (ulHashVal >> 11);
+	ulHashVal += (ulHashVal << 15);
 
 	return ulHashVal;
 }
@@ -1328,6 +1318,9 @@ SYS_UINT16 MscReadUint16(void const *pData)
 {
 	SYS_UINT16 uValue;
 
+	/*
+	 * Reading possibly unaligned data ...
+	 */
 	memcpy(&uValue, pData, sizeof(uValue));
 
 	return uValue;
@@ -1337,6 +1330,9 @@ SYS_UINT32 MscReadUint32(void const *pData)
 {
 	SYS_UINT32 uValue;
 
+	/*
+	 * Reading possibly unaligned data ...
+	 */
 	memcpy(&uValue, pData, sizeof(uValue));
 
 	return uValue;
@@ -1346,6 +1342,9 @@ SYS_UINT64 MscReadUint64(void const *pData)
 {
 	SYS_UINT64 uValue;
 
+	/*
+	 * Reading possibly unaligned data ...
+	 */
 	memcpy(&uValue, pData, sizeof(uValue));
 
 	return uValue;
@@ -1369,7 +1368,7 @@ void *MscWriteUint64(void *pData, SYS_UINT64 uValue)
 int MscCmdStringCheck(char const *pszString)
 {
 	for (; *pszString != '\0'; pszString++)
-		if (*((const unsigned char *) pszString) > 127) {
+		if (*((unsigned char const *) pszString) > 127) {
 			ErrSetErrorCode(ERR_BAD_CMDSTR_CHARS);
 			return ERR_BAD_CMDSTR_CHARS;
 		}
@@ -1384,7 +1383,6 @@ int MscGetSectionSize(FileSection const *pFS, SYS_OFF_T *pllSize)
 
 		if (SysGetFileInfo(pFS->szFilePath, FI) < 0)
 			return ErrGetErrorCode();
-
 		*pllSize = FI.llSize - pFS->llStartOffset;
 	} else
 		*pllSize = pFS->llEndOffset - pFS->llStartOffset;

@@ -61,4 +61,8 @@
 #include <sched.h>
 #include <pthread.h>
 
+#ifdef HAS_EVENTFD
+#include <sys/eventfd.h>
+#endif
+
 #endif

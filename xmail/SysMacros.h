@@ -136,12 +136,12 @@ inline char *DelFinalSlash(char *pszPath)
 
 inline int ToUpper(int iChar)
 {
-	return ((iChar >= 'a') && (iChar <= 'z')) ? ('A' + (iChar - 'a')) : iChar;
+	return (iChar >= 'a' && iChar <= 'z') ? 'A' + (iChar - 'a'): iChar;
 }
 
 inline int ToLower(int iChar)
 {
-	return ((iChar >= 'A') && (iChar <= 'Z')) ? ('a' + (iChar - 'A')) : iChar;
+	return (iChar >= 'A' && iChar <= 'Z') ? 'a' + (iChar - 'A'): iChar;
 }
 
 inline int IsPrimeNumber(long lNumber)

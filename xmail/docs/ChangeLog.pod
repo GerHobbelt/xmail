@@ -17,6 +17,10 @@ Fixed SMTP explicit routing address parsing.
 
 =item *
 
+Faster shutdown time on Unix systems.
+
+=item *
+
 Tweaked DNS resolution to cope with lame name servers.
 
 =item *

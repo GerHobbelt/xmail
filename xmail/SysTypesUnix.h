@@ -30,6 +30,10 @@
 #define BIG_ENDIAN_BITFIELD
 #endif
 
+#ifndef CHAR_BIT
+#define CHAR_BIT                8
+#endif
+
 #define SYS_INFINITE_TIMEOUT    (-1)
 #define SYS_DEFAULT_MAXCOUNT    (INT_MAX - 1)
 
@@ -58,7 +62,13 @@
 #define stricmp                 strcasecmp
 #define strnicmp                strncasecmp
 
+#ifdef HAS_NO_OFFT_FSTREAM
 #define Sys_fseek(f, o, w)      fseek(f, (long) (o), w)
+#define Sys_ftell(f)            ftell(f)
+#else
+#define Sys_fseek(f, o, w)      fseeko(f, (off_t) (o), w)
+#define Sys_ftell(f)            ftello(f)
+#endif
 
 #define SYS_fd_set              fd_set
 #define SYS_FD_ZERO             FD_ZERO
@@ -82,7 +92,6 @@ typedef signed int SYS_INT32;
 typedef unsigned int SYS_UINT32;
 typedef signed long long SYS_INT64;
 typedef unsigned long long SYS_UINT64;
-typedef unsigned long long SYS_LONGLONG;
 typedef unsigned long SYS_HANDLE;
 typedef pthread_key_t SYS_TLSKEY;
 typedef pthread_once_t SYS_THREAD_ONCE;

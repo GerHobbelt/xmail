@@ -826,6 +826,12 @@ enum XMailErrors {
 	__ERR_WAIT,
 #define ERR_WAIT (-__ERR_WAIT)
 
+	__ERR_EVENTFD,
+#define ERR_EVENTFD (-__ERR_EVENTFD)
+
+	__ERR_TOO_BIG,
+#define ERR_TOO_BIG (-__ERR_TOO_BIG)
+
 	ERROR_COUNT
 };
 

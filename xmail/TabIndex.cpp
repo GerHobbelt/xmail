@@ -32,7 +32,7 @@
 #include "TabIndex.h"
 
 /* The index version MUST be incremented at every file format change */
-#define TAB_INDEX_CURR_VERSION      1
+#define TAB_INDEX_CURR_VERSION      2
 
 #define TAB_SAMPLE_LINES            32
 #define TAB_MIN_HASH_SIZE           17

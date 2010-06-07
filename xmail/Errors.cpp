@@ -305,6 +305,7 @@ static ErrorStrings Errors[] = {
 	{ ERR_TOO_MANY_ELEMENTS, "Too many elements" },
 	{ ERR_GET_RAND_BYTES, "Failed to retrieve entropy bytes" },
 	{ ERR_WAIT, "Failed to wait for event" },
+	{ ERR_EVENTFD, "Failed to create for eventfd" },
 
 };
 

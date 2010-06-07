@@ -23,7 +23,9 @@ ifeq ($(DEBUG_OSSL), 1)
     CFLAGS := $(CFLAGS) -DDEBUG_OSSL
 endif
 
-ifneq ("$(XMAIL_FILE_OFF_BITS)", "")
+ifeq ("$(XMAIL_FILE_OFF_BITS)", "")
+    CFLAGS := $(CFLAGS) -D_FILE_OFFSET_BITS=64
+else
     CFLAGS := $(CFLAGS) -D_FILE_OFFSET_BITS=$(XMAIL_FILE_OFF_BITS)
 endif
 
@@ -43,8 +45,10 @@ XMCRYPT = ${OUTDIR}/XMCrypt
 MKUSERS = ${OUTDIR}/MkUsers
 SENDMAIL = ${OUTDIR}/sendmail
 
+
 MKMACHDEPSRCS = MkMachDep.cpp
-MKMACHDEPOBJS = MkMachDep.o
+
+MKMACHDEPOBJS = $(addprefix $(OUTDIR)/, $(notdir $(patsubst %.cpp, %.o, $(MKMACHDEPSRCS))))
 
 
 SVRSRCS = $(MAINSRC) $(SYSSRCS) SysDepCommon.cpp BuffSock.cpp CTRLSvr.cpp DNS.cpp DNSCache.cpp Errors.cpp \

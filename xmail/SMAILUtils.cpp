@@ -1181,7 +1181,7 @@ static int USmlCreateSpoolFile(FILE *pMailFile, char const *const *ppszInfo,
 	fprintf(pSpoolFile, "%s\r\n", SPOOL_FILE_DATA_START);
 
 	/* Write message body */
-	if (MscCopyFile(pSpoolFile, pMailFile, 0, (unsigned long) -1) < 0) {
+	if (MscCopyFile(pSpoolFile, pMailFile, 0, (SYS_OFF_T) -1) < 0) {
 		ErrorPush();
 		fclose(pSpoolFile);
 		SysRemove(pszSpoolFile);

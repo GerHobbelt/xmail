@@ -48,21 +48,10 @@
 #define BSD_SETPGRP()         setpgrp(0, getpid())
 #endif
 
-
-static int MnEventLog(char const *pszFormat, ...);
-static char const *MnGetPIDDir(void);
-static int MnSavePID(char const *pszPidFile);
-static int MnRemovePID(char const *pszPidFile);
-static void MnSIGCLD(int iSignal);
-static void MnSetupStdHandles(void);
-static int MnDaemonBootStrap(void);
-static int MnIsDebugStartup(int iArgCount, char *pszArgs[]);
-static int MnDaemonStartup(int iArgCount, char *pszArgs[]);
-
 static int MnEventLog(char const *pszFormat, ...)
 {
 	va_list Args;
-	char szBuffer[2048] = "";
+	char szBuffer[2048];
 
 	openlog(APP_NAME_STR, LOG_PID, LOG_DAEMON);
 	va_start(Args, pszFormat);
@@ -80,12 +69,12 @@ static char const *MnGetPIDDir(void)
 {
 	char const *pszPIDDir = getenv(XMAIL_PIDDIR_ENV);
 
-	return (pszPIDDir != NULL) ? pszPIDDir: RUNNING_PIDS_DIR;
+	return pszPIDDir != NULL ? pszPIDDir: RUNNING_PIDS_DIR;
 }
 
 static int MnSavePID(char const *pszPidFile)
 {
-	char szPidFile[SYS_MAX_PATH] = "";
+	char szPidFile[SYS_MAX_PATH];
 
 	snprintf(szPidFile, sizeof(szPidFile) - 1, "%s/%s.pid", MnGetPIDDir(),
 		 pszPidFile);
@@ -104,7 +93,7 @@ static int MnSavePID(char const *pszPidFile)
 
 static int MnRemovePID(char const *pszPidFile)
 {
-	char szPidFile[SYS_MAX_PATH] = "";
+	char szPidFile[SYS_MAX_PATH];
 
 	snprintf(szPidFile, sizeof(szPidFile) - 1, "%s/%s.pid", MnGetPIDDir(),
 		 pszPidFile);
@@ -143,10 +132,11 @@ static void MnSetupStdHandles(void)
 
 static int MnDaemonBootStrap(void)
 {
-	/* This code is inspired from the code of the great Richard Stevens books. */
-	/* May You RIP in programmers paradise great Richard. */
-	/* I suggest You to buy all his collection, soon ! */
-
+	/*
+	 * This code is inspired from the code of the great Richard Stevens books.
+	 * May You RIP in programmers paradise great Richard.
+	 * I suggest You to buy all his collection, soon!
+	 */
 #ifdef SIGTTOU
 	signal(SIGTTOU, SIG_IGN);
 #endif
@@ -164,9 +154,9 @@ static int MnDaemonBootStrap(void)
 		MnEventLog("Cannot fork : %s", strerror(errno));
 
 		exit(errno);
-	} else if (iChildPID > 0) {
+	} else if (iChildPID > 0)
 		exit(0);
-	}
+
 	/*
 	 * Disassociate from controlling terminal and process group.
 	 * Ensure the process can't reacquire a new controlling terminal.

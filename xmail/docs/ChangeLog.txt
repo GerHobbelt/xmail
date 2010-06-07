@@ -10,6 +10,8 @@ CHANGE LOG
 
     *   Fixed SMTP explicit routing address parsing.
 
+    *   Faster shutdown time on Unix systems.
+
     *   Tweaked DNS resolution to cope with lame name servers.
 
     *   Safer temporary file name generation.

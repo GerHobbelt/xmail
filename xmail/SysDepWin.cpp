@@ -1493,14 +1493,20 @@ int SysLogMessage(int iLogLevel, char const *pszFormat, ...)
 	return 0;
 }
 
-void SysSleep(int iTimeout)
+int SysSleep(int iTimeout)
 {
-	SysMsSleep(iTimeout * 1000);
+	return SysMsSleep(iTimeout * 1000);
 }
 
-void SysMsSleep(int iMsTimeout)
+int SysMsSleep(int iMsTimeout)
 {
-	Sleep(iMsTimeout);
+	if (WaitForSingleObject(hShutdownEvent,
+				iMsTimeout) == WAIT_OBJECT_0) {
+		ErrSetErrorCode(ERR_SERVER_SHUTDOWN);
+		return ERR_SERVER_SHUTDOWN;
+	}
+
+	return 0;
 }
 
 static void SysTimetToFileTime(time_t tTime, LPFILETIME pFT)

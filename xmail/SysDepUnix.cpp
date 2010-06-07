@@ -32,7 +32,6 @@
 #define SYSERR_EXEC            255
 
 #define SYS_INT_CALL()       (!iShutDown && (errno == EINTR))
-#define SYS_CLOSE_PIPE(p)    do { close((p)[0]); close((p)[1]); } while (0)
 #define SYS_STDERR_WRITE(s)  write(2, s, strlen(s))
 
 struct PidWaitData {
@@ -47,7 +46,7 @@ static int iNumThExitHooks;
 static volatile int iShutDown;
 static pthread_t SigThreadID;
 static int iSignalPipe[2];
-static int iShutdownPipe[2];
+static SYS_EVENTFD hShdwnEventfd;
 static pthread_mutex_t PWaitMutex = PTHREAD_MUTEX_INITIALIZER;
 static SysListHead PWaitLists[SYS_PWAIT_HASHSIZE];
 static ThreadExitHook ThExitHooks[SYS_MAX_TH_EXIT_HOOKS];
@@ -89,7 +88,7 @@ static void SysTimeAddOffset(struct timespec *pTS, long iMsOffset)
 	}
 }
 
-static int SysBlockFD(int iFD, int iBlocking)
+int SysBlockFD(int iFD, int iBlocking)
 {
 	long lFlags;
 
@@ -109,7 +108,7 @@ static int SysBlockFD(int iFD, int iBlocking)
 	return 0;
 }
 
-static int SysFdWait(int iFD, unsigned int uEvents, int iTimeout)
+int SysFdWait(int iFD, unsigned int uEvents, int iTimeout)
 {
 	int iError;
 	struct pollfd PollFD[2];
@@ -117,7 +116,7 @@ static int SysFdWait(int iFD, unsigned int uEvents, int iTimeout)
 	ZeroData(PollFD);
 	PollFD[0].fd = iFD;
 	PollFD[0].events = uEvents;
-	PollFD[1].fd = iShutdownPipe[0];
+	PollFD[1].fd = SysEventfdWaitFD(hShdwnEventfd);
 	PollFD[1].events = POLLIN;
 	if ((iError = poll(PollFD, 2, iTimeout)) == -1) {
 		ErrSetErrorCode(ERR_WAIT);
@@ -131,6 +130,87 @@ static int SysFdWait(int iFD, unsigned int uEvents, int iTimeout)
 		ErrSetErrorCode(ERR_SERVER_SHUTDOWN);
 		return ERR_SERVER_SHUTDOWN;
 	}
+
+	return 0;
+}
+
+static int SysWaitInit(WaitCond *pWC)
+{
+	if (pthread_mutex_init(&pWC->Mtx, NULL) != 0) {
+		ErrSetErrorCode(ERR_MUTEXINIT);
+		return ERR_MUTEXINIT;
+	}
+	if (pthread_cond_init(&pWC->Cond, NULL) != 0) {
+		pthread_mutex_destroy(&pWC->Mtx);
+		ErrSetErrorCode(ERR_CONDINIT);
+		return ERR_CONDINIT;
+	}
+
+	return 0;
+}
+
+static void SysWaitCleanup(WaitCond *pWC)
+{
+	pthread_cond_destroy(&pWC->Cond);
+	pthread_mutex_destroy(&pWC->Mtx);
+}
+
+static void SysWaitLock(WaitCond *pWC)
+{
+	pthread_mutex_lock(&pWC->Mtx);
+}
+
+static void SysWaitUnlock(WaitCond *pWC)
+{
+	pthread_mutex_unlock(&pWC->Mtx);
+}
+
+/*
+ * This is supposed to be called while holding the lock (that is, inside
+ * a SysWaitLock() / SysWaitUnlock() block).
+ */
+static void SysWaitWakeup(WaitCond *pWC, int iCount)
+{
+	if (iCount <= 0)
+		pthread_cond_broadcast(&pWC->Cond);
+	else
+		pthread_cond_signal(&pWC->Cond);
+}
+
+static int SysWaitWait(WaitCond *pWC, int iTimeout, int (*pCondCB)(void *),
+		       void (*pPostCB)(void *), void *pPrivate)
+{
+	pthread_mutex_lock(&pWC->Mtx);
+	if (iTimeout == SYS_INFINITE_TIMEOUT) {
+		while (!(*pCondCB)(pPrivate)) {
+			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock,
+					     &pWC->Mtx);
+			pthread_cond_wait(&pWC->Cond, &pWC->Mtx);
+			pthread_cleanup_pop(0);
+		}
+	} else {
+		int iRetCode = 0;
+		struct timespec tsExpire;
+
+		SysGetTimeOfDay(&tsExpire);
+		SysTimeAddOffset(&tsExpire, iTimeout);
+		while (!(*pCondCB)(pPrivate) && iRetCode != ETIMEDOUT) {
+			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock,
+					     &pWC->Mtx);
+			iRetCode = pthread_cond_timedwait(&pWC->Cond, &pWC->Mtx,
+							  &tsExpire);
+			pthread_cleanup_pop(0);
+		}
+		if (iRetCode == ETIMEDOUT) {
+			pthread_mutex_unlock(&pWC->Mtx);
+
+			ErrSetErrorCode(ERR_TIMEOUT);
+			return ERR_TIMEOUT;
+		}
+	}
+	if (pPostCB != NULL)
+		(*pPostCB)(pPrivate);
+	pthread_mutex_unlock(&pWC->Mtx);
 
 	return 0;
 }
@@ -290,27 +370,30 @@ static int SysThreadSetup(ThrData *pTD)
 
 static int SysFreeThreadData(ThrData *pTD)
 {
-	pthread_cond_destroy(&pTD->ExitWaitCond);
-	pthread_mutex_destroy(&pTD->Mtx);
+	SysWaitCleanup(&pTD->Wait);
 	SysFree(pTD);
 
 	return 0;
+}
+
+static void SysThreadExit(ThrData *pTD)
+{
+	SysWaitLock(&pTD->Wait);
+	pTD->iThreadEnded = 1;
+	SysWaitWakeup(&pTD->Wait, 0);
+	if (--pTD->iUseCount == 0) {
+		SysWaitUnlock(&pTD->Wait);
+		SysFreeThreadData(pTD);
+	} else
+		SysWaitUnlock(&pTD->Wait);
 }
 
 static void SysThreadCleanup(ThrData *pTD)
 {
 	SysRunThreadExitHooks(pTD != NULL ? (SYS_THREAD) pTD: SYS_INVALID_THREAD,
 			      SYS_THREAD_DETACH);
-	if (pTD != NULL) {
-		pthread_mutex_lock(&pTD->Mtx);
-		pTD->iThreadEnded = 1;
-		pthread_cond_broadcast(&pTD->ExitWaitCond);
-		if (--pTD->iUseCount == 0) {
-			pthread_mutex_unlock(&pTD->Mtx);
-			SysFreeThreadData(pTD);
-		} else
-			pthread_mutex_unlock(&pTD->Mtx);
-	}
+	if (pTD != NULL)
+		SysThreadExit(pTD);
 }
 
 int SysInitLibrary(void)
@@ -324,13 +407,12 @@ int SysInitLibrary(void)
 	tzset();
 	if (SysDepInitLibrary() < 0)
 		return ErrGetErrorCode();
-	if (pipe(iShutdownPipe) == -1) {
+	if ((hShdwnEventfd = SysEventfdCreate()) == SYS_INVALID_EVENTFD) {
 		SysDepCleanupLibrary();
-		ErrSetErrorCode(ERR_PIPE);
-		return ERR_PIPE;
+		return ErrGetErrorCode();
 	}
 	if (pipe(iSignalPipe) == -1) {
-		SYS_CLOSE_PIPE(iShutdownPipe);
+		SysEventfdClose(hShdwnEventfd);
 		SysDepCleanupLibrary();
 		ErrSetErrorCode(ERR_PIPE);
 		return ERR_PIPE;
@@ -339,14 +421,14 @@ int SysInitLibrary(void)
 	SysSetupProcessSignals();
 	if (pthread_create(&SigThreadID, NULL, SysSignalThread, NULL) != 0) {
 		SYS_CLOSE_PIPE(iSignalPipe);
-		SYS_CLOSE_PIPE(iShutdownPipe);
+		SysEventfdClose(hShdwnEventfd);
 		SysDepCleanupLibrary();
 		ErrSetErrorCode(ERR_THREADCREATE);
 		return ERR_THREADCREATE;
 	}
 	if (SysThreadSetup(NULL) < 0) {
 		SYS_CLOSE_PIPE(iSignalPipe);
-		SYS_CLOSE_PIPE(iShutdownPipe);
+		SysEventfdClose(hShdwnEventfd);
 		SysDepCleanupLibrary();
 		return ErrGetErrorCode();
 	}
@@ -358,7 +440,7 @@ int SysInitLibrary(void)
 static void SysPostShutdown(void)
 {
 	iShutDown++;
-	write(iShutdownPipe[1], "s", 1);
+	SysEventfdSet(hShdwnEventfd);
 	kill(0, SIGQUIT);
 }
 
@@ -368,7 +450,7 @@ void SysCleanupLibrary(void)
 	SysThreadCleanup(NULL);
 	pthread_join(SigThreadID, NULL);
 	SYS_CLOSE_PIPE(iSignalPipe);
-	SYS_CLOSE_PIPE(iShutdownPipe);
+	SysEventfdClose(hShdwnEventfd);
 	SysDepCleanupLibrary();
 }
 
@@ -742,18 +824,8 @@ SYS_SEMAPHORE SysCreateSemaphore(int iInitCount, int iMaxCount)
 
 	if (pSD == NULL)
 		return SYS_INVALID_SEMAPHORE;
-
-	if (pthread_mutex_init(&pSD->Mtx, NULL) != 0) {
+	if (SysWaitInit(&pSD->Wait) < 0) {
 		SysFree(pSD);
-
-		ErrSetErrorCode(ERR_MUTEXINIT, NULL);
-		return SYS_INVALID_SEMAPHORE;
-	}
-	if (pthread_cond_init(&pSD->WaitCond, NULL) != 0) {
-		pthread_mutex_destroy(&pSD->Mtx);
-		SysFree(pSD);
-
-		ErrSetErrorCode(ERR_CONDINIT, NULL);
 		return SYS_INVALID_SEMAPHORE;
 	}
 	pSD->iSemCounter = iInitCount;
@@ -767,65 +839,47 @@ int SysCloseSemaphore(SYS_SEMAPHORE hSemaphore)
 	SemData *pSD = (SemData *) hSemaphore;
 
 	if (pSD != NULL) {
-		pthread_cond_destroy(&pSD->WaitCond);
-		pthread_mutex_destroy(&pSD->Mtx);
+		SysWaitCleanup(&pSD->Wait);
 		SysFree(pSD);
 	}
 
 	return 0;
 }
 
+static int SysSemCondCB(void *pPrivate)
+{
+	SemData *pSD = (SemData *) pPrivate;
+
+	return pSD->iSemCounter > 0;
+}
+
+static void SysSemPostCB(void *pPrivate)
+{
+	SemData *pSD = (SemData *) pPrivate;
+
+	pSD->iSemCounter -= 1;
+}
+
 int SysWaitSemaphore(SYS_SEMAPHORE hSemaphore, int iTimeout)
 {
 	SemData *pSD = (SemData *) hSemaphore;
 
-	pthread_mutex_lock(&pSD->Mtx);
-	if (iTimeout == SYS_INFINITE_TIMEOUT) {
-		while (pSD->iSemCounter <= 0) {
-			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock,
-					     &pSD->Mtx);
-			pthread_cond_wait(&pSD->WaitCond, &pSD->Mtx);
-			pthread_cleanup_pop(0);
-		}
-		pSD->iSemCounter -= 1;
-	} else {
-		int iRetCode = 0;
-		struct timespec tsExpire;
-
-		SysGetTimeOfDay(&tsExpire);
-		SysTimeAddOffset(&tsExpire, iTimeout);
-		while (pSD->iSemCounter <= 0 && iRetCode != ETIMEDOUT) {
-			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock,
-					     &pSD->Mtx);
-			iRetCode = pthread_cond_timedwait(&pSD->WaitCond, &pSD->Mtx,
-							  &tsExpire);
-			pthread_cleanup_pop(0);
-		}
-		if (iRetCode == ETIMEDOUT) {
-			pthread_mutex_unlock(&pSD->Mtx);
-			ErrSetErrorCode(ERR_TIMEOUT);
-			return ERR_TIMEOUT;
-		}
-		pSD->iSemCounter -= 1;
-	}
-	pthread_mutex_unlock(&pSD->Mtx);
-
-	return 0;
+	return SysWaitWait(&pSD->Wait, iTimeout, SysSemCondCB, SysSemPostCB, pSD);
 }
 
 int SysReleaseSemaphore(SYS_SEMAPHORE hSemaphore, int iCount)
 {
 	SemData *pSD = (SemData *) hSemaphore;
 
-	pthread_mutex_lock(&pSD->Mtx);
+	SysWaitLock(&pSD->Wait);
 	pSD->iSemCounter += iCount;
 	if (pSD->iSemCounter > 0) {
 		if (pSD->iSemCounter > 1)
-			pthread_cond_broadcast(&pSD->WaitCond);
+			SysWaitWakeup(&pSD->Wait, 0);
 		else
-			pthread_cond_signal(&pSD->WaitCond);
+			SysWaitWakeup(&pSD->Wait, 1);
 	}
-	pthread_mutex_unlock(&pSD->Mtx);
+	SysWaitUnlock(&pSD->Wait);
 
 	return 0;
 }
@@ -834,14 +888,14 @@ int SysTryWaitSemaphore(SYS_SEMAPHORE hSemaphore)
 {
 	SemData *pSD = (SemData *) hSemaphore;
 
-	pthread_mutex_lock(&pSD->Mtx);
+	SysWaitLock(&pSD->Wait);
 	if (pSD->iSemCounter <= 0) {
-		pthread_mutex_unlock(&pSD->Mtx);
+		SysWaitUnlock(&pSD->Wait);
 		ErrSetErrorCode(ERR_TIMEOUT);
 		return ERR_TIMEOUT;
 	}
 	pSD->iSemCounter -= 1;
-	pthread_mutex_unlock(&pSD->Mtx);
+	SysWaitUnlock(&pSD->Wait);
 
 	return 0;
 }
@@ -852,16 +906,8 @@ SYS_MUTEX SysCreateMutex(void)
 
 	if (pMD == NULL)
 		return SYS_INVALID_MUTEX;
-
-	if (pthread_mutex_init(&pMD->Mtx, NULL) != 0) {
+	if (SysWaitInit(&pMD->Wait) < 0) {
 		SysFree(pMD);
-		ErrSetErrorCode(ERR_MUTEXINIT);
-		return SYS_INVALID_MUTEX;
-	}
-	if (pthread_cond_init(&pMD->WaitCond, NULL) != 0) {
-		pthread_mutex_destroy(&pMD->Mtx);
-		SysFree(pMD);
-		ErrSetErrorCode(ERR_CONDINIT);
 		return SYS_INVALID_MUTEX;
 	}
 	pMD->iLocked = 0;
@@ -874,60 +920,42 @@ int SysCloseMutex(SYS_MUTEX hMutex)
 	MutexData *pMD = (MutexData *) hMutex;
 
 	if (pMD != NULL) {
-		pthread_cond_destroy(&pMD->WaitCond);
-		pthread_mutex_destroy(&pMD->Mtx);
+		SysWaitCleanup(&pMD->Wait);
 		SysFree(pMD);
 	}
 
 	return 0;
 }
 
+static int SysMtxCondCB(void *pPrivate)
+{
+	MutexData *pMD = (MutexData *) pPrivate;
+
+	return !pMD->iLocked;
+}
+
+static void SysMtxPostCB(void *pPrivate)
+{
+	MutexData *pMD = (MutexData *) pPrivate;
+
+	pMD->iLocked = 1;
+}
+
 int SysLockMutex(SYS_MUTEX hMutex, int iTimeout)
 {
 	MutexData *pMD = (MutexData *) hMutex;
 
-	pthread_mutex_lock(&pMD->Mtx);
-	if (iTimeout == SYS_INFINITE_TIMEOUT) {
-		while (pMD->iLocked) {
-			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock,
-					     &pMD->Mtx);
-			pthread_cond_wait(&pMD->WaitCond, &pMD->Mtx);
-			pthread_cleanup_pop(0);
-		}
-		pMD->iLocked = 1;
-	} else {
-		int iRetCode = 0;
-		struct timespec tsExpire;
-
-		SysGetTimeOfDay(&tsExpire);
-		SysTimeAddOffset(&tsExpire, iTimeout);
-		while (pMD->iLocked && iRetCode != ETIMEDOUT) {
-			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock,
-					     &pMD->Mtx);
-			iRetCode = pthread_cond_timedwait(&pMD->WaitCond, &pMD->Mtx,
-							  &tsExpire);
-			pthread_cleanup_pop(0);
-		}
-		if (iRetCode == ETIMEDOUT) {
-			pthread_mutex_unlock(&pMD->Mtx);
-			ErrSetErrorCode(ERR_TIMEOUT);
-			return ERR_TIMEOUT;
-		}
-		pMD->iLocked = 1;
-	}
-	pthread_mutex_unlock(&pMD->Mtx);
-
-	return 0;
+	return SysWaitWait(&pMD->Wait, iTimeout, SysMtxCondCB, SysMtxPostCB, pMD);
 }
 
 int SysUnlockMutex(SYS_MUTEX hMutex)
 {
 	MutexData *pMD = (MutexData *) hMutex;
 
-	pthread_mutex_lock(&pMD->Mtx);
+	SysWaitLock(&pMD->Wait);
 	pMD->iLocked = 0;
-	pthread_cond_signal(&pMD->WaitCond);
-	pthread_mutex_unlock(&pMD->Mtx);
+	SysWaitWakeup(&pMD->Wait, 1);
+	SysWaitUnlock(&pMD->Wait);
 
 	return 0;
 }
@@ -936,14 +964,14 @@ int SysTryLockMutex(SYS_MUTEX hMutex)
 {
 	MutexData *pMD = (MutexData *) hMutex;
 
-	pthread_mutex_lock(&pMD->Mtx);
+	SysWaitLock(&pMD->Wait);
 	if (pMD->iLocked) {
-		pthread_mutex_unlock(&pMD->Mtx);
+		SysWaitUnlock(&pMD->Wait);
 		ErrSetErrorCode(ERR_TIMEOUT);
 		return ERR_TIMEOUT;
 	}
 	pMD->iLocked = 1;
-	pthread_mutex_unlock(&pMD->Mtx);
+	SysWaitUnlock(&pMD->Wait);
 
 	return 0;
 }
@@ -954,16 +982,8 @@ SYS_EVENT SysCreateEvent(int iManualReset)
 
 	if (pED == NULL)
 		return SYS_INVALID_EVENT;
-
-	if (pthread_mutex_init(&pED->Mtx, NULL) != 0) {
+	if (SysWaitInit(&pED->Wait) < 0) {
 		SysFree(pED);
-		ErrSetErrorCode(ERR_MUTEXINIT);
-		return SYS_INVALID_EVENT;
-	}
-	if (pthread_cond_init(&pED->WaitCond, NULL) != 0) {
-		pthread_mutex_destroy(&pED->Mtx);
-		SysFree(pED);
-		ErrSetErrorCode(ERR_CONDINIT);
 		return SYS_INVALID_EVENT;
 	}
 	pED->iSignaled = 0;
@@ -977,65 +997,46 @@ int SysCloseEvent(SYS_EVENT hEvent)
 	EventData *pED = (EventData *) hEvent;
 
 	if (pED != NULL) {
-		pthread_cond_destroy(&pED->WaitCond);
-		pthread_mutex_destroy(&pED->Mtx);
+		SysWaitCleanup(&pED->Wait);
 		SysFree(pED);
 	}
 
 	return 0;
 }
 
+static int SysEvtCondCB(void *pPrivate)
+{
+	EventData *pED = (EventData *) pPrivate;
+
+	return pED->iSignaled;
+}
+
+static void SysEvtPostCB(void *pPrivate)
+{
+	EventData *pED = (EventData *) pPrivate;
+
+	if (!pED->iManualReset)
+		pED->iSignaled = 0;
+}
+
 int SysWaitEvent(SYS_EVENT hEvent, int iTimeout)
 {
 	EventData *pED = (EventData *) hEvent;
 
-	pthread_mutex_lock(&pED->Mtx);
-	if (iTimeout == SYS_INFINITE_TIMEOUT) {
-		while (!pED->iSignaled) {
-			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock,
-					     &pED->Mtx);
-			pthread_cond_wait(&pED->WaitCond, &pED->Mtx);
-			pthread_cleanup_pop(0);
-		}
-		if (!pED->iManualReset)
-			pED->iSignaled = 0;
-	} else {
-		int iRetCode = 0;
-		struct timespec tsExpire;
-
-		SysGetTimeOfDay(&tsExpire);
-		SysTimeAddOffset(&tsExpire, iTimeout);
-		while (!pED->iSignaled && iRetCode != ETIMEDOUT) {
-			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock,
-					     &pED->Mtx);
-			iRetCode = pthread_cond_timedwait(&pED->WaitCond, &pED->Mtx,
-							  &tsExpire);
-			pthread_cleanup_pop(0);
-		}
-		if (iRetCode == ETIMEDOUT) {
-			pthread_mutex_unlock(&pED->Mtx);
-			ErrSetErrorCode(ERR_TIMEOUT);
-			return ERR_TIMEOUT;
-		}
-		if (!pED->iManualReset)
-			pED->iSignaled = 0;
-	}
-	pthread_mutex_unlock(&pED->Mtx);
-
-	return 0;
+	return SysWaitWait(&pED->Wait, iTimeout, SysEvtCondCB, SysEvtPostCB, pED);
 }
 
 int SysSetEvent(SYS_EVENT hEvent)
 {
 	EventData *pED = (EventData *) hEvent;
 
-	pthread_mutex_lock(&pED->Mtx);
+	SysWaitLock(&pED->Wait);
 	pED->iSignaled = 1;
 	if (pED->iManualReset)
-		pthread_cond_broadcast(&pED->WaitCond);
+		SysWaitWakeup(&pED->Wait, 0);
 	else
-		pthread_cond_signal(&pED->WaitCond);
-	pthread_mutex_unlock(&pED->Mtx);
+		SysWaitWakeup(&pED->Wait, 1);
+	SysWaitUnlock(&pED->Wait);
 
 	return 0;
 }
@@ -1044,9 +1045,9 @@ int SysResetEvent(SYS_EVENT hEvent)
 {
 	EventData *pED = (EventData *) hEvent;
 
-	pthread_mutex_lock(&pED->Mtx);
+	SysWaitLock(&pED->Wait);
 	pED->iSignaled = 0;
-	pthread_mutex_unlock(&pED->Mtx);
+	SysWaitUnlock(&pED->Wait);
 
 	return 0;
 }
@@ -1055,15 +1056,15 @@ int SysTryWaitEvent(SYS_EVENT hEvent)
 {
 	EventData *pED = (EventData *) hEvent;
 
-	pthread_mutex_lock(&pED->Mtx);
+	SysWaitLock(&pED->Wait);
 	if (!pED->iSignaled) {
-		pthread_mutex_unlock(&pED->Mtx);
+		SysWaitUnlock(&pED->Wait);
 		ErrSetErrorCode(ERR_TIMEOUT);
 		return ERR_TIMEOUT;
 	}
 	if (!pED->iManualReset)
 		pED->iSignaled = 0;
-	pthread_mutex_unlock(&pED->Mtx);
+	SysWaitUnlock(&pED->Wait);
 
 	return 0;
 }
@@ -1081,14 +1082,7 @@ SYS_PEVENT SysCreatePEvent(int iManualReset)
 	if ((pPED = (PEventData *) SysAlloc(sizeof(PEventData))) == NULL)
 		return SYS_INVALID_PEVENT;
 	pPED->iManualReset = iManualReset;
-	if (pipe(pPED->PipeFds) == -1) {
-		SysFree(pPED);
-		ErrSetErrorCode(ERR_PIPE);
-		return SYS_INVALID_PEVENT;
-	}
-	if (SysBlockFD(pPED->PipeFds[0], 0) < 0 ||
-	    SysBlockFD(pPED->PipeFds[1], 0) < 0) {
-		SYS_CLOSE_PIPE(pPED->PipeFds);
+	if ((pPED->hEventfd = SysEventfdCreate()) == SYS_INVALID_EVENTFD) {
 		SysFree(pPED);
 		return SYS_INVALID_PEVENT;
 	}
@@ -1101,7 +1095,7 @@ int SysClosePEvent(SYS_PEVENT hPEvent)
 	PEventData *pPED = (PEventData *) hPEvent;
 
 	if (pPED != NULL) {
-		SYS_CLOSE_PIPE(pPED->PipeFds);
+		SysEventfdClose(pPED->hEventfd);
 		SysFree(pPED);
 	}
 
@@ -1111,10 +1105,10 @@ int SysClosePEvent(SYS_PEVENT hPEvent)
 int SysWaitPEvent(SYS_PEVENT hPEvent, int iTimeout)
 {
 	PEventData *pPED = (PEventData *) hPEvent;
-	int iCTimeout;
+	int iWaitFD, iCTimeout;
 	SYS_INT64 tNow, tExp;
-	char RbByte[1];
 
+	iWaitFD = SysEventfdWaitFD(pPED->hEventfd);
 	tExp = (iTimeout > 0) ? SysMsTime() + iTimeout: 0;
 	for (;;) {
 		if (iTimeout > 0) {
@@ -1123,10 +1117,10 @@ int SysWaitPEvent(SYS_PEVENT hPEvent, int iTimeout)
 			iCTimeout = (int) (tExp - tNow);
 		} else
 			iCTimeout = iTimeout;
-		if (SysFdWait(pPED->PipeFds[0], POLLIN, iCTimeout) < 0)
+		if (SysFdWait(iWaitFD, POLLIN, iCTimeout) < 0)
 			return ErrGetErrorCode();
 		if (pPED->iManualReset ||
-		    read(pPED->PipeFds[0], RbByte, 1) == 1)
+		    SysEventfdReset(pPED->hEventfd) > 0)
 			break;
 	}
 
@@ -1137,22 +1131,14 @@ int SysSetPEvent(SYS_PEVENT hPEvent)
 {
 	PEventData *pPED = (PEventData *) hPEvent;
 
-	if (write(pPED->PipeFds[1], ".", 1) != 1) {
-		ErrSetErrorCode(ERR_FILE_WRITE);
-		return ERR_FILE_WRITE;
-	}
-
-	return 0;
+	return SysEventfdSet(pPED->hEventfd);
 }
 
 int SysResetPEvent(SYS_PEVENT hPEvent)
 {
 	PEventData *pPED = (PEventData *) hPEvent;
-	char RbBytes[512];
 
-	while (read(pPED->PipeFds[0], RbBytes, sizeof(RbBytes)) == sizeof(RbBytes));
-
-	return 0;
+	return SysEventfdReset(pPED->hEventfd);
 }
 
 int SysTryWaitPEvent(SYS_PEVENT hPEvent)
@@ -1186,17 +1172,8 @@ SYS_THREAD SysCreateThread(unsigned int (*pThreadProc) (void *), void *pThreadDa
 	pTD->pThreadData = pThreadData;
 	pTD->iExitCode = -1;
 	pTD->iUseCount = 2;
-	if (pthread_mutex_init(&pTD->Mtx, NULL) != 0) {
+	if (SysWaitInit(&pTD->Wait) < 0) {
 		SysFree(pTD);
-
-		ErrSetErrorCode(ERR_MUTEXINIT);
-		return SYS_INVALID_THREAD;
-	}
-	if (pthread_cond_init(&pTD->ExitWaitCond, NULL) != 0) {
-		pthread_mutex_destroy(&pTD->Mtx);
-		SysFree(pTD);
-
-		ErrSetErrorCode(ERR_CONDINIT);
 		return SYS_INVALID_THREAD;
 	}
 	pthread_attr_init(&ThrAttr);
@@ -1218,51 +1195,29 @@ void SysCloseThread(SYS_THREAD ThreadID, int iForce)
 
 	if (pTD != NULL) {
 		pthread_detach(pTD->ThreadId);
-		pthread_mutex_lock(&pTD->Mtx);
+		SysWaitLock(&pTD->Wait);
 		if (iForce && !pTD->iThreadEnded)
 			pthread_cancel(pTD->ThreadId);
 		if (--pTD->iUseCount == 0) {
-			pthread_mutex_unlock(&pTD->Mtx);
+			SysWaitUnlock(&pTD->Wait);
 			SysFreeThreadData(pTD);
 		} else
-			pthread_mutex_unlock(&pTD->Mtx);
+			SysWaitUnlock(&pTD->Wait);
 	}
+}
+
+static int SysThrCondCB(void *pPrivate)
+{
+	ThrData *pTD = (ThrData *) pPrivate;
+
+	return pTD->iThreadEnded;
 }
 
 int SysWaitThread(SYS_THREAD ThreadID, int iTimeout)
 {
 	ThrData *pTD = (ThrData *) ThreadID;
 
-	pthread_mutex_lock(&pTD->Mtx);
-	if (iTimeout == SYS_INFINITE_TIMEOUT) {
-		while (!pTD->iThreadEnded) {
-			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &pTD->Mtx);
-			pthread_cond_wait(&pTD->ExitWaitCond, &pTD->Mtx);
-			pthread_cleanup_pop(0);
-		}
-	} else {
-		int iRetCode = 0;
-		struct timespec tsExpire;
-
-		SysGetTimeOfDay(&tsExpire);
-		SysTimeAddOffset(&tsExpire, iTimeout);
-		while (!pTD->iThreadEnded && iRetCode != ETIMEDOUT) {
-			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock,
-					     &pTD->Mtx);
-			iRetCode = pthread_cond_timedwait(&pTD->ExitWaitCond, &pTD->Mtx,
-							  &tsExpire);
-			pthread_cleanup_pop(0);
-		}
-		if (iRetCode == ETIMEDOUT) {
-			pthread_mutex_unlock(&pTD->Mtx);
-
-			ErrSetErrorCode(ERR_TIMEOUT);
-			return ERR_TIMEOUT;
-		}
-	}
-	pthread_mutex_unlock(&pTD->Mtx);
-
-	return 0;
+	return SysWaitWait(&pTD->Wait, iTimeout, SysThrCondCB, NULL, pTD);
 }
 
 unsigned long SysGetCurrentThreadId(void)
@@ -1576,62 +1531,28 @@ int SysLogMessage(int iLogLevel, char const *pszFormat, ...)
 	return 0;
 }
 
-void SysSleep(int iTimeout)
+int SysSleep(int iTimeout)
 {
-	SysMsSleep(iTimeout * 1000);
+	return SysMsSleep(iTimeout * 1000);
 }
 
-static int SysSetupWait(WaitData *pWD)
+int SysMsSleep(int iMsTimeout)
 {
-	if (pthread_mutex_init(&pWD->Mtx, NULL) != 0) {
-		ErrSetErrorCode(ERR_MUTEXINIT);
-		return ERR_MUTEXINIT;
+	struct pollfd PollFD[1];
+
+	ZeroData(PollFD);
+	PollFD[0].fd = SysEventfdWaitFD(hShdwnEventfd);
+	PollFD[0].events = POLLIN;
+	if (poll(PollFD, 1, iMsTimeout) == -1) {
+		ErrSetErrorCode(ERR_WAIT);
+		return ERR_WAIT;
 	}
-	if (pthread_cond_init(&pWD->WaitCond, NULL) != 0) {
-		pthread_mutex_destroy(&pWD->Mtx);
-		ErrSetErrorCode(ERR_CONDINIT);
-		return ERR_CONDINIT;
-	}
-
-	return 0;
-}
-
-static int SysWait(WaitData *pWD, int iMsTimeout)
-{
-	int iError;
-	struct timespec tsExpire;
-
-	SysGetTimeOfDay(&tsExpire);
-	SysTimeAddOffset(&tsExpire, iMsTimeout);
-
-	pthread_mutex_lock(&pWD->Mtx);
-	pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &pWD->Mtx);
-
-	iError = pthread_cond_timedwait(&pWD->WaitCond, &pWD->Mtx, &tsExpire);
-
-	pthread_cleanup_pop(1);
-	if (iError == ETIMEDOUT) {
-		ErrSetErrorCode(ERR_TIMEOUT);
-		return ERR_TIMEOUT;
+	if (PollFD[0].revents & POLLIN) {
+		ErrSetErrorCode(ERR_SERVER_SHUTDOWN);
+		return ERR_SERVER_SHUTDOWN;
 	}
 
 	return 0;
-}
-
-static void SysCleanupWait(WaitData *pWD)
-{
-	pthread_mutex_destroy(&pWD->Mtx);
-	pthread_cond_destroy(&pWD->WaitCond);
-}
-
-void SysMsSleep(int iMsTimeout)
-{
-	WaitData WD;
-
-	if (SysSetupWait(&WD) == 0) {
-		SysWait(&WD, iMsTimeout);
-		SysCleanupWait(&WD);
-	}
 }
 
 SYS_INT64 SysMsTime(void)

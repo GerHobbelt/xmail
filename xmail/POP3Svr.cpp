@@ -71,7 +71,8 @@ struct POP3Session {
 	int iLogPasswd;
 };
 
-static int POP3ThreadCountAdd(long lCount, SHB_HANDLE hShbPOP3, POP3Config *pPOP3Cfg = NULL);
+static int POP3ThreadCountAdd(long lCount, SHB_HANDLE hShbPOP3,
+			      POP3Config *pPOP3Cfg = NULL);
 static int POP3LogEnabled(SHB_HANDLE hShbPOP3, POP3Config *pPOP3Cfg = NULL);
 
 static POP3Config *POP3GetConfigCopy(SHB_HANDLE hShbPOP3)
@@ -160,7 +161,8 @@ static int POP3CheckSysResources(SVRCFG_HANDLE hSvrConfig)
 	return 0;
 }
 
-static int POP3InitSession(ThreadConfig const *pThCfg, BSOCK_HANDLE hBSock, POP3Session &POP3S)
+static int POP3InitSession(ThreadConfig const *pThCfg, BSOCK_HANDLE hBSock,
+			   POP3Session &POP3S)
 {
 	ZeroData(POP3S);
 	POP3S.iPOP3State = stateInit;
@@ -228,7 +230,8 @@ static int POP3InitSession(ThreadConfig const *pThCfg, BSOCK_HANDLE hBSock, POP3
 	return 0;
 }
 
-static int POP3LogSession(POP3Session &POP3S, char const *pszStatus, char const *pszFmt, ...)
+static int POP3LogSession(POP3Session &POP3S, char const *pszStatus,
+			  char const *pszFmt, ...)
 {
 	char *pszExtra = NULL;
 	char szTime[256] = "";
@@ -278,18 +281,19 @@ static void POP3ClearSession(POP3Session &POP3S)
 	SysFreeNullify(POP3S.pPOP3Cfg);
 }
 
-static int POP3HandleCmd_USER(const char *pszCommand, BSOCK_HANDLE hBSock, POP3Session &POP3S)
+static int POP3HandleCmd_USER(char const *pszCommand, BSOCK_HANDLE hBSock,
+			      POP3Session &POP3S)
 {
 	if (POP3S.iPOP3State != stateInit) {
-		BSckSendString(hBSock, "-ERR Command not valid here", POP3S.pPOP3Cfg->iTimeout);
+		BSckSendString(hBSock, "-ERR Command not valid here",
+			       POP3S.pPOP3Cfg->iTimeout);
 		return -1;
 	}
 
 	char **ppszTokens = StrTokenize(pszCommand, " ");
 
 	if (ppszTokens == NULL || StrStringsCount(ppszTokens) != 2) {
-		if (ppszTokens != NULL)
-			StrFreeStrings(ppszTokens);
+		StrFreeStrings(ppszTokens);
 
 		POP3S.iPOP3State = stateInit;
 
@@ -300,8 +304,9 @@ static int POP3HandleCmd_USER(const char *pszCommand, BSOCK_HANDLE hBSock, POP3S
 	char szAccountUser[MAX_ADDR_NAME] = "";
 	char szAccountDomain[MAX_HOST_NAME] = "";
 
-	if (StrSplitString(ppszTokens[1], POP3_USER_SPLITTERS, szAccountUser, sizeof(szAccountUser),
-			   szAccountDomain, sizeof(szAccountDomain)) < 0) {
+	if (StrSplitString(ppszTokens[1], POP3_USER_SPLITTERS, szAccountUser,
+			   sizeof(szAccountUser), szAccountDomain,
+			   sizeof(szAccountDomain)) < 0) {
 		StrFreeStrings(ppszTokens);
 
 		BSckSendString(hBSock, "-ERR Invalid username", POP3S.pPOP3Cfg->iTimeout);
@@ -339,22 +344,25 @@ static int POP3HandleBadLogin(BSOCK_HANDLE hBSock, POP3Session &POP3S)
 		POP3S.iPOP3State = stateInit;
 	}
 
-	BSckSendString(hBSock, "-ERR Invalid auth or access denied", POP3S.pPOP3Cfg->iTimeout);
+	BSckSendString(hBSock, "-ERR Invalid auth or access denied",
+		       POP3S.pPOP3Cfg->iTimeout);
+
 	return 0;
 }
 
-static int POP3HandleCmd_PASS(const char *pszCommand, BSOCK_HANDLE hBSock, POP3Session &POP3S)
+static int POP3HandleCmd_PASS(char const *pszCommand, BSOCK_HANDLE hBSock,
+			      POP3Session &POP3S)
 {
 	if (POP3S.iPOP3State != stateUser) {
-		BSckSendString(hBSock, "-ERR Command not valid here", POP3S.pPOP3Cfg->iTimeout);
+		BSckSendString(hBSock, "-ERR Command not valid here",
+			       POP3S.pPOP3Cfg->iTimeout);
 		return -1;
 	}
 
 	char **ppszTokens = StrTokenize(pszCommand, " ");
 
 	if (ppszTokens == NULL || StrStringsCount(ppszTokens) != 2) {
-		if (ppszTokens != NULL)
-			StrFreeStrings(ppszTokens);
+		StrFreeStrings(ppszTokens);
 
 		POP3S.iPOP3State = stateInit;
 
@@ -413,18 +421,19 @@ static int POP3HandleCmd_PASS(const char *pszCommand, BSOCK_HANDLE hBSock, POP3S
 	return 0;
 }
 
-static int POP3HandleCmd_APOP(const char *pszCommand, BSOCK_HANDLE hBSock, POP3Session &POP3S)
+static int POP3HandleCmd_APOP(char const *pszCommand, BSOCK_HANDLE hBSock,
+			      POP3Session &POP3S)
 {
 	if (POP3S.iPOP3State != stateInit) {
-		BSckSendString(hBSock, "-ERR Command not valid here", POP3S.pPOP3Cfg->iTimeout);
+		BSckSendString(hBSock, "-ERR Command not valid here",
+			       POP3S.pPOP3Cfg->iTimeout);
 		return -1;
 	}
 
 	char **ppszTokens = StrTokenize(pszCommand, " ");
 
 	if (ppszTokens == NULL || StrStringsCount(ppszTokens) != 3) {
-		if (ppszTokens != NULL)
-			StrFreeStrings(ppszTokens);
+		StrFreeStrings(ppszTokens);
 		POP3S.iPOP3State = stateInit;
 
 		BSckSendString(hBSock, "-ERR Invalid syntax", POP3S.pPOP3Cfg->iTimeout);
@@ -434,8 +443,9 @@ static int POP3HandleCmd_APOP(const char *pszCommand, BSOCK_HANDLE hBSock, POP3S
 	char szAccountUser[MAX_ADDR_NAME] = "";
 	char szAccountDomain[MAX_HOST_NAME] = "";
 
-	if (StrSplitString(ppszTokens[1], POP3_USER_SPLITTERS, szAccountUser, sizeof(szAccountUser),
-			   szAccountDomain, sizeof(szAccountDomain)) < 0) {
+	if (StrSplitString(ppszTokens[1], POP3_USER_SPLITTERS, szAccountUser,
+			   sizeof(szAccountUser), szAccountDomain,
+			   sizeof(szAccountDomain)) < 0) {
 		StrFreeStrings(ppszTokens);
 
 		BSckSendString(hBSock, "-ERR Invalid username", POP3S.pPOP3Cfg->iTimeout);
@@ -508,7 +518,8 @@ static int POP3HandleCmd_APOP(const char *pszCommand, BSOCK_HANDLE hBSock, POP3S
 	return 0;
 }
 
-static int POP3HandleCmd_CAPA(const char *pszCommand, BSOCK_HANDLE hBSock, POP3Session &POP3S)
+static int POP3HandleCmd_CAPA(char const *pszCommand, BSOCK_HANDLE hBSock,
+			      POP3Session &POP3S)
 {
 	char const *pszSTLS = "";
 
@@ -541,11 +552,13 @@ static int POP3SslEnvCB(void *pPrivate, int iID, void const *pData)
 	return 0;
 }
 
-static int POP3HandleCmd_STLS(const char *pszCommand, BSOCK_HANDLE hBSock, POP3Session &POP3S)
+static int POP3HandleCmd_STLS(char const *pszCommand, BSOCK_HANDLE hBSock,
+			      POP3Session &POP3S)
 {
 
 	if (POP3S.iPOP3State != stateInit) {
-		BSckSendString(hBSock, "-ERR Command not valid here", POP3S.pPOP3Cfg->iTimeout);
+		BSckSendString(hBSock, "-ERR Command not valid here",
+			       POP3S.pPOP3Cfg->iTimeout);
 		return -1;
 	}
 	if (strcmp(BSckBioName(hBSock), BSSL_BIO_NAME) == 0) {
@@ -596,10 +609,12 @@ static int POP3HandleCmd_STLS(const char *pszCommand, BSOCK_HANDLE hBSock, POP3S
 	return 0;
 }
 
-static int POP3HandleCmd_STAT(const char *pszCommand, BSOCK_HANDLE hBSock, POP3Session &POP3S)
+static int POP3HandleCmd_STAT(char const *pszCommand, BSOCK_HANDLE hBSock,
+			      POP3Session &POP3S)
 {
 	if (POP3S.iPOP3State != stateLogged) {
-		BSckSendString(hBSock, "-ERR Command not valid here", POP3S.pPOP3Cfg->iTimeout);
+		BSckSendString(hBSock, "-ERR Command not valid here",
+			       POP3S.pPOP3Cfg->iTimeout);
 		return -1;
 	}
 
@@ -611,10 +626,12 @@ static int POP3HandleCmd_STAT(const char *pszCommand, BSOCK_HANDLE hBSock, POP3S
 	return 0;
 }
 
-static int POP3HandleCmd_LIST(const char *pszCommand, BSOCK_HANDLE hBSock, POP3Session &POP3S)
+static int POP3HandleCmd_LIST(char const *pszCommand, BSOCK_HANDLE hBSock,
+			      POP3Session &POP3S)
 {
 	if (POP3S.iPOP3State != stateLogged) {
-		BSckSendString(hBSock, "-ERR Command not valid here", POP3S.pPOP3Cfg->iTimeout);
+		BSckSendString(hBSock, "-ERR Command not valid here",
+			       POP3S.pPOP3Cfg->iTimeout);
 		return -1;
 	}
 
@@ -632,33 +649,32 @@ static int POP3HandleCmd_LIST(const char *pszCommand, BSOCK_HANDLE hBSock, POP3S
 		for (int i = 0; i < iMsgTotal; i++) {
 			unsigned long ulMessageSize = 0;
 
-			if (UPopGetMessageSize(POP3S.hPOPSession, i + 1, ulMessageSize) == 0) {
-
+			if (UPopGetMessageSize(POP3S.hPOPSession, i + 1,
+					       ulMessageSize) == 0)
 				BSckVSendString(hBSock, POP3S.pPOP3Cfg->iTimeout,
 						"%d %lu", i + 1, ulMessageSize);
-
-			}
 		}
-
 		BSckSendString(hBSock, ".", POP3S.pPOP3Cfg->iTimeout);
 	} else {
 		unsigned long ulMessageSize = 0;
 
 		if (UPopGetMessageSize(POP3S.hPOPSession, iMsgIndex, ulMessageSize) < 0)
-			BSckSendString(hBSock, "-ERR No such message", POP3S.pPOP3Cfg->iTimeout);
-		else {
+			BSckSendString(hBSock, "-ERR No such message",
+				       POP3S.pPOP3Cfg->iTimeout);
+		else
 			BSckVSendString(hBSock, POP3S.pPOP3Cfg->iTimeout,
 					"+OK %d %lu", iMsgIndex, ulMessageSize);
-		}
 	}
 
 	return 0;
 }
 
-static int POP3HandleCmd_UIDL(const char *pszCommand, BSOCK_HANDLE hBSock, POP3Session &POP3S)
+static int POP3HandleCmd_UIDL(char const *pszCommand, BSOCK_HANDLE hBSock,
+			      POP3Session &POP3S)
 {
 	if (POP3S.iPOP3State != stateLogged) {
-		BSckSendString(hBSock, "-ERR Command not valid here", POP3S.pPOP3Cfg->iTimeout);
+		BSckSendString(hBSock, "-ERR Command not valid here",
+			       POP3S.pPOP3Cfg->iTimeout);
 		return -1;
 	}
 
@@ -674,26 +690,26 @@ static int POP3HandleCmd_UIDL(const char *pszCommand, BSOCK_HANDLE hBSock, POP3S
 
 		for (int i = 0; i < iMsgTotal; i++) {
 			if (UPopGetMessageUIDL(POP3S.hPOPSession, i + 1, szMessageUIDL,
-					       sizeof(szMessageUIDL)) == 0) {
+					       sizeof(szMessageUIDL)) == 0)
 				BSckVSendString(hBSock, POP3S.pPOP3Cfg->iTimeout,
 						"%d %s", i + 1, szMessageUIDL);
-			}
 		}
 		BSckSendString(hBSock, ".", POP3S.pPOP3Cfg->iTimeout);
 	} else {
 		if (UPopGetMessageUIDL(POP3S.hPOPSession, iMsgIndex, szMessageUIDL,
 				       sizeof(szMessageUIDL)) < 0)
-			BSckSendString(hBSock, "-ERR No such message", POP3S.pPOP3Cfg->iTimeout);
-		else {
+			BSckSendString(hBSock, "-ERR No such message",
+				       POP3S.pPOP3Cfg->iTimeout);
+		else
 			BSckVSendString(hBSock, POP3S.pPOP3Cfg->iTimeout,
 					"+OK %d %s", iMsgIndex, szMessageUIDL);
-		}
 	}
 
 	return 0;
 }
 
-static int POP3HandleCmd_QUIT(const char *pszCommand, BSOCK_HANDLE hBSock, POP3Session &POP3S)
+static int POP3HandleCmd_QUIT(char const *pszCommand, BSOCK_HANDLE hBSock,
+			      POP3Session &POP3S)
 {
 	POP3S.iPOP3State = stateExit;
 
@@ -703,57 +719,66 @@ static int POP3HandleCmd_QUIT(const char *pszCommand, BSOCK_HANDLE hBSock, POP3S
 	return 0;
 }
 
-static int POP3HandleCmd_RETR(const char *pszCommand, BSOCK_HANDLE hBSock, POP3Session &POP3S)
+static int POP3HandleCmd_RETR(char const *pszCommand, BSOCK_HANDLE hBSock,
+			      POP3Session &POP3S)
 {
 	if (POP3S.iPOP3State != stateLogged) {
-		BSckSendString(hBSock, "-ERR Command not valid here", POP3S.pPOP3Cfg->iTimeout);
+		BSckSendString(hBSock, "-ERR Command not valid here",
+			       POP3S.pPOP3Cfg->iTimeout);
 		return -1;
 	}
 
 	int iMsgIndex = -1;
 
 	if (sscanf(pszCommand, "%*s %d", &iMsgIndex) < 1) {
-		BSckSendString(hBSock, "-ERR Invalid syntax", POP3S.pPOP3Cfg->iTimeout);
+		BSckSendString(hBSock, "-ERR Invalid syntax",
+			       POP3S.pPOP3Cfg->iTimeout);
 		return -1;
 	}
 
 	return UPopSessionSendMsg(POP3S.hPOPSession, iMsgIndex, hBSock);
 }
 
-static int POP3HandleCmd_TOP(const char *pszCommand, BSOCK_HANDLE hBSock, POP3Session &POP3S)
+static int POP3HandleCmd_TOP(char const *pszCommand, BSOCK_HANDLE hBSock,
+			     POP3Session &POP3S)
 {
 	if (POP3S.iPOP3State != stateLogged) {
-		BSckSendString(hBSock, "-ERR Command not valid here", POP3S.pPOP3Cfg->iTimeout);
+		BSckSendString(hBSock, "-ERR Command not valid here",
+			       POP3S.pPOP3Cfg->iTimeout);
 		return -1;
 	}
 
-	int iMsgIndex = -1;
-	int iNumLines = 0;
+	int iMsgIndex = -1, iNumLines = 0;
 
 	if (sscanf(pszCommand, "%*s %d %d", &iMsgIndex, &iNumLines) < 2) {
-		BSckSendString(hBSock, "-ERR Invalid syntax", POP3S.pPOP3Cfg->iTimeout);
+		BSckSendString(hBSock, "-ERR Invalid syntax",
+			       POP3S.pPOP3Cfg->iTimeout);
 		return -1;
 	}
 
 	return UPopSessionTopMsg(POP3S.hPOPSession, iMsgIndex, iNumLines, hBSock);
 }
 
-static int POP3HandleCmd_DELE(const char *pszCommand, BSOCK_HANDLE hBSock, POP3Session &POP3S)
+static int POP3HandleCmd_DELE(char const *pszCommand, BSOCK_HANDLE hBSock,
+			      POP3Session &POP3S)
 {
 	if (POP3S.iPOP3State != stateLogged) {
-		BSckSendString(hBSock, "-ERR Command not valid here", POP3S.pPOP3Cfg->iTimeout);
+		BSckSendString(hBSock, "-ERR Command not valid here",
+			       POP3S.pPOP3Cfg->iTimeout);
 		return -1;
 	}
 
 	int iMsgIndex = -1;
 
 	if (sscanf(pszCommand, "%*s %d", &iMsgIndex) < 1) {
-		BSckSendString(hBSock, "-ERR Invalid syntax", POP3S.pPOP3Cfg->iTimeout);
+		BSckSendString(hBSock, "-ERR Invalid syntax",
+			       POP3S.pPOP3Cfg->iTimeout);
 		return -1;
 	}
 
 	if (UPopDeleteMessage(POP3S.hPOPSession, iMsgIndex) < 0) {
-		UPopSendErrorResponse(hBSock, ErrGetErrorCode(), POP3S.pPOP3Cfg->iTimeout);
+		UPopSendErrorResponse(hBSock, ErrGetErrorCode(),
+				      POP3S.pPOP3Cfg->iTimeout);
 
 		return ErrGetErrorCode();
 	}
@@ -763,10 +788,12 @@ static int POP3HandleCmd_DELE(const char *pszCommand, BSOCK_HANDLE hBSock, POP3S
 	return 0;
 }
 
-static int POP3HandleCmd_NOOP(const char *pszCommand, BSOCK_HANDLE hBSock, POP3Session &POP3S)
+static int POP3HandleCmd_NOOP(char const *pszCommand, BSOCK_HANDLE hBSock,
+			      POP3Session &POP3S)
 {
 	if (POP3S.iPOP3State != stateLogged) {
-		BSckSendString(hBSock, "-ERR Command not valid here", POP3S.pPOP3Cfg->iTimeout);
+		BSckSendString(hBSock, "-ERR Command not valid here",
+			       POP3S.pPOP3Cfg->iTimeout);
 		return -1;
 	}
 
@@ -779,10 +806,12 @@ static int POP3HandleCmd_NOOP(const char *pszCommand, BSOCK_HANDLE hBSock, POP3S
 	return 0;
 }
 
-static int POP3HandleCmd_LAST(const char *pszCommand, BSOCK_HANDLE hBSock, POP3Session &POP3S)
+static int POP3HandleCmd_LAST(char const *pszCommand, BSOCK_HANDLE hBSock,
+			      POP3Session &POP3S)
 {
 	if (POP3S.iPOP3State != stateLogged) {
-		BSckSendString(hBSock, "-ERR Command not valid here", POP3S.pPOP3Cfg->iTimeout);
+		BSckSendString(hBSock, "-ERR Command not valid here",
+			       POP3S.pPOP3Cfg->iTimeout);
 		return -1;
 	}
 
@@ -793,10 +822,12 @@ static int POP3HandleCmd_LAST(const char *pszCommand, BSOCK_HANDLE hBSock, POP3S
 	return 0;
 }
 
-static int POP3HandleCmd_RSET(const char *pszCommand, BSOCK_HANDLE hBSock, POP3Session &POP3S)
+static int POP3HandleCmd_RSET(char const *pszCommand, BSOCK_HANDLE hBSock,
+			      POP3Session &POP3S)
 {
 	if (POP3S.iPOP3State != stateLogged) {
-		BSckSendString(hBSock, "-ERR Command not valid here", POP3S.pPOP3Cfg->iTimeout);
+		BSckSendString(hBSock, "-ERR Command not valid here",
+			       POP3S.pPOP3Cfg->iTimeout);
 		return -1;
 	}
 
@@ -811,7 +842,8 @@ static int POP3HandleCmd_RSET(const char *pszCommand, BSOCK_HANDLE hBSock, POP3S
 	return 0;
 }
 
-static int POP3HandleCommand(const char *pszCommand, BSOCK_HANDLE hBSock, POP3Session &POP3S)
+static int POP3HandleCommand(char const *pszCommand, BSOCK_HANDLE hBSock,
+			     POP3Session &POP3S)
 {
 	int iCmdResult = -1;
 
@@ -873,7 +905,6 @@ static int POP3HandleSession(ThreadConfig const *pThCfg, BSOCK_HANDLE hBSock)
 	char szTime[256] = "";
 
 	MscGetTimeStr(szTime, sizeof(szTime) - 1);
-
 	if (BSckVSendString(hBSock, POP3S.pPOP3Cfg->iTimeout,
 			    "+OK %s %s service ready; %s", POP3S.szTimeStamp,
 			    POP3_SERVER_NAME, szTime) < 0) {
