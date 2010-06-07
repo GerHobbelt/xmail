@@ -246,9 +246,11 @@ static void SysSetupProcessSignals(void)
 	sigaddset(&SigMask, SIGSTOP);
 	sigaddset(&SigMask, SIGCHLD);
 	sigaddset(&SigMask, SIGQUIT);
+	sigaddset(&SigMask, SIGTERM);
 	pthread_sigmask(SIG_BLOCK, &SigMask, NULL);
 
 	SysSetSignal(SIGPIPE, SIG_IGN);
+	SysSetSignal(SIGTERM, SysPostSignal);
 	SysSetSignal(SIGQUIT, SysPostSignal);
 	SysSetSignal(SIGINT, SysPostSignal);
 	SysSetSignal(SIGHUP, SysPostSignal);
@@ -324,6 +326,8 @@ static void *SysSignalThread(void *pData)
 	sigemptyset(&SigMask);
 	sigaddset(&SigMask, SIGALRM);
 	sigaddset(&SigMask, SIGINT);
+	sigaddset(&SigMask, SIGQUIT);
+	sigaddset(&SigMask, SIGTERM);
 	sigaddset(&SigMask, SIGHUP);
 	sigaddset(&SigMask, SIGCHLD);
 	pthread_sigmask(SIG_UNBLOCK, &SigMask, NULL);
@@ -335,10 +339,11 @@ static void *SysSignalThread(void *pData)
 			continue;
 
 		switch (uSignal) {
-		case SIGQUIT:
+		case SIGTERM:
 			iShutDown++;
 			break;
 
+		case SIGQUIT:
 		case SIGINT:
 		case SIGHUP:
 			if (pSysBreakHandler != NULL)
@@ -441,7 +446,7 @@ static void SysPostShutdown(void)
 {
 	iShutDown++;
 	SysEventfdSet(hShdwnEventfd);
-	kill(0, SIGQUIT);
+	kill(getpid(), SIGTERM);
 }
 
 void SysCleanupLibrary(void)

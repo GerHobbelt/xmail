@@ -1223,7 +1223,7 @@ static int SvrSetupLMAIL(int iArgCount, char *pszArgs[])
 
 		case 't':
 			if (++i < iArgCount)
-				iSleepTimeout = atoi(pszArgs[i]) * 1000;
+				iSleepTimeout = atoi(pszArgs[i]);
 			break;
 		}
 	}

@@ -181,12 +181,12 @@ int SysFileSync(FILE * pFile)
 
 int SysPathExist(char const *pszPathName)
 {
-	return (access(pszPathName, 0) == 0) ? 1 : 0;
+	return access(pszPathName, 0) == 0 ? 1 : 0;
 }
 
 int SysMakeDir(char const *pszPathName)
 {
-	return (mkdir(pszPathName, 0700) == 0) ? 1 : 0;
+	return mkdir(pszPathName, 0700) == 0 ? 1 : 0;
 }
 
 int SysErrNo(void)
@@ -418,19 +418,19 @@ static bool IsRFC822HeaderLine(char const *pszLn)
 
 int main(int iArgCount, char *pszArgs[])
 {
+	int iVarLength = 0;
+	FILE *pInFile = stdin;
+	char *pszMailRoot;
+	char szMailRoot[SYS_MAX_PATH] = "";
+
 	/* Initialize time */
 	tzset();
 
-	/* Get the mail root path */
-	int iVarLength = 0;
-	FILE *pInFile = stdin;
-	char *pszMailRoot = SysGetEnv(ENV_MAIL_ROOT);
-	char szMailRoot[SYS_MAX_PATH] = "";
-
-	if (pszMailRoot == NULL || (iVarLength = strlen(pszMailRoot)) == 0) {
-		if (pszMailRoot != NULL)
-			free(pszMailRoot);
-		fprintf(stderr, "cannot find environment variable: %s\n", ENV_MAIL_ROOT);
+	if ((pszMailRoot = SysGetEnv(ENV_MAIL_ROOT)) == NULL ||
+	    (iVarLength = strlen(pszMailRoot)) == 0) {
+		free(pszMailRoot);
+		fprintf(stderr, "cannot find environment variable: %s\n",
+			ENV_MAIL_ROOT);
 		return 1;
 	}
 	StrSNCpy(szMailRoot, pszMailRoot);
@@ -521,8 +521,14 @@ int main(int iArgCount, char *pszArgs[])
 			break;
 	}
 
+	/* Save recipients index and counter */
+	int iRcptIndex, iRcptCount;
+
+	iRcptIndex = Min(i, iArgCount);
+	iRcptCount = iArgCount - iRcptIndex;
+
 	/* Check if recipients are supplied */
-	if (!bExtractRcpts && i >= iArgCount && IsEmptyString(szRcptFile)) {
+	if (!bExtractRcpts && iRcptCount == 0 && IsEmptyString(szRcptFile)) {
 		fprintf(stderr, "empty recipient list\n");
 		return 2;
 	}
@@ -542,18 +548,15 @@ int main(int iArgCount, char *pszArgs[])
                 CopyAddress(szMailFrom, pszUser, sizeof(szMailFrom) - 1);
         }
 
-	/* Save recipients index */
-	int iRcptIndex = i, iRcptCount = iArgCount - iRcptIndex;
-
 	/* Create file name */
 	char szHostName[256] = "";
 	char szDataFile[SYS_MAX_PATH], szMailFile[SYS_MAX_PATH];
 
 	SysGetHostName(szHostName, sizeof(szHostName) - 1);
-	sprintf(szDataFile, "%s%s%lu000.%lu.%s",
-		szMailRoot,
-		LOCAL_TEMP_SUBPATH, (unsigned long) time(NULL), SysGetProcessId(), szHostName);
-	sprintf(szMailFile, "%s.mail", szDataFile);
+	SysSNPrintf(szDataFile, sizeof(szDataFile), "%s%s%lu000.%lu.%s",
+		    szMailRoot, LOCAL_TEMP_SUBPATH, (unsigned long) time(NULL),
+		    SysGetProcessId(), szHostName);
+	SysSNPrintf(szMailFile, sizeof(szMailFile), "%s.mail", szDataFile);
 
 	/* Open raw data file */
 	FILE *pDataFile = fopen(szDataFile, "w+b");
@@ -702,7 +705,6 @@ int main(int iArgCount, char *pszArgs[])
 		}
 		fclose(pRcptFile);
 	}
-	/* Check the number of recipients */
 	if (iRcptCount == 0) {
 		fprintf(stderr, "empty recipient list\n");
 		fclose(pDataFile), remove(szDataFile);
@@ -738,8 +740,9 @@ int main(int iArgCount, char *pszArgs[])
 	/* Move the mail file */
 	char szDropFile[SYS_MAX_PATH];
 
-	sprintf(szDropFile, "%s%s%lu000.%lu.%s", szMailRoot,
-		LOCAL_SUBPATH, (unsigned long) time(NULL), SysGetProcessId(), szHostName);
+	SysSNPrintf(szDropFile, sizeof(szDropFile), "%s%s%lu000.%lu.%s",
+		    szMailRoot, LOCAL_SUBPATH, (unsigned long) time(NULL),
+		    SysGetProcessId(), szHostName);
 	if (SysMoveFile(szMailFile, szDropFile) < 0) {
 		remove(szMailFile);
 		fprintf(stderr, "cannot move file: %s\n", szMailFile);
