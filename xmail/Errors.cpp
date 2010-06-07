@@ -319,7 +319,7 @@ static void ErrFreeEnv(void *pData)
 	if (pEV != NULL) {
 		char **ppszInfo = pEV->pszInfo;
 
-		for (int i = 0; i < CountOf(Errors); i++, ppszInfo++)
+		for (int i = 0; i < (int) CountOf(Errors); i++, ppszInfo++)
 			if (*ppszInfo != NULL)
 				SysFree(*ppszInfo), *ppszInfo = NULL;
 		SysFree(pEV);
@@ -331,7 +331,7 @@ static void ErrOnceSetup(void)
 	int i, iIdx;
 
 	SysCreateTlsKey(ErrTlsKey, ErrFreeEnv);
-	for (i = 0; i < CountOf(Errors); i++) {
+	for (i = 0; i < (int) CountOf(Errors); i++) {
 		iIdx = -Errors[i].iErrorCode;
 		if (iIdx >= 0 && iIdx < ERROR_COUNT)
 			pszErrors[iIdx] = Errors[i].pszError;

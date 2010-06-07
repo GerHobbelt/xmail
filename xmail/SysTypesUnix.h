@@ -45,7 +45,7 @@
 
 #define SYS_LLU_FMT             "%llu"
 #define SYS_LLX_FMT             "%llX"
-#define SYS_OFFT_FMT            "%ll"
+#define SYS_OFFT_FMT            "%lld"
 
 #define SYS_INVALID_HANDLE      ((SYS_HANDLE) 0)
 #define SYS_INVALID_SOCKET      ((SYS_SOCKET) (-1))
@@ -69,6 +69,8 @@
 #define Sys_fseek(f, o, w)      fseeko(f, (off_t) (o), w)
 #define Sys_ftell(f)            ftello(f)
 #endif
+
+#define Sys_atoi64(s)           atoll(s)
 
 #define SYS_fd_set              fd_set
 #define SYS_FD_ZERO             FD_ZERO

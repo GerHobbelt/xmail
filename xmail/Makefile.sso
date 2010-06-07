@@ -35,9 +35,7 @@ ifeq ("$(SSLLIBS)", "")
 endif
 
 MAINSRC = MainSolaris.cpp
-MAINOBJ = MainSolaris.o
-SYSSRCS = SysDepSolaris.cpp SysDepUnix.cpp
-SYSOBJS = SysDepSolaris.o SysDepUnix.o
+SYSSRCS = SysDepSolaris.cpp SysDepUnix.cpp SysOsEventfd_pipe.cpp
 
 CFLAGS := $(CFLAGS) -I. -D__UNIX__ -D__SOLARIS__ -D_THREAD_SAFE=1 -D_REENTRANT=1 -DHAS_SYSMACHINE \
 	-D_GNU_SOURCE -D_LARGEFILE64_SOURCE -D_POSIX_PTHREAD_SEMANTICS

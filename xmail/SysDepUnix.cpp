@@ -402,7 +402,7 @@ int SysInitLibrary(void)
 
 	iShutDown = 0;
 	iNumThExitHooks = 0;
-	for (i = 0; i < CountOf(PWaitLists); i++)
+	for (i = 0; i < (int) CountOf(PWaitLists); i++)
 		SYS_INIT_LIST_HEAD(&PWaitLists[i]);
 	tzset();
 	if (SysDepInitLibrary() < 0)
@@ -754,8 +754,11 @@ int SysSelect(int iMaxFD, SYS_fd_set *pReadFDs, SYS_fd_set *pWriteFDs, SYS_fd_se
 int SysSendFileMMap(SYS_SOCKET SockFD, char const *pszFileName, SYS_OFF_T llBaseOffset,
 		    SYS_OFF_T llEndOffset, int iTimeout)
 {
-	int iFD;
+	int iFD, iCurrSend, iSndBuffSize;
 	SYS_OFF_T llAlnOff, llFileSize;
+	SYS_INT64 tStart;
+	void *pMapAddress;
+	char *pszBuffer;
 
 	if ((iFD = open(pszFileName, O_RDONLY)) == -1) {
 		ErrSetErrorCode(ERR_FILE_OPEN, pszFileName);
@@ -772,20 +775,15 @@ int SysSendFileMMap(SYS_SOCKET SockFD, char const *pszFileName, SYS_OFF_T llBase
 		ErrSetErrorCode(ERR_INVALID_PARAMETER);
 		return ERR_INVALID_PARAMETER;
 	}
-
-	void *pMapAddress = (void *) mmap((char *) 0, llEndOffset - llAlnOff,
-					  PROT_READ, MAP_SHARED, iFD, llAlnOff);
-
-	if (pMapAddress == (void *) -1) {
+	if ((pMapAddress = mmap((char *) 0, llEndOffset - llAlnOff, PROT_READ,
+				MAP_SHARED, iFD, llAlnOff)) == (void *) -1) {
 		close(iFD);
 		ErrSetErrorCode(ERR_MMAP);
 		return ERR_MMAP;
 	}
-
-	int iCurrSend, iSndBuffSize = (iTimeout != SYS_INFINITE_TIMEOUT) ?
-		MIN_TCP_SEND_SIZE: MAX_TCP_SEND_SIZE;
-	char *pszBuffer = (char *) pMapAddress + (llBaseOffset - llAlnOff);
-	SYS_INT64 tStart;
+	iSndBuffSize = (iTimeout != SYS_INFINITE_TIMEOUT) ? MIN_TCP_SEND_SIZE:
+		MAX_TCP_SEND_SIZE;
+	pszBuffer = (char *) pMapAddress + (long) (llBaseOffset - llAlnOff);
 
 	while (llBaseOffset < llEndOffset) {
 		iCurrSend = (int) Min(iSndBuffSize, llEndOffset - llBaseOffset);
@@ -800,9 +798,9 @@ int SysSendFileMMap(SYS_SOCKET SockFD, char const *pszFileName, SYS_OFF_T llBase
 		    ((SysMsTime() - tStart) * K_IO_TIME_RATIO) < (SYS_INT64) iTimeout)
 			iSndBuffSize = Min(iSndBuffSize * 2, MAX_TCP_SEND_SIZE);
 		pszBuffer += iCurrSend;
-		llBaseOffset += (unsigned long) iCurrSend;
+		llBaseOffset += iCurrSend;
 	}
-	munmap((char *) pMapAddress, llEndOffset - llAlnOff);
+	munmap(pMapAddress, (long) (llEndOffset - llAlnOff));
 	close(iFD);
 
 	return 0;
@@ -1507,17 +1505,15 @@ int SysEventLog(int iLogLevel, char const *pszFormat, ...)
 
 int SysLogMessage(int iLogLevel, char const *pszFormat, ...)
 {
+	va_list Args;
 	extern bool bServerDebug;
 
 	pthread_mutex_lock(&LogMutex);
-
-	va_list Args;
-
 	va_start(Args, pszFormat);
-	if (bServerDebug) {
+	if (bServerDebug)
 		/* Debug implementation */
 		vprintf(pszFormat, Args);
-	} else {
+	else {
 		switch (iLogLevel) {
 		case LOG_LEV_WARNING:
 		case LOG_LEV_ERROR:

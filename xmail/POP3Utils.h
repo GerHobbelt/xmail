@@ -33,8 +33,8 @@ typedef struct POP3_HANDLE_struct {
 struct MailSyncReport {
 	int iMsgSync;
 	int iMsgErr;
-	unsigned long ulSizeSync;
-	unsigned long ulSizeErr;
+	SYS_OFF_T llSizeSync;
+	SYS_OFF_T llSizeErr;
 };
 
 struct PopLastLoginInfo {
@@ -53,16 +53,17 @@ char *UPopGetUserInfoVar(POP3_HANDLE hPOPSession, char const *pszName,
 			 char const *pszDefault = NULL);
 int UPopGetSessionMsgCurrent(POP3_HANDLE hPOPSession);
 int UPopGetSessionMsgTotal(POP3_HANDLE hPOPSession);
-unsigned long UPopGetSessionMBSize(POP3_HANDLE hPOPSession);
+SYS_OFF_T UPopGetSessionMBSize(POP3_HANDLE hPOPSession);
 int UPopGetSessionLastAccessed(POP3_HANDLE hPOPSession);
-int UPopGetMessageSize(POP3_HANDLE hPOPSession, int iMsgIndex, unsigned long &ulMessageSize);
+int UPopGetMessageSize(POP3_HANDLE hPOPSession, int iMsgIndex, SYS_OFF_T &llMessageSize);
 int UPopGetMessageUIDL(POP3_HANDLE hPOPSession, int iMsgIndex, char *pszMessageUIDL,
 		       int iSize);
 int UPopDeleteMessage(POP3_HANDLE hPOPSession, int iMsgIndex);
 int UPopResetSession(POP3_HANDLE hPOPSession);
 int UPopSendErrorResponse(BSOCK_HANDLE hBSock, int iErrorCode, int iTimeout);
 int UPopSessionSendMsg(POP3_HANDLE hPOPSession, int iMsgIndex, BSOCK_HANDLE hBSock);
-int UPopSessionTopMsg(POP3_HANDLE hPOPSession, int iMsgIndex, int iNumLines, BSOCK_HANDLE hBSock);
+int UPopSessionTopMsg(POP3_HANDLE hPOPSession, int iMsgIndex, int iNumLines,
+		      BSOCK_HANDLE hBSock);
 int UPopSaveUserIP(POP3_HANDLE hPOPSession);
 int UPopSyncRemoteLink(char const *pszSyncAddr, char const *pszRmtServer,
 		       char const *pszRmtName, char const *pszRmtPassword,

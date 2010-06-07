@@ -62,18 +62,18 @@ static bool ADomIsWildAlias(char const *pszAlias)
 }
 
 static int ADomCalcAliasHash(char const *const *ppszTabTokens, int const *piFieldsIdx,
-			     TabIdxUINT *puHashVal, bool bCaseSens)
+			     unsigned long *pulHashVal, bool bCaseSens)
 {
 	/* This will group wild alias ( * ? ) */
 	int iFieldsCount = StrStringsCount(ppszTabTokens);
 
 	if (iFieldsCount > adomADomain && ADomIsWildAlias(ppszTabTokens[adomADomain])) {
-		*puHashVal = WILD_ADOMAIN_HASH;
+		*pulHashVal = WILD_ADOMAIN_HASH;
 
 		return 0;
 	}
 
-	return TbixCalculateHash(ppszTabTokens, piFieldsIdx, puHashVal, bCaseSens);
+	return TbixCalculateHash(ppszTabTokens, piFieldsIdx, pulHashVal, bCaseSens);
 }
 
 static char *ADomGetADomainFilePath(char *pszADomainFilePath, int iMaxPath)
@@ -128,9 +128,9 @@ static int ADomLookupDomainLK(const char *pszADomainFilePath, const char *pszADo
 
 	/* Lookup record using the specified index ( lookup wild aliases grouped */
 	/* under WILD_ADOMAIN_HASH hash key ) */
-	TabIdxUINT uLkHVal = WILD_ADOMAIN_HASH;
+	unsigned long ulLkHVal = WILD_ADOMAIN_HASH;
 	INDEX_HANDLE hIndexLookup = TbixOpenHandle(pszADomainFilePath, iIdxADomain_Alias,
-						   &uLkHVal, 1);
+						   &ulLkHVal, 1);
 
 	if (hIndexLookup != INVALID_INDEX_HANDLE) {
 		for (ppszTabTokens = TbixFirstRecord(hIndexLookup); ppszTabTokens != NULL;

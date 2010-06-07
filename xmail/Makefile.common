@@ -23,12 +23,6 @@ ifeq ($(DEBUG_OSSL), 1)
     CFLAGS := $(CFLAGS) -DDEBUG_OSSL
 endif
 
-ifeq ("$(XMAIL_FILE_OFF_BITS)", "")
-    CFLAGS := $(CFLAGS) -D_FILE_OFFSET_BITS=64
-else
-    CFLAGS := $(CFLAGS) -D_FILE_OFFSET_BITS=$(XMAIL_FILE_OFF_BITS)
-endif
-
 ifeq ($(XMAIL_DEBUG), 1)
     CFLAGS := $(CFLAGS) -O0 -g
     STRIP = touch

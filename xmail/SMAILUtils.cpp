@@ -320,7 +320,7 @@ static int USmlLoadTags(FILE *pSpoolFile, HSLIST &hTagList)
 			}
 
 			int iNameLength = Min((int) (pszEndTag - szSpoolLine),
-					      sizeof(szTagName) - 1);
+					      (int) sizeof(szTagName) - 1);
 			char *pszTagValue = pszEndTag + 1;
 
 			strncpy(szTagName, szSpoolLine, iNameLength);

@@ -72,7 +72,7 @@ struct POP3SyncMsg {
 	HashNode HN;
 	int iMsgSeq;
 	char *pszMsgID;
-	unsigned long ulSize;
+	SYS_OFF_T llSize;
 };
 
 struct POP3SyncChannel {
@@ -81,35 +81,35 @@ struct POP3SyncChannel {
 	POP3ChannelCfg ChCfg;
 	BSOCK_HANDLE hBSock;
 	int iMsgCount;
-	unsigned long ulMailboxSize;
+	SYS_OFF_T llMailboxSize;
 	int iMsgSync;
-	unsigned long ulSizeSync;
+	SYS_OFF_T llSizeSync;
 	POP3SyncMsg **ppSMsg;
 	SysListHead SyncMList;
 	SysListHead SeenMList;
 };
 
 struct POP3MsgData {
-	LISTLINK LL;
+	SysListHead LLnk;
 	char szMsgName[SYS_MAX_PATH];
-	unsigned long ulMsgSize;
+	SYS_OFF_T llMsgSize;
 	unsigned long ulFlags;
 };
 
 struct POP3SessionData {
 	SYS_INET_ADDR PeerInfo;
 	UserInfo *pUI;
-	HSLIST hMessageList;
+	SysListHead MessageList;
 	POP3MsgData **ppMsgArray;
 	int iMsgListed;
 	int iMsgCount;
-	unsigned long ulMBSize;
+	SYS_OFF_T llMBSize;
 	int iLastAccessed;
 	int iTimeout;
 };
 
-static int UPopBuildMessageList(UserInfo *pUI, HSLIST &hMessageList,
-				int *piMsgCount = NULL, unsigned long *pulMBSize = NULL);
+static int UPopBuildMessageList(UserInfo *pUI, SysListHead *pMsgList,
+				int *piMsgCount = NULL, SYS_OFF_T *pllMBSize = NULL);
 static int UPopCheckResponse(char const *pszResponse, char *pszMessage = NULL);
 static int UPopCloseChannel(BSOCK_HANDLE hBSock, int iHardClose = 0);
 
@@ -148,34 +148,32 @@ int UPopCheckMailboxSize(UserInfo *pUI, SYS_OFF_T *pllAvailSpace)
 {
 	SYS_OFF_T llMBSize = 0, llProbeSize = (pllAvailSpace != NULL) ? *pllAvailSpace: 0;
 	unsigned long ulNumMessages = 0;
+	char *pszMaxMBSize;
 
 	if (UPopGetMailboxSize(pUI, llMBSize, ulNumMessages) < 0)
 		return ErrGetErrorCode();
-
-	char *pszMaxMBSize = UsrGetUserInfoVar(pUI, "MaxMBSize");
-
-	if (pszMaxMBSize != NULL) {
-		SYS_OFF_T llMaxMBSize = (SYS_OFF_T) atol(pszMaxMBSize) * 1024;
+	if ((pszMaxMBSize = UsrGetUserInfoVar(pUI, "MaxMBSize")) != NULL) {
+		SYS_OFF_T llMaxMBSize = Sys_atoi64(pszMaxMBSize) * 1024;
 
 		SysFree(pszMaxMBSize);
-		if (llMaxMBSize && (llMBSize + llProbeSize >= llMaxMBSize)) {
+		if (llMaxMBSize != 0 && (llMBSize + llProbeSize >= llMaxMBSize)) {
 			ErrSetErrorCode(ERR_MAILBOX_SIZE);
 			return ERR_MAILBOX_SIZE;
 		}
 		if (pllAvailSpace != NULL)
-			*pllAvailSpace = (llMaxMBSize ? llMaxMBSize - llMBSize:
-					  (SYS_OFF_T) -1);
+			*pllAvailSpace = (llMaxMBSize != 0 ? llMaxMBSize - llMBSize:
+					  MaxSignedType(SYS_OFF_T));
 	} else if (pllAvailSpace != NULL)
-		*pllAvailSpace = ULONG_MAX;
+		*pllAvailSpace = MaxSignedType(SYS_OFF_T);
 
 	return 0;
 }
 
 static int UPopFillMessageList(char const *pszBasePath, char const *pszSubPath,
-			       HSLIST &hMessageList, int &iMsgCount, unsigned long &ulMBSize)
+			       SysListHead *pMsgList, int &iMsgCount, SYS_OFF_T &llMBSize)
 {
-	/* Setup pathname to scan for messages */
-	char szScanPath[SYS_MAX_PATH];
+	SYS_HANDLE hFind;
+	char szScanPath[SYS_MAX_PATH], szFileName[SYS_MAX_PATH];
 
 	if (pszSubPath == NULL)
 		StrSNCpy(szScanPath, pszBasePath);
@@ -183,39 +181,34 @@ static int UPopFillMessageList(char const *pszBasePath, char const *pszSubPath,
 		SysSNPrintf(szScanPath, sizeof(szScanPath) - 1, "%s" SYS_SLASH_STR "%s",
 			    pszBasePath, pszSubPath);
 
-	char szFileName[SYS_MAX_PATH];
-	SYS_HANDLE hFind = SysFirstFile(szScanPath, szFileName, sizeof(szFileName));
-
-	if (hFind != SYS_INVALID_HANDLE) {
+	if ((hFind = SysFirstFile(szScanPath, szFileName,
+				  sizeof(szFileName))) != SYS_INVALID_HANDLE) {
 		do {
-			/* Skip directories and dot-files */
-			if (SysIsDirectory(hFind) || IsDotFilename(szFileName))
+			POP3MsgData *pPOPMD;
+
+			if (SysIsDirectory(hFind) ||
+			    !UPopMailFileNameFilter(szFileName))
 				continue;
-
-			POP3MsgData *pPOPMD = (POP3MsgData *) SysAlloc(sizeof(POP3MsgData));
-
-			if (pPOPMD == NULL) {
+			if ((pPOPMD = (POP3MsgData *)
+			     SysAlloc(sizeof(POP3MsgData))) == NULL) {
 				ErrorPush();
 				SysFindClose(hFind);
 				return ErrorPop();
 			}
-			/* Setup message entry fields */
-			ListLinkInit(pPOPMD);
-
 			if (pszSubPath == NULL)
 				StrSNCpy(pPOPMD->szMsgName, szFileName);
 			else
 				SysSNPrintf(pPOPMD->szMsgName, sizeof(pPOPMD->szMsgName) - 1,
 					    "%s" SYS_SLASH_STR "%s", pszSubPath, szFileName);
 
-			pPOPMD->ulMsgSize = (unsigned long) SysGetSize(hFind);
+			pPOPMD->llMsgSize = SysGetSize(hFind);
 			pPOPMD->ulFlags = 0;
 
 			/* Insert entry in message list */
-			ListAddTail(hMessageList, (PLISTLINK) pPOPMD);
+			SYS_LIST_ADDT(&pPOPMD->LLnk, pMsgList);
 
 			/* Update mailbox information */
-			ulMBSize += pPOPMD->ulMsgSize;
+			llMBSize += pPOPMD->llMsgSize;
 			++iMsgCount;
 		} while (SysNextFile(hFind, szFileName, sizeof(szFileName)));
 		SysFindClose(hFind);
@@ -229,16 +222,20 @@ static void UPopFreeMsgData(POP3MsgData *pPOPMD)
 	SysFree(pPOPMD);
 }
 
-static void UPopFreeMessageList(HSLIST &hMessageList)
+static void UPopFreeMessageList(SysListHead *pMsgList)
 {
+	SysListHead *pPos;
 	POP3MsgData *pPOPMD;
 
-	while ((pPOPMD = (POP3MsgData *) ListRemove(hMessageList)) != INVALID_SLIST_PTR)
+	while ((pPos = SYS_LIST_FIRST(pMsgList)) != NULL) {
+		pPOPMD = SYS_LIST_ENTRY(pPos, POP3MsgData, LLnk);
+		SYS_LIST_DEL(pPos);
 		UPopFreeMsgData(pPOPMD);
+	}
 }
 
-static int UPopBuildMessageList(UserInfo *pUI, HSLIST &hMessageList,
-				int *piMsgCount, unsigned long *pulMBSize)
+static int UPopBuildMessageList(UserInfo *pUI, SysListHead *pMsgList,
+				int *piMsgCount, SYS_OFF_T *pllMBSize)
 {
 	char szMBPath[SYS_MAX_PATH];
 
@@ -251,29 +248,29 @@ static int UPopBuildMessageList(UserInfo *pUI, HSLIST &hMessageList,
 	if (hResLock == INVALID_RLCK_HANDLE)
 		return ErrGetErrorCode();
 
-	/* Initialize list and mailbox size information */
-	ListInit(hMessageList);
+	SYS_INIT_LIST_HEAD(pMsgList);
 
 	int iMsgCount = 0;
-	unsigned long ulMBSize = 0;
+	SYS_OFF_T llMBSize = 0;
 
 	if (iMailboxType == XMAIL_MAILBOX) {
-		if (UPopFillMessageList(szMBPath, NULL, hMessageList, iMsgCount, ulMBSize) < 0) {
+		if (UPopFillMessageList(szMBPath, NULL, pMsgList, iMsgCount,
+					llMBSize) < 0) {
 			ErrorPush();
-			UPopFreeMessageList(hMessageList);
+			UPopFreeMessageList(pMsgList);
 			RLckUnlockEX(hResLock);
 			return ErrorPop();
 		}
 	} else {
 		int iScanCur = UsrGetUserInfoVarInt(pUI, "Pop3ScanCur", 0);
 
-		if (UPopFillMessageList(szMBPath, "new", hMessageList, iMsgCount,
-					ulMBSize) < 0 ||
+		if (UPopFillMessageList(szMBPath, "new", pMsgList, iMsgCount,
+					llMBSize) < 0 ||
 		    (iScanCur > 0 &&
-		     UPopFillMessageList(szMBPath, "cur", hMessageList, iMsgCount,
-					 ulMBSize) < 0)) {
+		     UPopFillMessageList(szMBPath, "cur", pMsgList, iMsgCount,
+					 llMBSize) < 0)) {
 			ErrorPush();
-			UPopFreeMessageList(hMessageList);
+			UPopFreeMessageList(pMsgList);
 			RLckUnlockEX(hResLock);
 			return ErrorPop();
 		}
@@ -281,22 +278,24 @@ static int UPopBuildMessageList(UserInfo *pUI, HSLIST &hMessageList,
 	RLckUnlockEX(hResLock);
 	if (piMsgCount != NULL)
 		*piMsgCount = iMsgCount;
-	if (pulMBSize != NULL)
-		*pulMBSize = ulMBSize;
+	if (pllMBSize != NULL)
+		*pllMBSize = llMBSize;
 
 	return 0;
 }
 
-static unsigned long UPopMessagesSize(HSLIST &hMessageList)
+static SYS_OFF_T UPopMessagesSize(SysListHead *pMsgList)
 {
-	unsigned long ulMBSize = 0;
-	POP3MsgData *pPOPMD = (POP3MsgData *) ListFirst(hMessageList);
+	SYS_OFF_T llMBSize = 0;
+	SysListHead *pPos;
+	POP3MsgData *pPOPMD;
 
-	for (; pPOPMD != INVALID_SLIST_PTR; pPOPMD = (POP3MsgData *)
-		     ListNext(hMessageList, (PLISTLINK) pPOPMD))
-		ulMBSize += pPOPMD->ulMsgSize;
+	SYS_LIST_FOR_EACH(pPos, pMsgList) {
+		pPOPMD = SYS_LIST_ENTRY(pPos, POP3MsgData, LLnk);
+		llMBSize += pPOPMD->llMsgSize;
+	}
 
-	return ulMBSize;
+	return llMBSize;
 }
 
 static POP3MsgData *UPopMessageFromIndex(POP3SessionData *pPOPSD, int iMsgIndex)
@@ -339,9 +338,10 @@ static int UPopCheckPeerIP(UserInfo *pUI, SYS_INET_ADDR const &PeerInfo)
 POP3_HANDLE UPopBuildSession(char const *pszDomain, char const *pszUsrName,
 			     char const *pszUsrPass, SYS_INET_ADDR const *pPeerInfo)
 {
-	UserInfo *pUI = UsrGetUserByName(pszDomain, pszUsrName);
+	UserInfo *pUI;
+	POP3SessionData *pPOPSD;
 
-	if (pUI == NULL)
+	if ((pUI = UsrGetUserByName(pszDomain, pszUsrName)) == NULL)
 		return INVALID_POP3_HANDLE;
 
 	/* Check if the account is enabled for POP3 sessions */
@@ -366,21 +366,18 @@ POP3_HANDLE UPopBuildSession(char const *pszDomain, char const *pszUsrName,
 		return INVALID_POP3_HANDLE;
 	}
 
-	POP3SessionData *pPOPSD = (POP3SessionData *) SysAlloc(sizeof(POP3SessionData));
-
-	if (pPOPSD == NULL) {
+	if ((pPOPSD = (POP3SessionData *) SysAlloc(sizeof(POP3SessionData))) == NULL) {
 		UsrPOP3Unlock(pUI);
 		UsrFreeUserInfo(pUI);
 		return INVALID_POP3_HANDLE;
 	}
-
 	pPOPSD->PeerInfo = *pPeerInfo;
 	pPOPSD->pUI = pUI;
 	pPOPSD->iLastAccessed = 0;
 	pPOPSD->iTimeout = STD_POP3_TIMEOUT;
 
-	if (UPopBuildMessageList(pUI, pPOPSD->hMessageList, &pPOPSD->iMsgCount,
-				 &pPOPSD->ulMBSize) < 0) {
+	if (UPopBuildMessageList(pUI, &pPOPSD->MessageList, &pPOPSD->iMsgCount,
+				 &pPOPSD->llMBSize) < 0) {
 		SysFree(pPOPSD);
 		UsrPOP3Unlock(pUI);
 		UsrFreeUserInfo(pUI);
@@ -392,18 +389,21 @@ POP3_HANDLE UPopBuildSession(char const *pszDomain, char const *pszUsrName,
 	/* Build lookup array */
 	if ((pPOPSD->ppMsgArray = (POP3MsgData **)
 	     SysAlloc((pPOPSD->iMsgCount + 1) * sizeof(POP3MsgData *))) == NULL) {
-		UPopFreeMessageList(pPOPSD->hMessageList);
+		UPopFreeMessageList(&pPOPSD->MessageList);
 		SysFree(pPOPSD);
 		UsrPOP3Unlock(pUI);
 		UsrFreeUserInfo(pUI);
 		return INVALID_POP3_HANDLE;
 	}
 
-	POP3MsgData *pPOPMD = (POP3MsgData *) ListFirst(pPOPSD->hMessageList);
+	int i = 0;
+	SysListHead *pPos;
+	POP3MsgData *pPOPMD;
 
-	for (int i = 0; i < pPOPSD->iMsgCount && pPOPMD != INVALID_SLIST_PTR;
-	     pPOPMD = (POP3MsgData *) ListNext(pPOPSD->hMessageList, (PLISTLINK) pPOPMD), i++)
-		pPOPSD->ppMsgArray[i] = pPOPMD;
+	SYS_LIST_FOR_EACH(pPos, &pPOPSD->MessageList) {
+		pPOPMD = SYS_LIST_ENTRY(pPos, POP3MsgData, LLnk);
+		pPOPSD->ppMsgArray[i++] = pPOPMD;
+	}
 
 	return (POP3_HANDLE) pPOPSD;
 }
@@ -421,10 +421,11 @@ static int UPopUpdateMailbox(POP3SessionData *pPOPSD)
 	if (hResLock == INVALID_RLCK_HANDLE)
 		return ErrGetErrorCode();
 
-	POP3MsgData *pPOPMD = (POP3MsgData *) ListFirst(pPOPSD->hMessageList);
+	SysListHead *pPos;
+	POP3MsgData *pPOPMD;
 
-	for (; pPOPMD != INVALID_SLIST_PTR; pPOPMD = (POP3MsgData *)
-		     ListNext(pPOPSD->hMessageList, (PLISTLINK) pPOPMD)) {
+	SYS_LIST_FOR_EACH(pPos, &pPOPSD->MessageList) {
+		pPOPMD = SYS_LIST_ENTRY(pPos, POP3MsgData, LLnk);
 		if (pPOPMD->ulFlags & POPF_MSG_DELETED) {
 			char szMsgPath[SYS_MAX_PATH];
 
@@ -446,7 +447,7 @@ void UPopReleaseSession(POP3_HANDLE hPOPSession, int iUpdate)
 		UPopUpdateMailbox(pPOPSD);
 	UsrPOP3Unlock(pPOPSD->pUI);
 	UsrFreeUserInfo(pPOPSD->pUI);
-	UPopFreeMessageList(pPOPSD->hMessageList);
+	UPopFreeMessageList(&pPOPSD->MessageList);
 	SysFree(pPOPSD->ppMsgArray);
 	SysFree(pPOPSD);
 }
@@ -473,11 +474,11 @@ int UPopGetSessionMsgTotal(POP3_HANDLE hPOPSession)
 	return pPOPSD->iMsgListed;
 }
 
-unsigned long UPopGetSessionMBSize(POP3_HANDLE hPOPSession)
+SYS_OFF_T UPopGetSessionMBSize(POP3_HANDLE hPOPSession)
 {
 	POP3SessionData *pPOPSD = (POP3SessionData *) hPOPSession;
 
-	return pPOPSD->ulMBSize;
+	return pPOPSD->llMBSize;
 }
 
 int UPopGetSessionLastAccessed(POP3_HANDLE hPOPSession)
@@ -488,13 +489,13 @@ int UPopGetSessionLastAccessed(POP3_HANDLE hPOPSession)
 }
 
 int UPopGetMessageSize(POP3_HANDLE hPOPSession, int iMsgIndex,
-		       unsigned long &ulMessageSize)
+		       SYS_OFF_T &llMessageSize)
 {
 	POP3SessionData *pPOPSD = (POP3SessionData *) hPOPSession;
-	POP3MsgData *pPOPMD = UPopMessageFromIndex(pPOPSD, iMsgIndex - 1);
+	POP3MsgData *pPOPMD;
 
-	ulMessageSize = 0;
-	if (pPOPMD == NULL) {
+	llMessageSize = 0;
+	if ((pPOPMD = UPopMessageFromIndex(pPOPSD, iMsgIndex - 1)) == NULL) {
 		ErrSetErrorCode(ERR_MSG_NOT_IN_RANGE);
 		return ERR_MSG_NOT_IN_RANGE;
 	}
@@ -502,7 +503,7 @@ int UPopGetMessageSize(POP3_HANDLE hPOPSession, int iMsgIndex,
 		ErrSetErrorCode(ERR_MSG_DELETED);
 		return ERR_MSG_DELETED;
 	}
-	ulMessageSize = pPOPMD->ulMsgSize;
+	llMessageSize = pPOPMD->llMsgSize;
 
 	return 0;
 }
@@ -511,9 +512,10 @@ int UPopGetMessageUIDL(POP3_HANDLE hPOPSession, int iMsgIndex, char *pszMessageU
 		       int iSize)
 {
 	POP3SessionData *pPOPSD = (POP3SessionData *) hPOPSession;
-	POP3MsgData *pPOPMD = UPopMessageFromIndex(pPOPSD, iMsgIndex - 1);
+	POP3MsgData *pPOPMD;
+	char const *pszFileName;
 
-	if (pPOPMD == NULL) {
+	if ((pPOPMD = UPopMessageFromIndex(pPOPSD, iMsgIndex - 1)) == NULL) {
 		ErrSetErrorCode(ERR_MSG_NOT_IN_RANGE);
 		return ERR_MSG_NOT_IN_RANGE;
 	}
@@ -522,13 +524,10 @@ int UPopGetMessageUIDL(POP3_HANDLE hPOPSession, int iMsgIndex, char *pszMessageU
 		return ERR_MSG_DELETED;
 	}
 	/* Extract message UIDL from mailbox file path */
-	char const *pszFileName;
-
 	if ((pszFileName = strrchr(pPOPMD->szMsgName, SYS_SLASH_CHAR)) != NULL)
 		pszFileName++;
 	else
 		pszFileName = pPOPMD->szMsgName;
-
 	StrNCpy(pszMessageUIDL, pszFileName, iSize);
 
 	return 0;
@@ -537,10 +536,9 @@ int UPopGetMessageUIDL(POP3_HANDLE hPOPSession, int iMsgIndex, char *pszMessageU
 int UPopDeleteMessage(POP3_HANDLE hPOPSession, int iMsgIndex)
 {
 	POP3SessionData *pPOPSD = (POP3SessionData *) hPOPSession;
+	POP3MsgData *pPOPMD;
 
-	POP3MsgData *pPOPMD = UPopMessageFromIndex(pPOPSD, iMsgIndex - 1);
-
-	if (pPOPMD == NULL) {
+	if ((pPOPMD = UPopMessageFromIndex(pPOPSD, iMsgIndex - 1)) == NULL) {
 		ErrSetErrorCode(ERR_MSG_NOT_IN_RANGE);
 		return ERR_MSG_NOT_IN_RANGE;
 	}
@@ -549,7 +547,7 @@ int UPopDeleteMessage(POP3_HANDLE hPOPSession, int iMsgIndex)
 		return ERR_MSG_DELETED;
 	}
 
-	pPOPSD->ulMBSize -= pPOPMD->ulMsgSize;
+	pPOPSD->llMBSize -= pPOPMD->llMsgSize;
 	--pPOPSD->iMsgCount;
 	pPOPMD->ulFlags |= POPF_MSG_DELETED;
 	pPOPSD->iLastAccessed = iMsgIndex;
@@ -560,13 +558,13 @@ int UPopDeleteMessage(POP3_HANDLE hPOPSession, int iMsgIndex)
 int UPopResetSession(POP3_HANDLE hPOPSession)
 {
 	POP3SessionData *pPOPSD = (POP3SessionData *) hPOPSession;
+	SysListHead *pPos;
+	POP3MsgData *pPOPMD;
 
-	POP3MsgData *pPOPMD = (POP3MsgData *) ListFirst(pPOPSD->hMessageList);
-
-	for (; pPOPMD != INVALID_SLIST_PTR; pPOPMD = (POP3MsgData *)
-		     ListNext(pPOPSD->hMessageList, (PLISTLINK) pPOPMD)) {
+	SYS_LIST_FOR_EACH(pPos, &pPOPSD->MessageList) {
+		pPOPMD = SYS_LIST_ENTRY(pPos, POP3MsgData, LLnk);
 		if (pPOPMD->ulFlags & POPF_MSG_DELETED) {
-			pPOPSD->ulMBSize += pPOPMD->ulMsgSize;
+			pPOPSD->llMBSize += pPOPMD->llMsgSize;
 
 			++pPOPSD->iMsgCount;
 			pPOPMD->ulFlags &= ~(POPF_MSG_DELETED | POPF_MSG_SENT | POPF_MSG_TOP);
@@ -637,11 +635,11 @@ int UPopSessionSendMsg(POP3_HANDLE hPOPSession, int iMsgIndex, BSOCK_HANDLE hBSo
 
 	char szResponse[256];
 
-	sprintf(szResponse, "+OK %lu bytes", pPOPMD->ulMsgSize);
+	sprintf(szResponse, "+OK " SYS_OFFT_FMT " bytes", pPOPMD->llMsgSize);
 	if (BSckSendString(hBSock, szResponse, pPOPSD->iTimeout) < 0)
 		return ErrGetErrorCode();
 
-	if (pPOPMD->ulMsgSize > 0 &&
+	if (pPOPMD->llMsgSize > 0 &&
 	    UPopSendMessageFile(hBSock, szMsgFilePath,  pPOPSD->iTimeout) < 0)
 		return ErrGetErrorCode();
 
@@ -690,7 +688,8 @@ int UPopSessionTopMsg(POP3_HANDLE hPOPSession, int iMsgIndex, int iNumLines,
 
 	char szResponse[256];
 
-	sprintf(szResponse, "+OK message is %lu bytes", pPOPMD->ulMsgSize);
+	sprintf(szResponse, "+OK message is " SYS_OFFT_FMT " bytes",
+		pPOPMD->llMsgSize);
 	if (BSckSendString(hBSock, szResponse, pPOPSD->iTimeout) < 0) {
 		fclose(pMsgFile);
 		return ErrGetErrorCode();
@@ -819,13 +818,11 @@ static int UPopDoClearTextAuth(BSOCK_HANDLE hBSock, char const *pszUsername,
 			       char const *pszPassword, char *pszRespBuffer,
 			       int iMaxRespChars)
 {
-	/* Send USER and read result */
 	SysSNPrintf(pszRespBuffer, iMaxRespChars - 1, "USER %s", pszUsername);
 	if (UPopSendCommand(hBSock, pszRespBuffer, pszRespBuffer, iMaxRespChars,
 			    iPOP3ClientTimeout) < 0)
 		return ErrGetErrorCode();
 
-	/* Send PASS and read result */
 	SysSNPrintf(pszRespBuffer, iMaxRespChars - 1, "PASS %s", pszPassword);
 	if (UPopSendCommand(hBSock, pszRespBuffer, pszRespBuffer, iMaxRespChars,
 			    iPOP3ClientTimeout) < 0)
@@ -838,18 +835,14 @@ static int UPopDoAPOPAuth(BSOCK_HANDLE hBSock, char const *pszUsername,
 			  char const *pszPassword, char const *pszTimeStamp,
 			  char *pszRespBuffer, int iMaxRespChars)
 {
-	/* Perform APOP authentication */
-	char *pszHash = StrSprint("%s%s", pszTimeStamp, pszPassword);
-
-	if (pszHash == NULL)
-		return ErrGetErrorCode();
-
+	char *pszHash;
 	char szMD5[128];
 
+	if ((pszHash = StrSprint("%s%s", pszTimeStamp, pszPassword)) == NULL)
+		return ErrGetErrorCode();
 	do_md5_string(pszHash, strlen(pszHash), szMD5);
 	SysFree(pszHash);
 
-	/* Send APOP and read result */
 	SysSNPrintf(pszRespBuffer, iMaxRespChars - 1, "APOP %s %s", pszUsername, szMD5);
 	if (UPopSendCommand(hBSock, pszRespBuffer, pszRespBuffer, iMaxRespChars,
 			    iPOP3ClientTimeout) < 0)
@@ -885,7 +878,6 @@ static int UPopSwitchToTLS(BSOCK_HANDLE hBSock, char const *pszServer,
 static int UPopInitiateTLS(BSOCK_HANDLE hBSock, char const *pszServer, char *pszRespBuffer,
 			   int iMaxRespChars, POP3ChannelCfg const *pChCfg)
 {
-
 	SysSNPrintf(pszRespBuffer, iMaxRespChars - 1, "STLS");
 	if (UPopSendCommand(hBSock, pszRespBuffer, pszRespBuffer, iMaxRespChars,
 			    iPOP3ClientTimeout) < 0)
@@ -1011,14 +1003,15 @@ static int UPopCloseChannel(BSOCK_HANDLE hBSock, int iHardClose)
 }
 
 static int UPopGetMailboxStatus(BSOCK_HANDLE hBSock, int &iMsgCount,
-				unsigned long &ulMailboxSize)
+				SYS_OFF_T &llMailboxSize)
 {
 	char szRTXBuffer[2048];
 
 	if (UPopSendCommand(hBSock, "STAT", szRTXBuffer, sizeof(szRTXBuffer) - 1,
 			    iPOP3ClientTimeout) < 0)
 		return ErrGetErrorCode();
-	if (sscanf(szRTXBuffer, "+OK %d %lu", &iMsgCount, &ulMailboxSize) != 2) {
+	if (sscanf(szRTXBuffer, "+OK %d " SYS_OFFT_FMT, &iMsgCount,
+		   &llMailboxSize) != 2) {
 		ErrSetErrorCode(ERR_INVALID_POP3_RESPONSE, szRTXBuffer);
 		return ERR_INVALID_POP3_RESPONSE;
 	}
@@ -1027,7 +1020,7 @@ static int UPopGetMailboxStatus(BSOCK_HANDLE hBSock, int &iMsgCount,
 }
 
 static int UPopRetrieveMessage(BSOCK_HANDLE hBSock, int iMsgIndex, char const *pszFileName,
-			       unsigned long *pulMsgSize)
+			       SYS_OFF_T *pllMsgSize)
 {
 	FILE *pMsgFile = fopen(pszFileName, "wb");
 
@@ -1046,7 +1039,7 @@ static int UPopRetrieveMessage(BSOCK_HANDLE hBSock, int iMsgIndex, char const *p
 	}
 
 	int iLineLength = 0, iGotNL, iGotNLPrev = 1;
-	unsigned long ulMsgSize = 0;
+	SYS_OFF_T llMsgSize = 0;
 
 	for (;;) {
 		if (BSckGetString(hBSock, szRTXBuffer, sizeof(szRTXBuffer) - 3,
@@ -1056,26 +1049,22 @@ static int UPopRetrieveMessage(BSOCK_HANDLE hBSock, int iMsgIndex, char const *p
 			ErrSetErrorCode(ERR_POP3_RETR_BROKEN);
 			return ERR_POP3_RETR_BROKEN;
 		}
-		/* Check end of data condition */
 		if (iGotNL && iGotNLPrev && strcmp(szRTXBuffer, ".") == 0)
 			break;
-
-		/* Correctly terminate the line */
 		if (iGotNL)
 			memcpy(szRTXBuffer + iLineLength, "\r\n", 3), iLineLength += 2;
-
 		if (!fwrite(szRTXBuffer, iLineLength, 1, pMsgFile)) {
 			fclose(pMsgFile);
 
 			ErrSetErrorCode(ERR_FILE_WRITE, pszFileName);
 			return ERR_FILE_WRITE;
 		}
-		ulMsgSize += (unsigned long) iLineLength;
+		llMsgSize += iLineLength;
 		iGotNLPrev = iGotNL;
 	}
 	fclose(pMsgFile);
-	if (pulMsgSize != NULL)
-		*pulMsgSize = ulMsgSize;
+	if (pllMsgSize != NULL)
+		*pllMsgSize = llMsgSize;
 
 	return 0;
 }
@@ -1211,7 +1200,7 @@ static int UPopSChanFilterSeen(POP3SyncChannel *pPSChan)
 				SYS_LIST_DEL(&pSMsg->LLnk);
 				SYS_LIST_ADDT(&pSMsg->LLnk, &pPSChan->SeenMList);
 				pPSChan->iMsgSync--;
-				pPSChan->ulSizeSync -= pSMsg->ulSize;
+				pPSChan->llSizeSync -= pSMsg->llSize;
 			}
 		}
 		fclose(pUFile);
@@ -1271,7 +1260,7 @@ static int UPopSChanFillStatus(POP3SyncChannel *pPSChan)
 	char szRTXBuffer[2048] = "UIDL";
 
 	if (UPopGetMailboxStatus(pPSChan->hBSock, pPSChan->iMsgCount,
-				 pPSChan->ulMailboxSize) < 0)
+				 pPSChan->llMailboxSize) < 0)
 		return ErrGetErrorCode();
 	if ((pPSChan->ppSMsg = (POP3SyncMsg **)
 	     SysAlloc((pPSChan->iMsgCount + 1) * sizeof(POP3SyncMsg *))) == NULL)
@@ -1341,8 +1330,8 @@ static int UPopSChanFillStatus(POP3SyncChannel *pPSChan)
 		*pszMsgSize++ = '\0';
 		if ((iMsgID = atoi(pszMsgID)) >= 1 && iMsgID <= pPSChan->iMsgCount &&
 		    (pSMsg = pPSChan->ppSMsg[iMsgID - 1]) != NULL) {
-			pSMsg->ulSize = atol(pszMsgSize);
-			pPSChan->ulSizeSync += pSMsg->ulSize;
+			pSMsg->llSize = Sys_atoi64(pszMsgSize);
+			pPSChan->llSizeSync += pSMsg->llSize;
 		}
 	}
 
@@ -1432,8 +1421,8 @@ int UPopSyncRemoteLink(char const *pszSyncAddr, char const *pszRmtServer,
 	/* Initialize the report structure with current mailbox informations */
 	pSRep->iMsgSync = 0;
 	pSRep->iMsgErr = pPSChan->iMsgSync;
-	pSRep->ulSizeSync = 0;
-	pSRep->ulSizeErr = pPSChan->ulSizeSync;
+	pSRep->llSizeSync = 0;
+	pSRep->llSizeErr = pPSChan->llSizeSync;
 
 	SysListHead *pPos;
 	POP3SyncMsg *pSMsg;
@@ -1478,7 +1467,7 @@ int UPopSyncRemoteLink(char const *pszSyncAddr, char const *pszRmtServer,
 			SYS_LIST_ADDT(&pSMsg->LLnk, &pPSChan->SeenMList);
 
 			pSRep->iMsgSync++;
-			pSRep->ulSizeSync += pSMsg->ulSize;
+			pSRep->llSizeSync += pSMsg->llSize;
 		}
 		SysRemove(szMsgFileName);
 
@@ -1493,12 +1482,13 @@ int UPopSyncRemoteLink(char const *pszSyncAddr, char const *pszRmtServer,
 	UPopSChanFree(pPSChan);
 
 	pSRep->iMsgErr -= Min(pSRep->iMsgErr, pSRep->iMsgSync);
-	pSRep->ulSizeErr -= Min(pSRep->ulSizeErr, pSRep->ulSizeSync);
+	pSRep->llSizeErr -= Min(pSRep->llSizeErr, pSRep->llSizeSync);
 
 	return 0;
 }
 
-int UPopUserIpCheck(UserInfo *pUI, SYS_INET_ADDR const *pPeerInfo, unsigned int uExpireTime)
+int UPopUserIpCheck(UserInfo *pUI, SYS_INET_ADDR const *pPeerInfo,
+		    unsigned int uExpireTime)
 {
 	char szIpFilePath[SYS_MAX_PATH];
 

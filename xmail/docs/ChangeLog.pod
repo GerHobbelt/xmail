@@ -25,6 +25,10 @@ Tweaked DNS resolution to cope with lame name servers.
 
 =item *
 
+Support for greater than 2GB sizes in POP3 server and PSYNC.
+
+=item *
+
 Safer temporary file name generation.
 
 =item *

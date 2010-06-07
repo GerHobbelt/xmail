@@ -23,6 +23,12 @@ CC = g++
 LD = g++
 STRIP = strip
 
+ifeq ("$(XMAIL_FILE_OFF_BITS)", "")
+    CFLAGS := $(CFLAGS) -D_FILE_OFFSET_BITS=64
+else
+    CFLAGS := $(CFLAGS) -D_FILE_OFFSET_BITS=$(XMAIL_FILE_OFF_BITS)
+endif
+
 ifneq ("$(WITH_SSL_INCLUDE)", "")
     CFLAGS := $(CFLAGS) -I$(WITH_SSL_INCLUDE)
 endif
@@ -35,9 +41,7 @@ ifeq ("$(SSLLIBS)", "")
 endif
 
 MAINSRC = MainBSD.cpp
-MAINOBJ = MainBSD.o
-SYSSRCS = SysDepBSD.cpp SysDepUnix.cpp
-SYSOBJS = SysDepBSD.o SysDepUnix.o
+SYSSRCS = SysDepBSD.cpp SysDepUnix.cpp SysOsEventfd_pipe.cpp
 
 ifeq ($(OSTYPE),OpenBSD)
 	SYSTYPE = openbsd

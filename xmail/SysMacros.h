@@ -24,6 +24,7 @@
 #define _SYSMACROS_H
 
 #define SRand()                 srand((unsigned int) (SysMsTime() * SysGetCurrentThreadId()))
+#define MaxSignedType(t)        (((t) -1) & ~(((t) 1) << (CHAR_BIT * sizeof(t) - 1)))
 #define NbrCeil(n, a)           ((((n) + (a) - 1) / (a)) * (a))
 #define NbrFloor(n, a)          (((n) / (a)) * (a))
 #define Sign(v)                 (((v) < 0) ? -1: +1)
@@ -62,7 +63,11 @@
 #define IsEmailAddress(a)       (strchr((a), '@') != NULL)
 #define MemMatch(s, n, m, l)    ((n) == (l) && memcmp(s, m, n) == 0)
 #define EquivDatum(a, b)        ((a)->lSize == (b)->lSize && memcmp((a)->pData, (b)->pData, (a)->lSize) == 0)
-#define ArrayInit(a, v)         do { unsigned int __i; for (__i = 0; __i < CountOf(a); __i++) (a)[__i] = (v); } while (0)
+#define ArrayInit(a, v)         do {			\
+		unsigned int __i;			\
+		for (__i = 0; __i < CountOf(a); __i++)	\
+			(a)[__i] = (v);			\
+	} while (0)
 #define StrVSprint(r, l, f) do {					\
 		int iPSize, iCurrSize = 256;				\
 		va_list Args;						\

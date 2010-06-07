@@ -866,7 +866,7 @@ int QueUtCleanupNotifyRoot(QUEUE_HANDLE hQueue, QMSG_HANDLE hMessage,
 		QueUtFreeLastLogInfo(&QLI);
 	QueCleanupMessage(hQueue, hMessage, !QueUtRemoveSpoolErrors());
 
-	return 0;
+	return iResult;
 }
 
 int QueUtResendMessage(QUEUE_HANDLE hQueue, QMSG_HANDLE hMessage, SPLF_HANDLE hFSpool)

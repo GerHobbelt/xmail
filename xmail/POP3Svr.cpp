@@ -407,16 +407,17 @@ static int POP3HandleCmd_PASS(char const *pszCommand, BSOCK_HANDLE hBSock,
 	POP3S.iPOP3State = stateLogged;
 
 	int iMsgCount = UPopGetSessionMsgCurrent(POP3S.hPOPSession);
-	unsigned long ulMBSize = UPopGetSessionMBSize(POP3S.hPOPSession);
+	SYS_OFF_T llMBSize = UPopGetSessionMBSize(POP3S.hPOPSession);
 
 	/* Log POP3 session */
 	if (POP3LogEnabled(POP3S.pThCfg->hThShb, POP3S.pPOP3Cfg))
 		POP3LogSession(POP3S, "LOGIN",
 			       "\t\"%d\""
-			       "\t\"%lu\"", iMsgCount, ulMBSize);
+			       "\t\"" SYS_OFFT_FMT "\"", iMsgCount, llMBSize);
 
 	BSckVSendString(hBSock, POP3S.pPOP3Cfg->iTimeout,
-			"+OK Maildrop has %d messages (%lu bytes)", iMsgCount, ulMBSize);
+			"+OK Maildrop has %d messages (" SYS_OFFT_FMT " bytes)",
+			iMsgCount, llMBSize);
 
 	return 0;
 }
@@ -504,16 +505,17 @@ static int POP3HandleCmd_APOP(char const *pszCommand, BSOCK_HANDLE hBSock,
 	POP3S.iPOP3State = stateLogged;
 
 	int iMsgCount = UPopGetSessionMsgCurrent(POP3S.hPOPSession);
-	unsigned long ulMBSize = UPopGetSessionMBSize(POP3S.hPOPSession);
+	SYS_OFF_T llMBSize = UPopGetSessionMBSize(POP3S.hPOPSession);
 
 	/* Log POP3 session */
 	if (POP3LogEnabled(POP3S.pThCfg->hThShb, POP3S.pPOP3Cfg))
 		POP3LogSession(POP3S, "LOGIN",
 			       "\t\"%d\""
-			       "\t\"%lu\"", iMsgCount, ulMBSize);
+			       "\t\"" SYS_OFFT_FMT "\"", iMsgCount, llMBSize);
 
 	BSckVSendString(hBSock, POP3S.pPOP3Cfg->iTimeout,
-			"+OK Maildrop has %d messages (%lu bytes)", iMsgCount, ulMBSize);
+			"+OK Maildrop has %d messages (" SYS_OFFT_FMT " bytes)",
+			iMsgCount, llMBSize);
 
 	return 0;
 }
@@ -619,9 +621,10 @@ static int POP3HandleCmd_STAT(char const *pszCommand, BSOCK_HANDLE hBSock,
 	}
 
 	int iMsgCount = UPopGetSessionMsgCurrent(POP3S.hPOPSession);
-	unsigned long ulMBSize = UPopGetSessionMBSize(POP3S.hPOPSession);
+	SYS_OFF_T llMBSize = UPopGetSessionMBSize(POP3S.hPOPSession);
 
-	BSckVSendString(hBSock, POP3S.pPOP3Cfg->iTimeout, "+OK %d %lu", iMsgCount, ulMBSize);
+	BSckVSendString(hBSock, POP3S.pPOP3Cfg->iTimeout, "+OK %d " SYS_OFFT_FMT,
+			iMsgCount, llMBSize);
 
 	return 0;
 }
@@ -641,29 +644,32 @@ static int POP3HandleCmd_LIST(char const *pszCommand, BSOCK_HANDLE hBSock,
 	if (iNumArgs < 1) {
 		int iMsgCount = UPopGetSessionMsgCurrent(POP3S.hPOPSession);
 		int iMsgTotal = UPopGetSessionMsgTotal(POP3S.hPOPSession);
-		unsigned long ulMBSize = UPopGetSessionMBSize(POP3S.hPOPSession);
+		SYS_OFF_T llMBSize = UPopGetSessionMBSize(POP3S.hPOPSession);
 
 		BSckVSendString(hBSock, POP3S.pPOP3Cfg->iTimeout,
-				"+OK %d %lu", iMsgCount, ulMBSize);
+				"+OK %d " SYS_OFFT_FMT, iMsgCount, llMBSize);
 
 		for (int i = 0; i < iMsgTotal; i++) {
-			unsigned long ulMessageSize = 0;
+			SYS_OFF_T llMessageSize = 0;
 
 			if (UPopGetMessageSize(POP3S.hPOPSession, i + 1,
-					       ulMessageSize) == 0)
+					       llMessageSize) == 0)
 				BSckVSendString(hBSock, POP3S.pPOP3Cfg->iTimeout,
-						"%d %lu", i + 1, ulMessageSize);
+						"%d " SYS_OFFT_FMT, i + 1,
+						llMessageSize);
 		}
 		BSckSendString(hBSock, ".", POP3S.pPOP3Cfg->iTimeout);
 	} else {
-		unsigned long ulMessageSize = 0;
+		SYS_OFF_T llMessageSize = 0;
 
-		if (UPopGetMessageSize(POP3S.hPOPSession, iMsgIndex, ulMessageSize) < 0)
+		if (UPopGetMessageSize(POP3S.hPOPSession, iMsgIndex,
+				       llMessageSize) < 0)
 			BSckSendString(hBSock, "-ERR No such message",
 				       POP3S.pPOP3Cfg->iTimeout);
 		else
 			BSckVSendString(hBSock, POP3S.pPOP3Cfg->iTimeout,
-					"+OK %d %lu", iMsgIndex, ulMessageSize);
+					"+OK %d " SYS_OFFT_FMT, iMsgIndex,
+					llMessageSize);
 	}
 
 	return 0;
@@ -798,10 +804,11 @@ static int POP3HandleCmd_NOOP(char const *pszCommand, BSOCK_HANDLE hBSock,
 	}
 
 	int iMsgCount = UPopGetSessionMsgCurrent(POP3S.hPOPSession);
-	unsigned long ulMBSize = UPopGetSessionMBSize(POP3S.hPOPSession);
+	SYS_OFF_T llMBSize = UPopGetSessionMBSize(POP3S.hPOPSession);
 
 	BSckVSendString(hBSock, POP3S.pPOP3Cfg->iTimeout,
-			"+OK Maildrop has %d messages (%lu bytes)", iMsgCount, ulMBSize);
+			"+OK Maildrop has %d messages (" SYS_OFFT_FMT " bytes)",
+			iMsgCount, llMBSize);
 
 	return 0;
 }
@@ -834,10 +841,11 @@ static int POP3HandleCmd_RSET(char const *pszCommand, BSOCK_HANDLE hBSock,
 	UPopResetSession(POP3S.hPOPSession);
 
 	int iMsgCount = UPopGetSessionMsgCurrent(POP3S.hPOPSession);
-	unsigned long ulMBSize = UPopGetSessionMBSize(POP3S.hPOPSession);
+	SYS_OFF_T llMBSize = UPopGetSessionMBSize(POP3S.hPOPSession);
 
 	BSckVSendString(hBSock, POP3S.pPOP3Cfg->iTimeout,
-			"+OK Maildrop has %d messages (%lu bytes)", iMsgCount, ulMBSize);
+			"+OK Maildrop has %d messages (" SYS_OFFT_FMT " bytes)",
+			iMsgCount, llMBSize);
 
 	return 0;
 }

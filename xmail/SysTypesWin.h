@@ -69,6 +69,8 @@
 #define Sys_ftell(f)            _ftelli64(f)
 #endif
 
+#define Sys_atoi64(s)           _atoi64(s)
+
 #define SYS_fd_set              fd_set
 #define SYS_FD_ZERO             FD_ZERO
 #define SYS_FD_CLR              FD_CLR

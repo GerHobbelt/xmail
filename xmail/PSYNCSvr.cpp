@@ -153,12 +153,12 @@ static int PSYNCLogSession(POP3Link const *pPopLnk, MailSyncReport const *pSRep,
 		   "\t\"%s\""
 		   "\t\"%s\""
 		   "\t\"%d\""
-		   "\t\"%lu\""
+		   "\t\"" SYS_OFFT_FMT "\""
 		   "\t\"%d\""
-		   "\t\"%lu\""
+		   "\t\"" SYS_OFFT_FMT "\""
 		   "\n", szTime, pPopLnk->pszDomain, pPopLnk->pszName,
 		   pPopLnk->pszRmtDomain, pPopLnk->pszRmtName, pPopLnk->pszAuthType, pszStatus,
-		   pSRep->iMsgSync, pSRep->ulSizeSync, pSRep->iMsgErr, pSRep->ulSizeErr);
+		   pSRep->iMsgSync, pSRep->llSizeSync, pSRep->iMsgErr, pSRep->llSizeErr);
 
 	RLckUnlockEX(hResLock);
 

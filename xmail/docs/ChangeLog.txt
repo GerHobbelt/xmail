@@ -14,6 +14,8 @@ CHANGE LOG
 
     *   Tweaked DNS resolution to cope with lame name servers.
 
+    *   Support for greater than 2GB sizes in POP3 server and PSYNC.
+
     *   Safer temporary file name generation.
 
     *   Made the temporary directory on Unix, configurable via the

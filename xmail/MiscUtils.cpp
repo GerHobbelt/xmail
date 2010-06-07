@@ -579,7 +579,7 @@ int MscClearDirectory(char const *pszPath, int iRecurseSubs)
 static int MscCopyFileLL(char const *pszCopyTo, char const *pszCopyFrom,
 			 char const *pszMode)
 {
-	int iRead;
+	size_t RdBytes;
 	FILE *pFileIn, *pFileOut;
 	char szBuffer[2048];
 
@@ -593,8 +593,8 @@ static int MscCopyFileLL(char const *pszCopyTo, char const *pszCopyFrom,
 		return ERR_FILE_CREATE;
 	}
 	do {
-		if ((iRead = fread(szBuffer, 1, sizeof(szBuffer), pFileIn)) > 0) {
-			if (fwrite(szBuffer, 1, iRead, pFileOut) != iRead) {
+		if ((RdBytes = fread(szBuffer, 1, sizeof(szBuffer), pFileIn)) > 0) {
+			if (fwrite(szBuffer, 1, RdBytes, pFileOut) != RdBytes) {
 				fclose(pFileOut);
 				fclose(pFileIn);
 				SysRemove(pszCopyTo);
@@ -603,7 +603,7 @@ static int MscCopyFileLL(char const *pszCopyTo, char const *pszCopyFrom,
 				return ERR_FILE_WRITE;
 			}
 		}
-	} while (iRead == sizeof(szBuffer));
+	} while (RdBytes == sizeof(szBuffer));
 	fclose(pFileOut);
 	fclose(pFileIn);
 
@@ -623,7 +623,7 @@ int MscAppendFile(char const *pszCopyTo, char const *pszCopyFrom)
 int MscCopyFile(FILE *pFileOut, FILE *pFileIn, SYS_OFF_T llBaseOffset,
 		SYS_OFF_T llCopySize)
 {
-	int iToRead, iRead;
+	size_t RdBytes, ToRead;
 	SYS_OFF_T llFileSize;
 	char szBuffer[2048];
 
@@ -637,15 +637,15 @@ int MscCopyFile(FILE *pFileOut, FILE *pFileIn, SYS_OFF_T llBaseOffset,
 		llCopySize = Min(llCopySize, llFileSize - llBaseOffset);
 	Sys_fseek(pFileIn, llBaseOffset, SEEK_SET);
 	while (llCopySize > 0) {
-		iToRead = (int) Min(llCopySize, sizeof(szBuffer));
-		if ((iRead = fread(szBuffer, 1, iToRead, pFileIn)) > 0) {
-			if (fwrite(szBuffer, 1, iRead, pFileOut) != iRead) {
+		ToRead = (size_t) Min(llCopySize, sizeof(szBuffer));
+		if ((RdBytes = fread(szBuffer, 1, ToRead, pFileIn)) > 0) {
+			if (fwrite(szBuffer, 1, RdBytes, pFileOut) != RdBytes) {
 				ErrSetErrorCode(ERR_FILE_WRITE);
 				return ERR_FILE_WRITE;
 			}
-			llCopySize -= iRead;
+			llCopySize -= RdBytes;
 		}
-		if (iRead != iToRead) {
+		if (RdBytes != ToRead) {
 			ErrSetErrorCode(ERR_FILE_READ);
 			return ERR_FILE_READ;
 		}
@@ -1013,13 +1013,13 @@ int MscLoadAddressFilter(char const *const *ppszFilter, int iNumTokens, AddressF
 		int iMaskBits = atoi(pszMask + 1);
 		char szFilter[128];
 
-		iAddrLength = Min(iAddrLength, sizeof(szFilter) - 1);
+		iAddrLength = Min(iAddrLength, (int) sizeof(szFilter) - 1);
 		Cpy2Sz(szFilter, ppszFilter[0], iAddrLength);
 		if (SysGetHostByName(szFilter, -1, AF.Addr) < 0)
 			return ErrGetErrorCode();
 
 		ZeroData(AF.Mask);
-		iMaskBits = Min(iMaskBits, 8 * sizeof(AF.Mask));
+		iMaskBits = Min(iMaskBits, CHAR_BIT * (int) sizeof(AF.Mask));
 		for (i = 0; (i + CHAR_BIT) <= iMaskBits; i += CHAR_BIT)
 			AF.Mask[i / CHAR_BIT] = 0xff;
 		if (i < iMaskBits)
@@ -1035,7 +1035,7 @@ int MscLoadAddressFilter(char const *const *ppszFilter, int iNumTokens, AddressF
 		    (pAData = SysInetAddrData(Mask, &iASize)) == NULL)
 			return ErrGetErrorCode();
 		ZeroData(AF.Mask);
-		memcpy(AF.Mask, pAData, Min(iASize, sizeof(AF.Mask)));
+		memcpy(AF.Mask, pAData, Min(iASize, (int) sizeof(AF.Mask)));
 	} else {
 		ErrSetErrorCode(ERR_INVALID_PARAMETER);
 		return ERR_INVALID_PARAMETER;
