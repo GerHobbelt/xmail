@@ -52,7 +52,7 @@
 
 #define CTRL_ACCOUNTS_FILE      "ctrlaccounts.tab"
 #define CTRL_ACCOUNTS_LINE_MAX  512
-#define STD_CTRL_TIMEOUT        45
+#define STD_CTRL_TIMEOUT        45000
 #define CTRL_IPMAP_FILE         "ctrl.ipmap.tab"
 #define CTRL_LOG_FILE           "ctrl"
 #define CTRL_MAX_LINE_SIZE      4096

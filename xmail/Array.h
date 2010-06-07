@@ -31,12 +31,12 @@ typedef struct ARRAY_HANDLE_struct {
 } *ARRAY_HANDLE;
 
 
-ARRAY_HANDLE ArrayCreate(long lSize);
-void ArrayFree(ARRAY_HANDLE hArray, void (*pfFree)(void *, void *),
+ARRAY_HANDLE ArrayCreate(unsigned long ulSize);
+void ArrayFree(ARRAY_HANDLE hArray, void (*pFree)(void *, void *),
 	       void *pPrivate);
-int ArraySet(ARRAY_HANDLE hArray, long lIdx, void *pData);
-long ArrayLength(ARRAY_HANDLE hArray);
-void *ArrayGet(ARRAY_HANDLE hArray, long lIdx);
+int ArraySet(ARRAY_HANDLE hArray, unsigned long ulIdx, void *pData);
+unsigned long ArrayCount(ARRAY_HANDLE hArray);
+void *ArrayGet(ARRAY_HANDLE hArray, unsigned long ulIdx);
 int ArrayAppend(ARRAY_HANDLE hArray, void *pData);
 
 #endif

@@ -359,11 +359,8 @@ static int QueScanRsndArena(MessageQueue *pMQ)
 			++pMQ->iReadyCount;
 		}
 	}
-
-	/* If the count of rsnd queue is not zero, set the event */
 	if (pMQ->iReadyCount > 0)
 		SysSetEvent(pMQ->hReadyEvent);
-
 	SysUnlockMutex(pMQ->hMutex);
 
 	return 0;

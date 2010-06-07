@@ -25,19 +25,34 @@
 #include "SysDepUnix.h"
 #include "AppDefines.h"
 
+#define SCHED_PRIORITY_INC     5
+#define SYS_MAX_TH_EXIT_HOOKS  64
+#define SYS_PWAIT_HASHSIZE     101
 
-#define SCHED_PRIORITY_INC          5
-#define SYS_MAX_TH_EXIT_HOOKS       64
+#define SYSERR_EXEC            255
 
-#define WAIT_PID_TIME_STEP          250
-#define WAIT_TIMEO_EXIT_STATUS      255
-#define WAIT_ERROR_EXIT_STATUS      254
+#define SYS_INT_CALL()       (!iShutDown && (errno == EINTR))
+#define SYS_CLOSE_PIPE(p)    do { close((p)[0]); close((p)[1]); } while (0)
+#define SYS_STDERR_WRITE(s)  write(2, s, strlen(s))
+
+struct PidWaitData {
+	SysListHead Lnk;
+	int iPipeFds[2];
+	pid_t PID;
+	int iExitStatus;
+	int iTermSignal;
+};
 
 static int iNumThExitHooks;
 static volatile int iShutDown;
+static pthread_t SigThreadID;
+static int iSignalPipe[2];
+static int iShutdownPipe[2];
+static pthread_mutex_t PWaitMutex = PTHREAD_MUTEX_INITIALIZER;
+static SysListHead PWaitLists[SYS_PWAIT_HASHSIZE];
 static ThreadExitHook ThExitHooks[SYS_MAX_TH_EXIT_HOOKS];
 static pthread_mutex_t LogMutex = PTHREAD_MUTEX_INITIALIZER;
-static void (*SysBreakHandler) (void) = NULL;
+static void (*pSysBreakHandler) (void) = NULL;
 static int iSndBufSize = -1, iRcvBufSize = -1;
 
 static int SysSetSignal(int iSigNo, void (*pSigProc) (int))
@@ -45,11 +60,6 @@ static int SysSetSignal(int iSigNo, void (*pSigProc) (int))
 	signal(iSigNo, pSigProc);
 
 	return 0;
-}
-
-static void SysIgnoreProc(int iSignal)
-{
-	SysSetSignal(iSignal, SysIgnoreProc);
 }
 
 static void SysRunThreadExitHooks(SYS_THREAD ThreadID, int iMode)
@@ -60,7 +70,92 @@ static void SysRunThreadExitHooks(SYS_THREAD ThreadID, int iMode)
 		(*ThExitHooks[i].pfHook)(ThExitHooks[i].pPrivate, ThreadID, iMode);
 }
 
-static int SysThreadSetup(ThrData *pTD)
+static void SysGetTimeOfDay(struct timespec *pTS)
+{
+	struct timeval tvNow;
+
+	gettimeofday(&tvNow, NULL);
+	pTS->tv_sec = tvNow.tv_sec;
+	pTS->tv_nsec = tvNow.tv_usec * 1000L;
+}
+
+static void SysTimeAddOffset(struct timespec *pTS, long iMsOffset)
+{
+	pTS->tv_sec += iMsOffset / 1000;
+	pTS->tv_nsec += (iMsOffset % 1000) * 1000000L;
+	if (pTS->tv_nsec >= 1000000000L) {
+		pTS->tv_sec += pTS->tv_nsec / 1000000000L;
+		pTS->tv_nsec %= 1000000000L;
+	}
+}
+
+static int SysBlockFD(int iFD, int iBlocking)
+{
+	long lFlags;
+
+	if ((lFlags = fcntl(iFD, F_GETFL, 0)) == -1) {
+		ErrSetErrorCode(ERR_NETWORK);
+		return ERR_NETWORK;
+	}
+	if (iBlocking == 0)
+		lFlags |= O_NONBLOCK;
+	else
+		lFlags &= ~O_NONBLOCK;
+	if (fcntl(iFD, F_SETFL, lFlags) == -1) {
+		ErrSetErrorCode(ERR_NETWORK);
+		return ERR_NETWORK;
+	}
+
+	return 0;
+}
+
+static int SysFdWait(int iFD, unsigned int uEvents, int iTimeout)
+{
+	int iError;
+	struct pollfd PollFD[2];
+
+	ZeroData(PollFD);
+	PollFD[0].fd = iFD;
+	PollFD[0].events = uEvents;
+	PollFD[1].fd = iShutdownPipe[0];
+	PollFD[1].events = POLLIN;
+	if ((iError = poll(PollFD, 2, iTimeout)) == -1) {
+		ErrSetErrorCode(ERR_WAIT);
+		return ERR_WAIT;
+	}
+	if (iError == 0) {
+		ErrSetErrorCode(ERR_TIMEOUT);
+		return ERR_TIMEOUT;
+	}
+	if (PollFD[1].revents & POLLIN) {
+		ErrSetErrorCode(ERR_SERVER_SHUTDOWN);
+		return ERR_SERVER_SHUTDOWN;
+	}
+
+	return 0;
+}
+
+static void SysPostSignal(int iSignal)
+{
+	unsigned char uSignal;
+
+	if (iSignal > 0 && iSignal <= 255) {
+		/*
+		 * write(2) is async-signal-safe, so we should have no worry
+		 * in using it inside the signal handler.
+		 * The pipe write fd is non blocking, so we our handler should
+		 * return pretty fast.
+		 */
+		uSignal = (unsigned char) iSignal;
+		if (write(iSignalPipe[1], &uSignal,
+			  sizeof(uSignal)) != sizeof(uSignal))
+			SYS_STDERR_WRITE("Signal pipe full!\n");
+	} else
+		SYS_STDERR_WRITE("Signal out of range!\n");
+	SysSetSignal(iSignal, SysPostSignal);
+}
+
+static void SysSetupProcessSignals(void)
 {
 	sigset_t SigMask;
 
@@ -70,21 +165,122 @@ static int SysThreadSetup(ThrData *pTD)
 	sigaddset(&SigMask, SIGHUP);
 	sigaddset(&SigMask, SIGSTOP);
 	sigaddset(&SigMask, SIGCHLD);
-
+	sigaddset(&SigMask, SIGQUIT);
 	pthread_sigmask(SIG_BLOCK, &SigMask, NULL);
 
-	sigemptyset(&SigMask);
-	sigaddset(&SigMask, SIGQUIT);
+	SysSetSignal(SIGPIPE, SIG_IGN);
+	SysSetSignal(SIGQUIT, SysPostSignal);
+	SysSetSignal(SIGINT, SysPostSignal);
+	SysSetSignal(SIGHUP, SysPostSignal);
+	SysSetSignal(SIGCHLD, SysPostSignal);
+	SysSetSignal(SIGALRM, SysPostSignal);
+}
 
+static PidWaitData *SysCreatePidWait(pid_t PID)
+{
+	PidWaitData *pPWD;
+
+	if ((pPWD = (PidWaitData *) SysAlloc(sizeof(PidWaitData))) == NULL)
+		return NULL;
+	if (pipe(pPWD->iPipeFds) == -1) {
+		SysFree(pPWD);
+		ErrSetErrorCode(ERR_PIPE);
+		return NULL;
+	}
+	SysBlockFD(pPWD->iPipeFds[0], 0);
+	pPWD->PID = PID;
+	pPWD->iExitStatus = pPWD->iTermSignal = -1;
+
+	pthread_mutex_lock(&PWaitMutex);
+	SYS_LIST_ADDT(&pPWD->Lnk, &PWaitLists[PID % SYS_PWAIT_HASHSIZE]);
+	pthread_mutex_unlock(&PWaitMutex);
+
+	return pPWD;
+}
+
+static void SysFreePidWait(PidWaitData *pPWD)
+{
+	if (pPWD != NULL) {
+		pthread_mutex_lock(&PWaitMutex);
+		SYS_LIST_DEL(&pPWD->Lnk);
+		pthread_mutex_unlock(&PWaitMutex);
+		SYS_CLOSE_PIPE(pPWD->iPipeFds);
+		SysFree(pPWD);
+	}
+}
+
+static void SysHandle_SIGCHLD(void)
+{
+	int iStatus;
+	pid_t ExitPID;
+	SysListHead *pPos, *pHead;
+	PidWaitData *pPWD;
+
+	while ((ExitPID = waitpid(-1, &iStatus, WNOHANG)) > 0) {
+		pHead = &PWaitLists[ExitPID % SYS_PWAIT_HASHSIZE];
+
+		pthread_mutex_lock(&PWaitMutex);
+		for (pPos = SYS_LIST_FIRST(pHead); pPos != NULL;) {
+			pPWD = SYS_LIST_ENTRY(pPos, PidWaitData, Lnk);
+			pPos = SYS_LIST_NEXT(pPos, pHead);
+			if (pPWD->PID == ExitPID) {
+				if (WIFEXITED(iStatus))
+					pPWD->iExitStatus = WEXITSTATUS(iStatus);
+				if (WIFSIGNALED(iStatus))
+					pPWD->iTermSignal = WTERMSIG(iStatus);
+				SYS_LIST_DEL(&pPWD->Lnk);
+				write(pPWD->iPipeFds[1], ".", 1);
+			}
+		}
+		pthread_mutex_unlock(&PWaitMutex);
+	}
+}
+
+static void *SysSignalThread(void *pData)
+{
+	unsigned char uSignal;
+	sigset_t SigMask;
+
+	sigemptyset(&SigMask);
+	sigaddset(&SigMask, SIGALRM);
+	sigaddset(&SigMask, SIGINT);
+	sigaddset(&SigMask, SIGHUP);
+	sigaddset(&SigMask, SIGCHLD);
 	pthread_sigmask(SIG_UNBLOCK, &SigMask, NULL);
 
-	SysSetSignal(SIGQUIT, SysIgnoreProc);
-	SysSetSignal(SIGPIPE, SysIgnoreProc);
-	SysSetSignal(SIGCHLD, SysIgnoreProc);
+	for (;!iShutDown;) {
+		if (SysFdWait(iSignalPipe[0], POLLIN, -1) < 0 ||
+		    read(iSignalPipe[0], &uSignal,
+			 sizeof(uSignal)) != sizeof(uSignal))
+			continue;
 
+		switch (uSignal) {
+		case SIGQUIT:
+			iShutDown++;
+			break;
+
+		case SIGINT:
+		case SIGHUP:
+			if (pSysBreakHandler != NULL)
+				(*pSysBreakHandler)();
+			break;
+
+		case SIGCHLD:
+			SysHandle_SIGCHLD();
+			break;
+
+		case SIGALRM:
+			break;
+		}
+	}
+
+	return NULL;
+}
+
+static int SysThreadSetup(ThrData *pTD)
+{
 	SysRunThreadExitHooks(pTD != NULL ? (SYS_THREAD) pTD: SYS_INVALID_THREAD,
 			      SYS_THREAD_ATTACH);
-
 	if (pTD != NULL) {
 
 	}
@@ -119,20 +315,60 @@ static void SysThreadCleanup(ThrData *pTD)
 
 int SysInitLibrary(void)
 {
+	int i;
+
 	iShutDown = 0;
 	iNumThExitHooks = 0;
+	for (i = 0; i < CountOf(PWaitLists); i++)
+		SYS_INIT_LIST_HEAD(&PWaitLists[i]);
 	tzset();
-	if (SysDepInitLibrary() < 0 ||
-	    SysThreadSetup(NULL) < 0)
+	if (SysDepInitLibrary() < 0)
 		return ErrGetErrorCode();
+	if (pipe(iShutdownPipe) == -1) {
+		SysDepCleanupLibrary();
+		ErrSetErrorCode(ERR_PIPE);
+		return ERR_PIPE;
+	}
+	if (pipe(iSignalPipe) == -1) {
+		SYS_CLOSE_PIPE(iShutdownPipe);
+		SysDepCleanupLibrary();
+		ErrSetErrorCode(ERR_PIPE);
+		return ERR_PIPE;
+	}
+	SysBlockFD(iSignalPipe[1], 0);
+	SysSetupProcessSignals();
+	if (pthread_create(&SigThreadID, NULL, SysSignalThread, NULL) != 0) {
+		SYS_CLOSE_PIPE(iSignalPipe);
+		SYS_CLOSE_PIPE(iShutdownPipe);
+		SysDepCleanupLibrary();
+		ErrSetErrorCode(ERR_THREADCREATE);
+		return ERR_THREADCREATE;
+	}
+	if (SysThreadSetup(NULL) < 0) {
+		SYS_CLOSE_PIPE(iSignalPipe);
+		SYS_CLOSE_PIPE(iShutdownPipe);
+		SysDepCleanupLibrary();
+		return ErrGetErrorCode();
+	}
 	SRand();
 
 	return 0;
 }
 
+static void SysPostShutdown(void)
+{
+	iShutDown++;
+	write(iShutdownPipe[1], "s", 1);
+	kill(0, SIGQUIT);
+}
+
 void SysCleanupLibrary(void)
 {
+	SysPostShutdown();
 	SysThreadCleanup(NULL);
+	pthread_join(SigThreadID, NULL);
+	SYS_CLOSE_PIPE(iSignalPipe);
+	SYS_CLOSE_PIPE(iShutdownPipe);
 	SysDepCleanupLibrary();
 }
 
@@ -149,8 +385,7 @@ int SysAddThreadExitHook(void (*pfHook)(void *, SYS_THREAD, int), void *pPrivate
 
 int SysShutdownLibrary(int iMode)
 {
-	iShutDown++;
-	kill(0, SIGQUIT);
+	SysPostShutdown();
 
 	return 0;
 }
@@ -167,33 +402,27 @@ int SysSetupSocketBuffers(int *piSndBufSize, int *piRcvBufSize)
 
 static int SysSetSocketsOptions(SYS_SOCKET SockFD)
 {
-	/* Set socket buffer sizes */
-	if (iSndBufSize > 0) {
-		int iSize = iSndBufSize;
+	int iSize, iActivate;
+	struct linger Ling;
 
+	if (iSndBufSize > 0) {
+		iSize = iSndBufSize;
 		setsockopt((int) SockFD, SOL_SOCKET, SO_SNDBUF, (char const *) &iSize,
 			   sizeof(iSize));
 	}
 	if (iRcvBufSize > 0) {
-		int iSize = iRcvBufSize;
-
+		iSize = iRcvBufSize;
 		setsockopt((int) SockFD, SOL_SOCKET, SO_RCVBUF, (char const *) &iSize,
 			   sizeof(iSize));
 	}
-
-	int iActivate = 1;
-
+	iActivate = 1;
 	if (setsockopt(SockFD, SOL_SOCKET, SO_REUSEADDR, (char const *) &iActivate,
 		       sizeof(iActivate)) != 0) {
 		ErrSetErrorCode(ERR_SETSOCKOPT);
 		return ERR_SETSOCKOPT;
 	}
 	/* Disable linger */
-	struct linger Ling;
-
 	ZeroData(Ling);
-	Ling.l_onoff = 0;
-	Ling.l_linger = 0;
 
 	setsockopt(SockFD, SOL_SOCKET, SO_LINGER, (char const *) &Ling, sizeof(Ling));
 
@@ -222,22 +451,7 @@ SYS_SOCKET SysCreateSocket(int iAddressFamily, int iType, int iProtocol)
 
 int SysBlockSocket(SYS_SOCKET SockFD, int iBlocking)
 {
-	long lSockFlags = fcntl((int) SockFD, F_GETFL, 0);
-
-	if (lSockFlags == -1) {
-		ErrSetErrorCode(ERR_NETWORK);
-		return ERR_NETWORK;
-	}
-	if (iBlocking == 0)
-		lSockFlags |= O_NONBLOCK;
-	else
-		lSockFlags &= ~O_NONBLOCK;
-	if (fcntl((int) SockFD, F_SETFL, lSockFlags) == -1) {
-		ErrSetErrorCode(ERR_NETWORK);
-		return ERR_NETWORK;
-	}
-
-	return 0;
+	return SysBlockFD((int) SockFD, iBlocking);
 }
 
 void SysCloseSocket(SYS_SOCKET SockFD)
@@ -273,24 +487,10 @@ void SysListenSocket(SYS_SOCKET SockFD, int iConnections)
 
 int SysRecvData(SYS_SOCKET SockFD, char *pszBuffer, int iBufferSize, int iTimeout)
 {
-	struct pollfd pfds;
-
-	ZeroData(pfds);
-	pfds.fd = (int) SockFD;
-	pfds.events = POLLIN;
-
-	int iPollResult = poll(&pfds, 1, iTimeout * 1000);
-
-	if (iPollResult == -1) {
-		ErrSetErrorCode(ERR_NETWORK);
-		return ERR_NETWORK;
-	}
-	if (iPollResult == 0) {
-		ErrSetErrorCode(ERR_TIMEOUT);
-		return ERR_TIMEOUT;
-	}
-
 	int iRecvBytes;
+
+	if (SysFdWait((int) SockFD, POLLIN, iTimeout) < 0)
+		return ErrGetErrorCode();
 
 	while ((iRecvBytes = recv((int) SockFD, pszBuffer, iBufferSize, 0)) == -1 &&
 	       SYS_INT_CALL());
@@ -305,12 +505,11 @@ int SysRecvData(SYS_SOCKET SockFD, char *pszBuffer, int iBufferSize, int iTimeou
 
 int SysRecv(SYS_SOCKET SockFD, char *pszBuffer, int iBufferSize, int iTimeout)
 {
-	int iRtxBytes = 0;
+	int iRtxBytes = 0, iRtxCurrent;
 
 	while (iRtxBytes < iBufferSize) {
-		int iRtxCurrent = SysRecvData(SockFD, pszBuffer + iRtxBytes,
-					      iBufferSize - iRtxBytes, iTimeout);
-
+		iRtxCurrent = SysRecvData(SockFD, pszBuffer + iRtxBytes,
+					  iBufferSize - iRtxBytes, iTimeout);
 		if (iRtxCurrent <= 0)
 			return iRtxBytes;
 		iRtxBytes += iRtxCurrent;
@@ -322,25 +521,11 @@ int SysRecv(SYS_SOCKET SockFD, char *pszBuffer, int iBufferSize, int iTimeout)
 int SysRecvDataFrom(SYS_SOCKET SockFD, SYS_INET_ADDR *pFrom, char *pszBuffer,
 		    int iBufferSize, int iTimeout)
 {
-	struct pollfd pfds;
-
-	ZeroData(pfds);
-	pfds.fd = (int) SockFD;
-	pfds.events = POLLIN;
-
-	int iPollResult = poll(&pfds, 1, iTimeout * 1000);
-
-	if (iPollResult == -1) {
-		ErrSetErrorCode(ERR_NETWORK);
-		return ERR_NETWORK;
-	}
-	if (iPollResult == 0) {
-		ErrSetErrorCode(ERR_TIMEOUT);
-		return ERR_TIMEOUT;
-	}
-
 	socklen_t SockALen = (socklen_t) sizeof(pFrom->Addr);
 	int iRecvBytes;
+
+	if (SysFdWait((int) SockFD, POLLIN, iTimeout) < 0)
+		return ErrGetErrorCode();
 
 	while ((iRecvBytes = recvfrom((int) SockFD, pszBuffer, iBufferSize, 0,
 				      (struct sockaddr *) pFrom->Addr,
@@ -357,24 +542,10 @@ int SysRecvDataFrom(SYS_SOCKET SockFD, SYS_INET_ADDR *pFrom, char *pszBuffer,
 
 int SysSendData(SYS_SOCKET SockFD, char const *pszBuffer, int iBufferSize, int iTimeout)
 {
-	struct pollfd pfds;
-
-	ZeroData(pfds);
-	pfds.fd = (int) SockFD;
-	pfds.events = POLLOUT;
-
-	int iPollResult = poll(&pfds, 1, iTimeout * 1000);
-
-	if (iPollResult == -1) {
-		ErrSetErrorCode(ERR_NETWORK);
-		return ERR_NETWORK;
-	}
-	if (iPollResult == 0) {
-		ErrSetErrorCode(ERR_TIMEOUT);
-		return ERR_TIMEOUT;
-	}
-
 	int iSendBytes;
+
+	if (SysFdWait((int) SockFD, POLLOUT, iTimeout) < 0)
+		return ErrGetErrorCode();
 
 	while ((iSendBytes = send((int) SockFD, pszBuffer, iBufferSize, 0)) == -1 &&
 	       SYS_INT_CALL());
@@ -389,12 +560,11 @@ int SysSendData(SYS_SOCKET SockFD, char const *pszBuffer, int iBufferSize, int i
 
 int SysSend(SYS_SOCKET SockFD, char const *pszBuffer, int iBufferSize, int iTimeout)
 {
-	int iRtxBytes = 0;
+	int iRtxBytes = 0, iRtxCurrent;
 
 	while (iRtxBytes < iBufferSize) {
-		int iRtxCurrent = SysSendData(SockFD, pszBuffer + iRtxBytes,
-					      iBufferSize - iRtxBytes, iTimeout);
-
+		iRtxCurrent = SysSendData(SockFD, pszBuffer + iRtxBytes,
+					  iBufferSize - iRtxBytes, iTimeout);
 		if (iRtxCurrent <= 0)
 			return iRtxBytes;
 		iRtxBytes += iRtxCurrent;
@@ -406,24 +576,10 @@ int SysSend(SYS_SOCKET SockFD, char const *pszBuffer, int iBufferSize, int iTime
 int SysSendDataTo(SYS_SOCKET SockFD, const SYS_INET_ADDR *pTo,
 		  char const *pszBuffer, int iBufferSize, int iTimeout)
 {
-	struct pollfd pfds;
-
-	ZeroData(pfds);
-	pfds.fd = (int) SockFD;
-	pfds.events = POLLOUT;
-
-	int iPollResult = poll(&pfds, 1, iTimeout * 1000);
-
-	if (iPollResult == -1) {
-		ErrSetErrorCode(ERR_NETWORK);
-		return ERR_NETWORK;
-	}
-	if (iPollResult == 0) {
-		ErrSetErrorCode(ERR_TIMEOUT);
-		return ERR_TIMEOUT;
-	}
-
 	int iSendBytes;
+
+	if (SysFdWait((int) SockFD, POLLOUT, iTimeout) < 0)
+		return ErrGetErrorCode();
 
 	while ((iSendBytes = sendto((int) SockFD, pszBuffer, iBufferSize, 0,
 				    (const struct sockaddr *) pTo->Addr,
@@ -440,6 +596,8 @@ int SysSendDataTo(SYS_SOCKET SockFD, const SYS_INET_ADDR *pTo,
 
 int SysConnect(SYS_SOCKET SockFD, const SYS_INET_ADDR *pSockName, int iTimeout)
 {
+	int iError;
+
 	if (SysBlockSocket(SockFD, 0) < 0)
 		return ErrGetErrorCode();
 
@@ -455,45 +613,17 @@ int SysConnect(SYS_SOCKET SockFD, const SYS_INET_ADDR *pSockName, int iTimeout)
 		return ERR_NETWORK;
 	}
 
-	struct pollfd pfds;
-
-	ZeroData(pfds);
-	pfds.fd = (int) SockFD;
-	pfds.events = POLLOUT;
-
-	int iPollResult = poll(&pfds, 1, iTimeout * 1000);
+	iError = SysFdWait((int) SockFD, POLLOUT, iTimeout);
 
 	SysBlockSocket(SockFD, 1);
-	if (iPollResult == -1) {
-		ErrSetErrorCode(ERR_NETWORK);
-		return ERR_NETWORK;
-	}
-	if (iPollResult == 0) {
-		ErrSetErrorCode(ERR_TIMEOUT);
-		return ERR_TIMEOUT;
-	}
 
-	return 0;
+	return iError;
 }
 
 SYS_SOCKET SysAccept(SYS_SOCKET SockFD, SYS_INET_ADDR *pSockName, int iTimeout)
 {
-	struct pollfd pfds;
-
-	ZeroData(pfds);
-	pfds.fd = (int) SockFD;
-	pfds.events = POLLIN;
-
-	int iPollResult = poll(&pfds, 1, iTimeout * 1000);
-
-	if (iPollResult == -1) {
-		ErrSetErrorCode(ERR_NETWORK);
-		return SYS_INVALID_SOCKET;
-	}
-	if (iPollResult == 0) {
-		ErrSetErrorCode(ERR_TIMEOUT);
-		return SYS_INVALID_SOCKET;
-	}
+	if (SysFdWait((int) SockFD, POLLIN, iTimeout) < 0)
+		return ErrGetErrorCode();
 
 	socklen_t SockALen = (socklen_t) sizeof(pSockName->Addr);
 	int iAcptSock = accept((int) SockFD,
@@ -519,10 +649,13 @@ int SysSelect(int iMaxFD, SYS_fd_set *pReadFDs, SYS_fd_set *pWriteFDs, SYS_fd_se
 	struct timeval TV;
 
 	ZeroData(TV);
-	TV.tv_sec = iTimeout;
-	TV.tv_usec = 0;
+	if (iTimeout >= 0) {
+		TV.tv_sec = iTimeout / 1000;
+		TV.tv_usec = (iTimeout % 1000) * 1000;
+	}
 
-	int iSelectResult = select(iMaxFD + 1, pReadFDs, pWriteFDs, pExcptFDs, &TV);
+	int iSelectResult = select(iMaxFD + 1, pReadFDs, pWriteFDs, pExcptFDs,
+				   iTimeout >= 0 ? &TV: NULL);
 
 	if (iSelectResult == -1) {
 		ErrSetErrorCode(ERR_SELECT);
@@ -539,59 +672,56 @@ int SysSelect(int iMaxFD, SYS_fd_set *pReadFDs, SYS_fd_set *pWriteFDs, SYS_fd_se
 int SysSendFileMMap(SYS_SOCKET SockFD, char const *pszFileName, SYS_OFF_T llBaseOffset,
 		    SYS_OFF_T llEndOffset, int iTimeout)
 {
-	int iFileID = open(pszFileName, O_RDONLY);
+	int iFD;
+	SYS_OFF_T llAlnOff, llFileSize;
 
-	if (iFileID == -1) {
+	if ((iFD = open(pszFileName, O_RDONLY)) == -1) {
 		ErrSetErrorCode(ERR_FILE_OPEN, pszFileName);
 		return ERR_FILE_OPEN;
 	}
-
-	SYS_OFF_T llAlnOff, llFileSize;
-
-	llFileSize = (SYS_OFF_T) lseek(iFileID, 0, SEEK_END);
-	lseek(iFileID, 0, SEEK_SET);
+	llFileSize = (SYS_OFF_T) lseek(iFD, 0, SEEK_END);
+	lseek(iFD, 0, SEEK_SET);
 	llAlnOff = llBaseOffset & ~((SYS_OFF_T) sysconf(_SC_PAGESIZE) - 1);
 	if (llEndOffset == -1)
 		llEndOffset = llFileSize;
 	if (llBaseOffset > llFileSize || llEndOffset > llFileSize ||
 	    llBaseOffset > llEndOffset) {
-		close(iFileID);
+		close(iFD);
 		ErrSetErrorCode(ERR_INVALID_PARAMETER);
 		return ERR_INVALID_PARAMETER;
 	}
 
 	void *pMapAddress = (void *) mmap((char *) 0, llEndOffset - llAlnOff,
-					  PROT_READ, MAP_SHARED, iFileID, llAlnOff);
+					  PROT_READ, MAP_SHARED, iFD, llAlnOff);
 
 	if (pMapAddress == (void *) -1) {
-		close(iFileID);
+		close(iFD);
 		ErrSetErrorCode(ERR_MMAP);
 		return ERR_MMAP;
 	}
-	/* Send the file */
-	int iCurrSend, iSndBuffSize = MIN_TCP_SEND_SIZE;
+
+	int iCurrSend, iSndBuffSize = (iTimeout != SYS_INFINITE_TIMEOUT) ?
+		MIN_TCP_SEND_SIZE: MAX_TCP_SEND_SIZE;
 	char *pszBuffer = (char *) pMapAddress + (llBaseOffset - llAlnOff);
-	time_t tStart;
+	SYS_INT64 tStart;
 
 	while (llBaseOffset < llEndOffset) {
 		iCurrSend = (int) Min(iSndBuffSize, llEndOffset - llBaseOffset);
-		tStart = time(NULL);
+		tStart = SysMsTime();
 		if ((iCurrSend = SysSendData(SockFD, pszBuffer, iCurrSend, iTimeout)) < 0) {
 			ErrorPush();
 			munmap((char *) pMapAddress, llEndOffset - llAlnOff);
-			close(iFileID);
+			close(iFD);
 			return ErrorPop();
 		}
-
-		if (((time(NULL) - tStart) * K_IO_TIME_RATIO) < iTimeout &&
-		    iSndBuffSize < MAX_TCP_SEND_SIZE)
+		if (iSndBuffSize < MAX_TCP_SEND_SIZE &&
+		    ((SysMsTime() - tStart) * K_IO_TIME_RATIO) < (SYS_INT64) iTimeout)
 			iSndBuffSize = Min(iSndBuffSize * 2, MAX_TCP_SEND_SIZE);
-
 		pszBuffer += iCurrSend;
 		llBaseOffset += (unsigned long) iCurrSend;
 	}
 	munmap((char *) pMapAddress, llEndOffset - llAlnOff);
-	close(iFileID);
+	close(iFD);
 
 	return 0;
 }
@@ -660,17 +790,15 @@ int SysWaitSemaphore(SYS_SEMAPHORE hSemaphore, int iTimeout)
 		pSD->iSemCounter -= 1;
 	} else {
 		int iRetCode = 0;
-		struct timeval tvNow;
-		struct timespec tsTimeout;
+		struct timespec tsExpire;
 
-		gettimeofday(&tvNow, NULL);
-		tsTimeout.tv_sec = tvNow.tv_sec + iTimeout;
-		tsTimeout.tv_nsec = tvNow.tv_usec * 1000;
-		while ((pSD->iSemCounter <= 0) && (iRetCode != ETIMEDOUT)) {
+		SysGetTimeOfDay(&tsExpire);
+		SysTimeAddOffset(&tsExpire, iTimeout);
+		while (pSD->iSemCounter <= 0 && iRetCode != ETIMEDOUT) {
 			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock,
 					     &pSD->Mtx);
 			iRetCode = pthread_cond_timedwait(&pSD->WaitCond, &pSD->Mtx,
-							  &tsTimeout);
+							  &tsExpire);
 			pthread_cleanup_pop(0);
 		}
 		if (iRetCode == ETIMEDOUT) {
@@ -769,17 +897,15 @@ int SysLockMutex(SYS_MUTEX hMutex, int iTimeout)
 		pMD->iLocked = 1;
 	} else {
 		int iRetCode = 0;
-		struct timeval tvNow;
-		struct timespec tsTimeout;
+		struct timespec tsExpire;
 
-		gettimeofday(&tvNow, NULL);
-		tsTimeout.tv_sec = tvNow.tv_sec + iTimeout;
-		tsTimeout.tv_nsec = tvNow.tv_usec * 1000;
-		while (pMD->iLocked && (iRetCode != ETIMEDOUT)) {
+		SysGetTimeOfDay(&tsExpire);
+		SysTimeAddOffset(&tsExpire, iTimeout);
+		while (pMD->iLocked && iRetCode != ETIMEDOUT) {
 			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock,
 					     &pMD->Mtx);
 			iRetCode = pthread_cond_timedwait(&pMD->WaitCond, &pMD->Mtx,
-							  &tsTimeout);
+							  &tsExpire);
 			pthread_cleanup_pop(0);
 		}
 		if (iRetCode == ETIMEDOUT) {
@@ -875,17 +1001,15 @@ int SysWaitEvent(SYS_EVENT hEvent, int iTimeout)
 			pED->iSignaled = 0;
 	} else {
 		int iRetCode = 0;
-		struct timeval tvNow;
-		struct timespec tsTimeout;
+		struct timespec tsExpire;
 
-		gettimeofday(&tvNow, NULL);
-		tsTimeout.tv_sec = tvNow.tv_sec + iTimeout;
-		tsTimeout.tv_nsec = tvNow.tv_usec * 1000;
-		while (!pED->iSignaled && (iRetCode != ETIMEDOUT)) {
+		SysGetTimeOfDay(&tsExpire);
+		SysTimeAddOffset(&tsExpire, iTimeout);
+		while (!pED->iSignaled && iRetCode != ETIMEDOUT) {
 			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock,
 					     &pED->Mtx);
 			iRetCode = pthread_cond_timedwait(&pED->WaitCond, &pED->Mtx,
-							  &tsTimeout);
+							  &tsExpire);
 			pthread_cleanup_pop(0);
 		}
 		if (iRetCode == ETIMEDOUT) {
@@ -942,6 +1066,98 @@ int SysTryWaitEvent(SYS_EVENT hEvent)
 	pthread_mutex_unlock(&pED->Mtx);
 
 	return 0;
+}
+
+/*
+ * PEvents are events that can be waited together with socket descriptors.
+ * On Unix, the best and more efficient event implementation is the one using
+ * the pthread API, which, unfortunately, does not allow us to poll/select
+ * the resulting events together with socket descriptors.
+ */
+SYS_PEVENT SysCreatePEvent(int iManualReset)
+{
+	PEventData *pPED;
+
+	if ((pPED = (PEventData *) SysAlloc(sizeof(PEventData))) == NULL)
+		return SYS_INVALID_PEVENT;
+	pPED->iManualReset = iManualReset;
+	if (pipe(pPED->PipeFds) == -1) {
+		SysFree(pPED);
+		ErrSetErrorCode(ERR_PIPE);
+		return SYS_INVALID_PEVENT;
+	}
+	if (SysBlockFD(pPED->PipeFds[0], 0) < 0 ||
+	    SysBlockFD(pPED->PipeFds[1], 0) < 0) {
+		SYS_CLOSE_PIPE(pPED->PipeFds);
+		SysFree(pPED);
+		return SYS_INVALID_PEVENT;
+	}
+
+	return (SYS_PEVENT) pPED;
+}
+
+int SysClosePEvent(SYS_PEVENT hPEvent)
+{
+	PEventData *pPED = (PEventData *) hPEvent;
+
+	if (pPED != NULL) {
+		SYS_CLOSE_PIPE(pPED->PipeFds);
+		SysFree(pPED);
+	}
+
+	return 0;
+}
+
+int SysWaitPEvent(SYS_PEVENT hPEvent, int iTimeout)
+{
+	PEventData *pPED = (PEventData *) hPEvent;
+	int iCTimeout;
+	SYS_INT64 tNow, tExp;
+	char RbByte[1];
+
+	tExp = (iTimeout > 0) ? SysMsTime() + iTimeout: 0;
+	for (;;) {
+		if (iTimeout > 0) {
+			tNow = SysMsTime();
+			tNow = Min(tNow, tExp);
+			iCTimeout = (int) (tExp - tNow);
+		} else
+			iCTimeout = iTimeout;
+		if (SysFdWait(pPED->PipeFds[0], POLLIN, iCTimeout) < 0)
+			return ErrGetErrorCode();
+		if (pPED->iManualReset ||
+		    read(pPED->PipeFds[0], RbByte, 1) == 1)
+			break;
+	}
+
+	return 0;
+}
+
+int SysSetPEvent(SYS_PEVENT hPEvent)
+{
+	PEventData *pPED = (PEventData *) hPEvent;
+
+	if (write(pPED->PipeFds[1], ".", 1) != 1) {
+		ErrSetErrorCode(ERR_FILE_WRITE);
+		return ERR_FILE_WRITE;
+	}
+
+	return 0;
+}
+
+int SysResetPEvent(SYS_PEVENT hPEvent)
+{
+	PEventData *pPED = (PEventData *) hPEvent;
+	char RbBytes[512];
+
+	while (read(pPED->PipeFds[0], RbBytes, sizeof(RbBytes)) == sizeof(RbBytes));
+
+	return 0;
+}
+
+int SysTryWaitPEvent(SYS_PEVENT hPEvent)
+{
+	return SysWaitPEvent(hPEvent, 0);
 }
 
 static void *SysThreadStartup(void *pThreadData)
@@ -1001,8 +1217,8 @@ void SysCloseThread(SYS_THREAD ThreadID, int iForce)
 	ThrData *pTD = (ThrData *) ThreadID;
 
 	if (pTD != NULL) {
-		pthread_mutex_lock(&pTD->Mtx);
 		pthread_detach(pTD->ThreadId);
+		pthread_mutex_lock(&pTD->Mtx);
 		if (iForce && !pTD->iThreadEnded)
 			pthread_cancel(pTD->ThreadId);
 		if (--pTD->iUseCount == 0) {
@@ -1026,17 +1242,15 @@ int SysWaitThread(SYS_THREAD ThreadID, int iTimeout)
 		}
 	} else {
 		int iRetCode = 0;
-		struct timeval tvNow;
-		struct timespec tsTimeout;
+		struct timespec tsExpire;
 
-		gettimeofday(&tvNow, NULL);
-		tsTimeout.tv_sec = tvNow.tv_sec + iTimeout;
-		tsTimeout.tv_nsec = tvNow.tv_usec * 1000;
-		while (!pTD->iThreadEnded && (iRetCode != ETIMEDOUT)) {
+		SysGetTimeOfDay(&tsExpire);
+		SysTimeAddOffset(&tsExpire, iTimeout);
+		while (!pTD->iThreadEnded && iRetCode != ETIMEDOUT) {
 			pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock,
 					     &pTD->Mtx);
 			iRetCode = pthread_cond_timedwait(&pTD->ExitWaitCond, &pTD->Mtx,
-							  &tsTimeout);
+							  &tsExpire);
 			pthread_cleanup_pop(0);
 		}
 		if (iRetCode == ETIMEDOUT) {
@@ -1056,35 +1270,16 @@ unsigned long SysGetCurrentThreadId(void)
 	return (unsigned long) pthread_self();
 }
 
-static int SysSafeMsSleep(int iMsTimeout)
+static int SysWaitPid(PidWaitData *pPWD, int iTimeout)
 {
-	struct pollfd Dummy;
+	unsigned char uDot;
 
-	ZeroData(Dummy);
-	return (poll(&Dummy, 0, iMsTimeout) == 0) ? 1: 0;
-}
-
-static int SysWaitPID(pid_t PID, int *piExitCode, int iTimeout)
-{
-	pid_t ExitPID;
-	int iExitStatus, iStatus;
-
-	iTimeout *= 1000;
-	do {
-		if ((ExitPID = (pid_t) waitpid(PID, &iStatus, WNOHANG)) == PID) {
-			if (!WIFEXITED(iStatus))
-				return ERR_WAITPID;
-
-			iExitStatus = WEXITSTATUS(iStatus);
-			break;
-		}
-		SysSafeMsSleep(WAIT_PID_TIME_STEP);
-		iTimeout -= WAIT_PID_TIME_STEP;
-	} while (iTimeout > 0);
-	if (PID != ExitPID)
-		return ERR_TIMEOUT;
-	if (piExitCode != NULL)
-		*piExitCode = iExitStatus;
+	if (SysFdWait(pPWD->iPipeFds[0], POLLIN, iTimeout) < 0)
+		return ErrGetErrorCode();
+	if (read(pPWD->iPipeFds[0], &uDot, 1) != 1) {
+		ErrSetErrorCode(ERR_WAIT);
+		return ERR_WAIT;
+	}
 
 	return 0;
 }
@@ -1092,148 +1287,100 @@ static int SysWaitPID(pid_t PID, int *piExitCode, int iTimeout)
 int SysExec(char const *pszCommand, char const *const *pszArgs, int iWaitTimeout,
 	    int iPriority, int *piExitStatus)
 {
-	int iExitStatus;
-	pid_t ProcessID, ChildID, ExitPID;
-	int iPPipe[2], iCPipe[2];
+	int iError, iExitStatus;
+	pid_t ProcessID;
+	PidWaitData *pPWD;
+	int iPipe[2];
 
-	if (pipe(iPPipe) == -1) {
+	if (pipe(iPipe) == -1) {
 		ErrSetErrorCode(ERR_PIPE);
 		return ERR_PIPE;
 	}
-	if (pipe(iCPipe) == -1) {
-		close(iPPipe[1]);
-		close(iPPipe[0]);
-		ErrSetErrorCode(ERR_PIPE);
-		return ERR_PIPE;
-	}
-
 	ProcessID = fork();
 	if (ProcessID == 0) {
-		ChildID = fork();
-		if (ChildID == 0) {
-			close(iPPipe[1]);
-			close(iPPipe[0]);
+		/*
+		 * Wait for the unlock from the parent. We need to wait that
+		 * the parent has created a PidWaitData strcture and added it
+		 * to the list under the SIGCHLD handler control.  If we fail
+		 * to do that, we might miss the wakeup in case the child
+		 * process terminates quicly.
+		 */
+		read(iPipe[0], &ProcessID, sizeof(ProcessID));
 
-			/* Wait for the unlock from the parent */
-			read(iCPipe[0], &ChildID, sizeof(ChildID));
+		SYS_CLOSE_PIPE(iPipe);
 
-			close(iCPipe[1]);
-			close(iCPipe[0]);
+		/* Execute the command */
+		execv(pszCommand, (char **) pszArgs);
 
-			/* Execute the command */
-			execv(pszCommand, (char **) pszArgs);
+		/* We can only use async-signal safe functions, so we use write() directly */
+		SYS_STDERR_WRITE("execv error: cmd='");
+		SYS_STDERR_WRITE(pszCommand);
+		SYS_STDERR_WRITE("'\n");
 
-			/* We can only use async-signal safe functions, so we use write() directly */
-			write(2, "execv error: cmd='", 18);
-			write(2, pszCommand, strlen(pszCommand));
-			write(2, "'\n", 2);
-
-			_exit(WAIT_ERROR_EXIT_STATUS);
-		}
-
-		close(iCPipe[1]);
-		close(iCPipe[0]);
-
-		/* Tell the parent about the child-child PID */
-		write(iPPipe[1], &ChildID, sizeof(ChildID));
-
-		close(iPPipe[1]);
-		close(iPPipe[0]);
-
-		if (ChildID == (pid_t) -1)
-			_exit(WAIT_ERROR_EXIT_STATUS);
-
-		/* Wait for the child */
-		iExitStatus = WAIT_TIMEO_EXIT_STATUS;
-		if (iWaitTimeout > 0)
-			SysWaitPID(ChildID, &iExitStatus, iWaitTimeout);
-
-		_exit(iExitStatus);
+		_exit(SYSERR_EXEC);
 	}
-
-	if (ProcessID == (pid_t) -1 ||
-	    read(iPPipe[0], &ChildID, sizeof(ChildID)) != sizeof(ChildID)) {
-		close(iCPipe[1]);
-		close(iCPipe[0]);
-		close(iPPipe[1]);
-		close(iPPipe[0]);
+	if (ProcessID == (pid_t) -1) {
+		SYS_CLOSE_PIPE(iPipe);
 		ErrSetErrorCode(ERR_FORK);
 		return ERR_FORK;
 	}
-	close(iPPipe[1]);
-	close(iPPipe[0]);
+	switch (iPriority) {
+	case SYS_PRIORITY_NORMAL:
+		setpriority(PRIO_PROCESS, ProcessID, 0);
+		break;
 
-	if (ChildID != (pid_t) -1) {
-		/* Set process priority */
-		switch (iPriority) {
-		case SYS_PRIORITY_NORMAL:
-			setpriority(PRIO_PROCESS, ChildID, 0);
-			break;
+	case SYS_PRIORITY_LOWER:
+		setpriority(PRIO_PROCESS, ProcessID, SCHED_PRIORITY_INC);
+		break;
 
-		case SYS_PRIORITY_LOWER:
-			setpriority(PRIO_PROCESS, ChildID, SCHED_PRIORITY_INC);
-			break;
-
-		case SYS_PRIORITY_HIGHER:
-			setpriority(PRIO_PROCESS, ChildID, -SCHED_PRIORITY_INC);
-			break;
-		}
-
-		/* Unlock the child */
-		write(iCPipe[1], &ChildID, sizeof(ChildID));
+	case SYS_PRIORITY_HIGHER:
+		setpriority(PRIO_PROCESS, ProcessID, -SCHED_PRIORITY_INC);
+		break;
 	}
-	close(iCPipe[1]);
-	close(iCPipe[0]);
+	if (iWaitTimeout > 0 || iWaitTimeout == SYS_INFINITE_TIMEOUT) {
+		pPWD = SysCreatePidWait(ProcessID);
+		iError = (pPWD == NULL) ? ErrGetErrorCode(): 0;
 
-	/* Wait for completion (or timeout) */
-	while (((ExitPID = (pid_t) waitpid(ProcessID, &iExitStatus, 0)) != ProcessID) &&
-	       (errno == EINTR));
+		/*
+		 * Unlock the child process only once we dropped the PID wait into
+		 * our handling list.
+		 */
+		write(iPipe[1], &ProcessID, sizeof(ProcessID));
+		SYS_CLOSE_PIPE(iPipe);
 
-	if (ExitPID == ProcessID && WIFEXITED(iExitStatus))
-		iExitStatus = WEXITSTATUS(iExitStatus);
-	else
-		iExitStatus = WAIT_TIMEO_EXIT_STATUS;
-
-	if (iWaitTimeout > 0) {
-		if (iExitStatus == WAIT_TIMEO_EXIT_STATUS) {
-			ErrSetErrorCode(ERR_TIMEOUT);
-			return ERR_TIMEOUT;
+		if (pPWD == NULL) {
+			ErrSetErrorCode(iError);
+			return iError;
 		}
-		if (iExitStatus == WAIT_ERROR_EXIT_STATUS) {
-			ErrSetErrorCode(ERR_FORK);
-			return ERR_FORK;
+		if (SysWaitPid(pPWD, iWaitTimeout) < 0) {
+			SysFreePidWait(pPWD);
+			return ErrGetErrorCode();
 		}
-	} else
+		iExitStatus = pPWD->iExitStatus;
+		SysFreePidWait(pPWD);
+
+		if (iExitStatus == SYSERR_EXEC) {
+			ErrSetErrorCode(ERR_PROCESS_EXECUTE, pszCommand);
+			return ERR_PROCESS_EXECUTE;
+		}
+	} else {
+		/*
+		 * Unlock the child process only once we dropped the PID wait into
+		 * our handling list.
+		 */
+		write(iPipe[1], &ProcessID, sizeof(ProcessID));
+		SYS_CLOSE_PIPE(iPipe);
 		iExitStatus = -1;
-
+	}
 	if (piExitStatus != NULL)
 		*piExitStatus = iExitStatus;
 
 	return 0;
 }
 
-static void SysBreakHandlerRoutine(int iSignal)
+void SysSetBreakHandler(void (*pBreakHandler) (void))
 {
-	if (SysBreakHandler != NULL)
-		SysBreakHandler();
-	SysSetSignal(iSignal, SysBreakHandlerRoutine);
-}
-
-void SysSetBreakHandler(void (*BreakHandler) (void))
-{
-	SysBreakHandler = BreakHandler;
-
-	/* Setup signal handlers and enable signals */
-	SysSetSignal(SIGINT, SysBreakHandlerRoutine);
-	SysSetSignal(SIGHUP, SysBreakHandlerRoutine);
-
-	sigset_t SigMask;
-
-	sigemptyset(&SigMask);
-	sigaddset(&SigMask, SIGINT);
-	sigaddset(&SigMask, SIGHUP);
-
-	pthread_sigmask(SIG_UNBLOCK, &SigMask, NULL);
+	pSysBreakHandler = pBreakHandler;
 }
 
 unsigned long SysGetCurrentProcessId(void)
@@ -1315,21 +1462,18 @@ void *SysRealloc(void *pData, unsigned int uSize)
 
 int SysLockFile(char const *pszFileName, char const *pszLockExt)
 {
-	int iFileID;
-	char szLockFile[SYS_MAX_PATH] = "";
+	int iFD;
+	char szLockFile[SYS_MAX_PATH], szLock[128];
 
 	snprintf(szLockFile, sizeof(szLockFile) - 1, "%s%s", pszFileName, pszLockExt);
-	if ((iFileID = open(szLockFile, O_CREAT | O_EXCL | O_RDWR,
-			    S_IREAD | S_IWRITE)) == -1) {
+	if ((iFD = open(szLockFile, O_CREAT | O_EXCL | O_RDWR,
+			S_IREAD | S_IWRITE)) == -1) {
 		ErrSetErrorCode(ERR_LOCKED);
 		return ERR_LOCKED;
 	}
-
-	char szLock[128];
-
 	sprintf(szLock, "%lu", (unsigned long) SysGetCurrentThreadId());
-	write(iFileID, szLock, strlen(szLock) + 1);
-	close(iFileID);
+	write(iFD, szLock, strlen(szLock) + 1);
+	close(iFD);
 
 	return 0;
 }
@@ -1454,28 +1598,19 @@ static int SysSetupWait(WaitData *pWD)
 
 static int SysWait(WaitData *pWD, int iMsTimeout)
 {
-	struct timespec TV;
-	struct timeval TmNow;
-	int iErrorCode;
+	int iError;
+	struct timespec tsExpire;
 
-	gettimeofday(&TmNow, NULL);
-
-	TmNow.tv_sec += iMsTimeout / 1000;
-	TmNow.tv_usec += (iMsTimeout % 1000) * 1000;
-	TmNow.tv_sec += TmNow.tv_usec / 1000000;
-	TmNow.tv_usec %= 1000000;
-
-	TV.tv_sec = TmNow.tv_sec;
-	TV.tv_nsec = TmNow.tv_usec * 1000;
+	SysGetTimeOfDay(&tsExpire);
+	SysTimeAddOffset(&tsExpire, iMsTimeout);
 
 	pthread_mutex_lock(&pWD->Mtx);
 	pthread_cleanup_push((void (*)(void *)) pthread_mutex_unlock, &pWD->Mtx);
 
-	iErrorCode = pthread_cond_timedwait(&pWD->WaitCond, &pWD->Mtx, &TV);
+	iError = pthread_cond_timedwait(&pWD->WaitCond, &pWD->Mtx, &tsExpire);
 
 	pthread_cleanup_pop(1);
-
-	if (iErrorCode == ETIMEDOUT) {
+	if (iError == ETIMEDOUT) {
 		ErrSetErrorCode(ERR_TIMEOUT);
 		return ERR_TIMEOUT;
 	}

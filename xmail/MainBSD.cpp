@@ -87,7 +87,8 @@ static int MnSavePID(char const *pszPidFile)
 {
 	char szPidFile[SYS_MAX_PATH] = "";
 
-	snprintf(szPidFile, sizeof(szPidFile) - 1, "%s/%s.pid", MnGetPIDDir(), pszPidFile);
+	snprintf(szPidFile, sizeof(szPidFile) - 1, "%s/%s.pid", MnGetPIDDir(),
+		 pszPidFile);
 
 	FILE *pFile = fopen(szPidFile, "w");
 
@@ -105,8 +106,8 @@ static int MnRemovePID(char const *pszPidFile)
 {
 	char szPidFile[SYS_MAX_PATH] = "";
 
-	snprintf(szPidFile, sizeof(szPidFile) - 1, "%s/%s.pid", MnGetPIDDir(), pszPidFile);
-
+	snprintf(szPidFile, sizeof(szPidFile) - 1, "%s/%s.pid", MnGetPIDDir(),
+		 pszPidFile);
 	if (unlink(szPidFile) != 0) {
 		perror(szPidFile);
 		return -errno;
@@ -117,12 +118,10 @@ static int MnRemovePID(char const *pszPidFile)
 
 static void MnSIGCLD(int iSignal)
 {
-	int iExitStatus;
-	int iDeadPID;
+	int iExitStatus, iDeadPID;
 
-	while ((iDeadPID = wait3(&iExitStatus, WNOHANG, (struct rusage *) NULL)) > 0) {
-
-	}
+	while ((iDeadPID = wait3(&iExitStatus, WNOHANG,
+				 (struct rusage *) NULL)) > 0);
 	signal(iSignal, MnSIGCLD);
 }
 
@@ -134,14 +133,12 @@ static void MnSetupStdHandles(void)
 		MnEventLog("Cannot open file %s : %s", DEVNULL, strerror(errno));
 		exit(errno);
 	}
-
-	if ((dup2(iFD, 0) == -1) || (dup2(iFD, 1) == -1) || (dup2(iFD, 2) == -1)) {
+	if (dup2(iFD, 0) == -1 || dup2(iFD, 1) == -1 || dup2(iFD, 2) == -1) {
 		MnEventLog("File descriptor duplication error : %s", strerror(errno));
 		exit(errno);
 	}
-
-	close(iFD);
-
+	if (iFD > 2)
+		close(iFD);
 }
 
 static int MnDaemonBootStrap(void)

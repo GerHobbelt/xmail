@@ -59,9 +59,6 @@
 #define SPAMMERS_LINE_MAX       512
 #define SPAM_ADDRESS_LINE_MAX   512
 #define SMTPAUTH_LINE_MAX       512
-#define SMTP_EXTAUTH_TIMEOUT    60
-#define SMTP_EXTAUTH_PRIORITY   SYS_PRIORITY_NORMAL
-#define SMTP_EXTAUTH_SUCCESS    0
 
 #define SMTPCH_SUPPORT_SIZE     (1 << 0)
 #define SMTPCH_SUPPORT_TLS      (1 << 1)
@@ -599,7 +596,13 @@ char **USmtpGetPathStrings(char const *pszMailCmd)
 		ErrSetErrorCode(ERR_SMTP_PATH_PARSE_ERROR, pszMailCmd);
 		return NULL;
 	}
-	if (USmlValidAddress(pszOpen + 1, pszClose) < 0)
+	/*
+	 * USmlValidAddress() will fail with an empty address, but
+	 * USmtpGetPathStrings() should succeed anyway (returning an empty
+	 * recipient path array), so we check for length before calling
+	 * USmlValidAddress().
+	 */
+	if (iPathLength > 0 && USmlValidAddress(pszOpen + 1, pszClose) < 0)
 		return NULL;
 
 	char *pszPath = (char *) SysAlloc(iPathLength + 1);

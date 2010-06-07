@@ -43,7 +43,7 @@
 #include "AppDefines.h"
 #include "MailSvr.h"
 
-#define STD_POP3_TIMEOUT        30
+#define STD_POP3_TIMEOUT        30000
 #define POP3_IPMAP_FILE         "pop3.ipmap.tab"
 #define POP3_LOG_FILE           "pop3"
 

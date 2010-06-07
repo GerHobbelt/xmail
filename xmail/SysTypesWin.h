@@ -30,7 +30,7 @@
 #define BIG_ENDIAN_BITFIELD
 #endif
 
-#define SYS_INFINITE_TIMEOUT    (4 * 1024 * 1024)
+#define SYS_INFINITE_TIMEOUT    INFINITE
 #define SYS_DEFAULT_MAXCOUNT    (INT_MAX - 1)
 
 #define SYS_EOL                 "\r\n"
@@ -49,6 +49,7 @@
 #define SYS_INVALID_SEMAPHORE   ((SYS_SEMAPHORE) 0)
 #define SYS_INVALID_MUTEX       ((SYS_MUTEX) 0)
 #define SYS_INVALID_EVENT       ((SYS_EVENT) 0)
+#define SYS_INVALID_PEVENT      ((SYS_PEVENT) 0)
 #define SYS_INVALID_THREAD      ((SYS_THREAD) 0)
 #define SYS_INVALID_MMAP        ((SYS_MMAP) 0)
 
@@ -84,6 +85,7 @@ typedef int socklen_t;
 typedef HANDLE SYS_SEMAPHORE;
 typedef HANDLE SYS_MUTEX;
 typedef HANDLE SYS_EVENT;
+typedef HANDLE SYS_PEVENT;
 typedef unsigned long SYS_THREAD;
 typedef void *SYS_MMAP;
 typedef SYS_INT64 SYS_OFF_T;

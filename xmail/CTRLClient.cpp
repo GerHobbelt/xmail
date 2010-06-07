@@ -34,7 +34,7 @@
 
 #define CCLN_TLS_INIT_STR           "#!TLS"
 #define STD_CTRL_PORT               6017
-#define STD_CTRL_TIMEOUT            90
+#define STD_CTRL_TIMEOUT            90000
 #define CTRL_LISTFOLLOW_RESULT      100
 #define CTRL_WAITDATA_RESULT        101
 #define CCLN_ERROR_BASE             (-10000)
@@ -413,7 +413,7 @@ int CClnExec(int iArgCount, char *pszArgs[])
 
 		case ('t'):
 			if (++i < iArgCount)
-				iTimeout = atoi(pszArgs[i]);
+				iTimeout = atoi(pszArgs[i]) * 1000;
 			break;
 
 		case ('f'):

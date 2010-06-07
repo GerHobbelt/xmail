@@ -1363,7 +1363,7 @@ static int USmlCmd_external(char **ppszCmdTokens, int iNumTokens, SVRCFG_HANDLE 
 	}
 
 	int iPriority = atoi(ppszCmdTokens[1]);
-	int iWaitTimeout = atoi(ppszCmdTokens[2]);
+	int iWaitTimeout = atoi(ppszCmdTokens[2]) * 1000;
 	int iExitStatus = 0;
 
 	if (SysExec(ppszCmdTokens[3], &ppszCmdTokens[3], iWaitTimeout, iPriority,
@@ -1400,7 +1400,7 @@ static int USmlCmd_filter(char **ppszCmdTokens, int iNumTokens, SVRCFG_HANDLE hS
 	}
 
 	int iPriority = atoi(ppszCmdTokens[1]);
-	int iWaitTimeout = atoi(ppszCmdTokens[2]);
+	int iWaitTimeout = atoi(ppszCmdTokens[2]) * 1000;
 	int iExitStatus = 0;
 
 	if (SysExec(ppszCmdTokens[3], &ppszCmdTokens[3], iWaitTimeout, iPriority,

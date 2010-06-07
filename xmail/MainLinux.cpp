@@ -80,7 +80,8 @@ static int MnSavePID(char const *pszPidFile)
 {
 	char szPidFile[SYS_MAX_PATH] = "";
 
-	snprintf(szPidFile, sizeof(szPidFile) - 1, "%s/%s.pid", MnGetPIDDir(), pszPidFile);
+	snprintf(szPidFile, sizeof(szPidFile) - 1, "%s/%s.pid", MnGetPIDDir(),
+		 pszPidFile);
 
 	FILE *pFile = fopen(szPidFile, "w");
 
@@ -88,9 +89,7 @@ static int MnSavePID(char const *pszPidFile)
 		perror(szPidFile);
 		return -errno;
 	}
-
 	fprintf(pFile, "%u", (unsigned int) getpid());
-
 	fclose(pFile);
 
 	return 0;
@@ -100,8 +99,8 @@ static int MnRemovePID(char const *pszPidFile)
 {
 	char szPidFile[SYS_MAX_PATH] = "";
 
-	snprintf(szPidFile, sizeof(szPidFile) - 1, "%s/%s.pid", MnGetPIDDir(), pszPidFile);
-
+	snprintf(szPidFile, sizeof(szPidFile) - 1, "%s/%s.pid", MnGetPIDDir(),
+		 pszPidFile);
 	if (unlink(szPidFile) != 0) {
 		perror(szPidFile);
 		return -errno;
@@ -118,14 +117,12 @@ static void MnSetupStdHandles(void)
 		MnEventLog("Cannot open file %s : %s", DEVNULL, strerror(errno));
 		exit(errno);
 	}
-
-	if ((dup2(iFD, 0) == -1) || (dup2(iFD, 1) == -1) || (dup2(iFD, 2) == -1)) {
+	if (dup2(iFD, 0) == -1 || dup2(iFD, 1) == -1 || dup2(iFD, 2) == -1) {
 		MnEventLog("File descriptor duplication error : %s", strerror(errno));
 		exit(errno);
 	}
-
-	close(iFD);
-
+	if (iFD > 2)
+		close(iFD);
 }
 
 static int MnDaemonBootStrap(void)
@@ -202,8 +199,8 @@ static int MnDaemonBootStrap(void)
 
 static int MnIsDebugStartup(int iArgCount, char *pszArgs[])
 {
-	for (int ii = 0; ii < iArgCount; ii++)
-		if (strcmp(pszArgs[ii], XMAIL_DEBUG_OPTION) == 0)
+	for (int i = 0; i < iArgCount; i++)
+		if (strcmp(pszArgs[i], XMAIL_DEBUG_OPTION) == 0)
 			return 1;
 
 	return 0;

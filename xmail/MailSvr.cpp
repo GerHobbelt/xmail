@@ -72,13 +72,13 @@
 #define MAX_LMAIL_THREADS           17
 #define STD_LMAILTHREAD_SLEEP_TIME  2
 #define SVR_EXIT_WAIT               480
-#define STD_SERVER_SESSION_TIMEOUT  90
+#define STD_SERVER_SESSION_TIMEOUT  90000
 #define MAX_CLIENTS_WAIT            300
-#define CTRL_SERVER_SESSION_TIMEOUT 120
+#define CTRL_SERVER_SESSION_TIMEOUT 120000
 #define SERVER_SLEEP_TIMESLICE      2
 #define SHUTDOWN_CHECK_TIME         2
 #define STD_POP3AUTH_EXPIRE_TIME    (15 * 60)
-#define FILTER_TIMEOUT              90
+#define FILTER_TIMEOUT              90000
 #define SVR_MAX_SERVICES            32
 
 
@@ -283,7 +283,7 @@ static int SvrSetupCTRL(int iArgCount, char *pszArgs[])
 
 		case 't':
 			if (++i < iArgCount)
-				iSessionTimeout = atoi(pszArgs[i]);
+				iSessionTimeout = atoi(pszArgs[i]) * 1000;
 			break;
 
 		case 'l':
@@ -610,7 +610,7 @@ static int SvrSetupPOP3(int iArgCount, char *pszArgs[])
 
 		case 't':
 			if (++i < iArgCount)
-				iSessionTimeout = atoi(pszArgs[i]);
+				iSessionTimeout = atoi(pszArgs[i]) * 1000;
 			break;
 
 		case 'w':
@@ -832,7 +832,7 @@ static int SvrSetupSMTP(int iArgCount, char *pszArgs[])
 
 		case 't':
 			if (++i < iArgCount)
-				iSessionTimeout = atoi(pszArgs[i]);
+				iSessionTimeout = atoi(pszArgs[i]) * 1000;
 			break;
 
 		case 'l':
@@ -1046,7 +1046,7 @@ static int SvrSetupSMAIL(int iArgCount, char *pszArgs[])
 
 		case 'T':
 			if (++i < iArgCount)
-				iFilterTimeout = atoi(pszArgs[i]);
+				iFilterTimeout = atoi(pszArgs[i]) * 1000;
 			break;
 
 		case 'g':
@@ -1159,7 +1159,7 @@ static int SvrSetupPSYNC(int iArgCount, char *pszArgs[])
 
 		case 'T':
 			if (++i < iArgCount)
-				iPOP3ClientTimeout = atoi(pszArgs[i]);
+				iPOP3ClientTimeout = atoi(pszArgs[i]) * 1000;
 			break;
 
 		case '-':
@@ -1264,7 +1264,7 @@ static int SvrSetupLMAIL(int iArgCount, char *pszArgs[])
 
 		case 't':
 			if (++i < iArgCount)
-				iSleepTimeout = atoi(pszArgs[i]);
+				iSleepTimeout = atoi(pszArgs[i]) * 1000;
 			break;
 		}
 	}

@@ -91,7 +91,7 @@ static ServerInfoVar *SvrAllocVar(const char *pszName, const char *pszValue)
 		return NULL;
 	HashInitNode(&pSIV->HN);
 	pszDName = SysStrDup(pszName);
-	DatumStrSet(&pSIV->HN.Key, pszDName);
+	pSIV->HN.Key.pData = pszDName;
 	pSIV->pszValue = SysStrDup(pszValue);
 
 	return pSIV;
@@ -101,9 +101,9 @@ static ServerInfoVar *SvrGetUserVar(HASH_HANDLE hHash, const char *pszName)
 {
 	HashNode *pHNode;
 	HashEnum HEnum;
-	Datum Key;
+	HashDatum Key;
 
-	DatumStrSet(&Key, pszName);
+	Key.pData = (void *) pszName;
 	if (HashGetFirst(hHash, &Key, &HEnum, &pHNode) < 0)
 		return NULL;
 
@@ -155,12 +155,18 @@ static ServerConfigData *SvrAllocConfig(RLCK_HANDLE hResLock, int iWriteLock,
 					const char *pszProfilePath)
 {
 	ServerConfigData *pSCD;
+	HashOps HOps;
 
 	if ((pSCD = (ServerConfigData *) SysAlloc(sizeof(ServerConfigData))) == NULL)
 		return NULL;
 	pSCD->hResLock = hResLock;
 	pSCD->iWriteLock = iWriteLock;
-	if ((pSCD->hHash = HashCreate(SVR_CFGHASH_INITSIZE)) == INVALID_HASH_HANDLE) {
+
+	ZeroData(HOps);
+	HOps.pGetHashVal = MscStringHashCB;
+	HOps.pCompare = MscStringCompareCB;
+	if ((pSCD->hHash = HashCreate(&HOps,
+				      SVR_CFGHASH_INITSIZE)) == INVALID_HASH_HANDLE) {
 		SysFree(pSCD);
 		return NULL;
 	}
@@ -228,7 +234,7 @@ char *SvrGetConfigVar(SVRCFG_HANDLE hSvrConfig, const char *pszName, const char 
 
 bool SvrTestConfigFlag(const char *pszName, bool bDefault, SVRCFG_HANDLE hSvrConfig)
 {
-	char szValue[64] = "";
+	char szValue[64];
 
 	SvrConfigVar(pszName, szValue, sizeof(szValue) - 1, hSvrConfig, (bDefault) ? "1": "0");
 
@@ -237,7 +243,7 @@ bool SvrTestConfigFlag(const char *pszName, bool bDefault, SVRCFG_HANDLE hSvrCon
 
 int SvrGetConfigInt(const char *pszName, int iDefault, SVRCFG_HANDLE hSvrConfig)
 {
-	char szValue[64] = "";
+	char szValue[64];
 
 	return SvrConfigVar(pszName, szValue, sizeof(szValue) - 1, hSvrConfig, NULL) < 0 ||
 		IsEmptyString(szValue) ? iDefault: atoi(szValue);
@@ -245,16 +251,17 @@ int SvrGetConfigInt(const char *pszName, int iDefault, SVRCFG_HANDLE hSvrConfig)
 
 static int SvrWriteConfig(HASH_HANDLE hHash, FILE *pFile)
 {
-	SysListHead *pPos;
 	HashNode *pHNode;
 	ServerInfoVar *pSIV;
 	char *pszQuoted;
+	HashEnum HEnum;
 
-	if (HashFirst(hHash, &pPos, &pHNode) == 0) {
+	if (HashFirst(hHash, &HEnum, &pHNode) == 0) {
 		do {
 			pSIV = SYS_LIST_ENTRY(pHNode, ServerInfoVar, HN);
 
-			if ((pszQuoted = StrQuote(pSIV->HN.Key.pData, '"')) == NULL)
+			if ((pszQuoted = StrQuote((char *) pSIV->HN.Key.pData,
+						  '"')) == NULL)
 				return ErrGetErrorCode();
 			fprintf(pFile, "%s\t", pszQuoted);
 			SysFree(pszQuoted);
@@ -263,7 +270,7 @@ static int SvrWriteConfig(HASH_HANDLE hHash, FILE *pFile)
 				return ErrGetErrorCode();
 			fprintf(pFile, "%s\n", pszQuoted);
 			SysFree(pszQuoted);
-		} while (HashNext(hHash, &pPos, &pHNode) == 0);
+		} while (HashNext(hHash, &HEnum, &pHNode) == 0);
 	}
 
 	return 0;
@@ -280,15 +287,12 @@ int SysFlushConfig(SVRCFG_HANDLE hSvrConfig)
 		ErrSetErrorCode(ERR_SVR_PRFILE_NOT_LOCKED);
 		return ERR_SVR_PRFILE_NOT_LOCKED;
 	}
-
 	SvrGetProfileFilePath(szProfilePath, sizeof(szProfilePath));
 	if ((pFile = fopen(szProfilePath, "wt")) == NULL) {
 		ErrSetErrorCode(ERR_FILE_CREATE);
 		return ERR_FILE_CREATE;
 	}
-
 	iError = SvrWriteConfig(pSCD->hHash, pFile);
-
 	fclose(pFile);
 
 	return iError;

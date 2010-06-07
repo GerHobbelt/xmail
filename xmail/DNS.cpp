@@ -35,7 +35,7 @@
 #include "DNS.h"
 
 #define DNS_PORTNO              53
-#define DNS_SOCKET_TIMEOUT      16
+#define DNS_SOCKET_TIMEOUT      16000
 #define DNS_QUERY_EXTRA         1024
 #define DNS_MAX_RESP_PACKET     1024
 #define DNS_SEND_RETRIES        3

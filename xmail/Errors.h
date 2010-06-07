@@ -823,6 +823,9 @@ enum XMailErrors {
 	__ERR_GET_RAND_BYTES,
 #define ERR_GET_RAND_BYTES (-__ERR_GET_RAND_BYTES)
 
+	__ERR_WAIT,
+#define ERR_WAIT (-__ERR_WAIT)
+
 	ERROR_COUNT
 };
 

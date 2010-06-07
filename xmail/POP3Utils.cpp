@@ -1152,14 +1152,18 @@ static int UPopSChanFilterSeen(POP3SyncChannel *pPSChan)
 	SysListHead *pPos;
 	POP3SyncMsg *pSMsg;
 	HashNode *pHNode;
+	HashOps HOps;
 
-	if ((hHash = HashCreate(pPSChan->iMsgCount + 1)) == INVALID_HASH_HANDLE)
+	ZeroData(HOps);
+	HOps.pGetHashVal = MscStringHashCB;
+	HOps.pCompare = MscStringCompareCB;
+	if ((hHash = HashCreate(&HOps, pPSChan->iMsgCount + 1)) == INVALID_HASH_HANDLE)
 		return ErrGetErrorCode();
 	for (pPos = SYS_LIST_FIRST(&pPSChan->SyncMList); pPos != NULL;
 	     pPos = SYS_LIST_NEXT(pPos, &pPSChan->SyncMList)) {
 		pSMsg = SYS_LIST_ENTRY(pPos, POP3SyncMsg, LLnk);
 
-		DatumStrSet(&pSMsg->HN.Key, pSMsg->pszMsgID);
+		pSMsg->HN.Key.pData = pSMsg->pszMsgID;
 		if (HashAdd(hHash, &pSMsg->HN) < 0) {
 			HashFree(hHash, NULL, NULL);
 			return ErrGetErrorCode();
@@ -1189,12 +1193,12 @@ static int UPopSChanFilterSeen(POP3SyncChannel *pPSChan)
 	FILE *pUFile = fopen(szMsgSyncFile, "rt");
 
 	if (pUFile != NULL) {
-		Datum Key;
+		HashDatum Key;
 		HashEnum HEnum;
 		char szUIDL[512];
 
 		while (MscFGets(szUIDL, sizeof(szUIDL) - 1, pUFile) != NULL) {
-			DatumStrSet(&Key, szUIDL);
+			Key.pData = szUIDL;
 			if (HashGetFirst(hHash, &Key, &HEnum, &pHNode) == 0) {
 				pSMsg = SYS_LIST_ENTRY(pHNode, POP3SyncMsg, HN);
 				SYS_LIST_DEL(&pSMsg->LLnk);

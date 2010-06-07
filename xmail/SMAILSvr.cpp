@@ -47,7 +47,7 @@
 #include "AppDefines.h"
 #include "MailSvr.h"
 
-#define SMAIL_WAITMSG_TIMEOUT       2
+#define SMAIL_WAITMSG_TIMEOUT       2000
 #define CUSTOM_PROC_LINE_MAX        1024
 #define SMAIL_EXTERNAL_EXIT_BREAK   16
 #define SMAIL_STOP_PROCESSING       3111965L
@@ -735,7 +735,7 @@ static int SMAILCmd_external(SVRCFG_HANDLE hSvrConfig, SHB_HANDLE hShbSMAIL,
 	}
 
 	int iPriority = atoi(ppszCmdTokens[1]);
-	int iWaitTimeout = atoi(ppszCmdTokens[2]);
+	int iWaitTimeout = atoi(ppszCmdTokens[2]) * 1000;
 	int iExitStatus = 0;
 
 	if (SysExec(ppszCmdTokens[3], &ppszCmdTokens[3], iWaitTimeout, iPriority,
@@ -772,7 +772,7 @@ static int SMAILCmd_filter(SVRCFG_HANDLE hSvrConfig, SHB_HANDLE hShbSMAIL,
 	}
 
 	int iPriority = atoi(ppszCmdTokens[1]);
-	int iWaitTimeout = atoi(ppszCmdTokens[2]);
+	int iWaitTimeout = atoi(ppszCmdTokens[2]) * 1000;
 	int iExitStatus = 0;
 
 	if (SysExec(ppszCmdTokens[3], &ppszCmdTokens[3], iWaitTimeout, iPriority,

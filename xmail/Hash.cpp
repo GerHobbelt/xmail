@@ -23,31 +23,28 @@
 #include "SysInclude.h"
 #include "SysDep.h"
 #include "SvrDefines.h"
-#include "ShBlocks.h"
-#include "StrUtils.h"
-#include "BuffSock.h"
-#include "MiscUtils.h"
 #include "Hash.h"
 
 #define HMASK_TOP_BIT (1UL << (sizeof(long) * 8 - 1))
 
 struct Hash {
+	HashOps Ops;
 	unsigned long ulCount;
 	unsigned long ulHMask;
 	SysListHead *pBkts;
-	SysListHead NodeList;
 };
 
 
-HASH_HANDLE HashCreate(unsigned long ulSize) {
+HASH_HANDLE HashCreate(HashOps const *pOps, unsigned long ulSize)
+{
 	unsigned long i, ulHMask;
 	Hash *pHash;
 
 	if ((pHash = (Hash *) SysAlloc(sizeof(Hash))) == NULL)
 		return INVALID_HASH_HANDLE;
+	pHash->Ops = *pOps;
 	for (ulHMask = 2; !(ulHMask & HMASK_TOP_BIT) && ulHMask <= ulSize; ulHMask <<= 1);
 	ulHMask--;
-	pHash->ulCount = 0;
 	pHash->ulHMask = ulHMask;
 	if ((pHash->pBkts = (SysListHead *)
 	     SysAlloc((ulHMask + 1) * sizeof(SysListHead))) == NULL) {
@@ -56,45 +53,51 @@ HASH_HANDLE HashCreate(unsigned long ulSize) {
 	}
 	for (i = 0; i <= ulHMask; i++)
 		SYS_INIT_LIST_HEAD(&pHash->pBkts[i]);
-	SYS_INIT_LIST_HEAD(&pHash->NodeList);
 
 	return (HASH_HANDLE) pHash;
 }
 
-void HashFree(HASH_HANDLE hHash, void (*pfFree)(void *, HashNode *),
-	      void *pPrivate) {
-	Hash *pHash;
-	SysListHead *pPos;
+void HashFree(HASH_HANDLE hHash, void (*pFree)(void *, HashNode *),
+	      void *pPrivate)
+{
+	Hash *pHash = (Hash *) hHash;
+	unsigned long i;
+	SysListHead *pHead, *pPos;
 	HashNode *pHNode;
 
-	/*
-	 * Having *Free() functions to accept NULL handles is useful in
-	 * order to streamline the cleanup path of functions using them.
-	 */
-	if (hHash == INVALID_HASH_HANDLE)
-		return;
-	pHash = (Hash *) hHash;
-	if (pfFree != NULL) {
-		while ((pPos = SYS_LIST_FIRST(&pHash->NodeList)) != NULL) {
-			pHNode = SYS_LIST_ENTRY(pPos, HashNode, LLnk);
-			SYS_LIST_DEL(&pHNode->LLnk);
-			SYS_LIST_DEL(&pHNode->HLnk);
-			(*pfFree)(pPrivate, pHNode);
+	if (pHash != NULL) {
+		if (pFree != NULL) {
+			for (i = 0; i <= pHash->ulHMask; i++) {
+				pHead = &pHash->pBkts[i];
+				while ((pPos = SYS_LIST_FIRST(pHead)) != NULL) {
+					pHNode = SYS_LIST_ENTRY(pPos, HashNode, Lnk);
+					SYS_LIST_DEL(&pHNode->Lnk);
+					(*pFree)(pPrivate, pHNode);
+				}
+			}
 		}
+		SysFree(pHash->pBkts);
+		SysFree(pHash);
 	}
-	SysFree(pHash->pBkts);
-	SysFree(pHash);
 }
 
-void HashInitNode(HashNode *pHNode) {
+unsigned long HashGetCount(HASH_HANDLE hHash)
+{
+	Hash *pHash = (Hash *) hHash;
+
+	return pHash->ulCount;
+}
+
+void HashInitNode(HashNode *pHNode)
+{
 	ZeroData(*pHNode);
-	SYS_INIT_LIST_HEAD(&pHNode->LLnk);
-	SYS_INIT_LIST_HEAD(&pHNode->HLnk);
+	SYS_INIT_LIST_HEAD(&pHNode->Lnk);
 }
 
-static int HashGrow(Hash *pHash) {
+static int HashGrow(Hash *pHash)
+{
 	unsigned long i, ulHIdx, ulHMask;
-	SysListHead *pBkts, *pPos;
+	SysListHead *pBkts, *pHead, *pPos;
 	HashNode *pHNode;
 
 	ulHMask = pHash->ulHMask + 1;
@@ -106,12 +109,15 @@ static int HashGrow(Hash *pHash) {
 		return ErrGetErrorCode();
 	for (i = 0; i <= ulHMask; i++)
 		SYS_INIT_LIST_HEAD(&pBkts[i]);
-	for (pPos = SYS_LIST_FIRST(&pHash->NodeList); pPos != NULL;
-	     pPos = SYS_LIST_NEXT(pPos, &pHash->NodeList)) {
-		pHNode = SYS_LIST_ENTRY(pPos, HashNode, LLnk);
-		SYS_LIST_DEL(&pHNode->HLnk);
-		ulHIdx = MscHashString(pHNode->Key.pData, pHNode->Key.lSize) & ulHMask;
-		SYS_LIST_ADDT(&pHNode->HLnk, &pBkts[ulHIdx]);
+	for (i = 0; i <= pHash->ulHMask; i++) {
+		pHead = &pHash->pBkts[i];
+		while ((pPos = SYS_LIST_FIRST(pHead)) != NULL) {
+			pHNode = SYS_LIST_ENTRY(pPos, HashNode, Lnk);
+			SYS_LIST_DEL(&pHNode->Lnk);
+			ulHIdx = (*pHash->Ops.pGetHashVal)(pHash->Ops.pPrivate,
+							   &pHNode->Key) & ulHMask;
+			SYS_LIST_ADDT(&pHNode->Lnk, &pBkts[ulHIdx]);
+		}
 	}
 	SysFree(pHash->pBkts);
 	pHash->pBkts = pBkts;
@@ -120,43 +126,47 @@ static int HashGrow(Hash *pHash) {
 	return 0;
 }
 
-int HashAdd(HASH_HANDLE hHash, HashNode *pHNode) {
+int HashAdd(HASH_HANDLE hHash, HashNode *pHNode)
+{
 	Hash *pHash = (Hash *) hHash;
 	unsigned long ulHIdx;
 	SysListHead *pHead;
 
 	if (pHash->ulCount >= pHash->ulHMask && HashGrow(pHash) < 0)
 		return ErrGetErrorCode();
-	ulHIdx = MscHashString(pHNode->Key.pData, pHNode->Key.lSize) & pHash->ulHMask;
+	ulHIdx = (*pHash->Ops.pGetHashVal)(pHash->Ops.pPrivate,
+					   &pHNode->Key) & pHash->ulHMask;
 	pHead = &pHash->pBkts[ulHIdx];
-	SYS_LIST_ADDT(&pHNode->HLnk, pHead);
-	SYS_LIST_ADDT(&pHNode->LLnk, &pHash->NodeList);
+	SYS_LIST_ADDT(&pHNode->Lnk, pHead);
 	pHash->ulCount++;
 
 	return 0;
 }
 
-void HashDel(HASH_HANDLE hHash, HashNode *pHNode) {
+void HashDel(HASH_HANDLE hHash, HashNode *pHNode)
+{
 	Hash *pHash = (Hash *) hHash;
 
-	SYS_LIST_DEL(&pHNode->HLnk);
-	SYS_LIST_DEL(&pHNode->LLnk);
+	SYS_LIST_DEL(&pHNode->Lnk);
 	pHash->ulCount--;
 }
 
-int HashGetFirst(HASH_HANDLE hHash, Datum const *Key,
-		 HashEnum *pHEnum, HashNode **ppHNode) {
+int HashGetFirst(HASH_HANDLE hHash, HashDatum const *pKey,
+		 HashEnum *pHEnum, HashNode **ppHNode)
+{
 	Hash *pHash = (Hash *) hHash;
 	unsigned long ulHIdx;
 	SysListHead *pHead, *pPos;
 	HashNode *pHNode;
 
-	ulHIdx = MscHashString(Key->pData, Key->lSize) & pHash->ulHMask;
+	ulHIdx = (*pHash->Ops.pGetHashVal)(pHash->Ops.pPrivate,
+					   pKey) & pHash->ulHMask;
 	pHead = &pHash->pBkts[ulHIdx];
 	for (pPos = SYS_LIST_FIRST(pHead); pPos != NULL;
 	     pPos = SYS_LIST_NEXT(pPos, pHead)) {
-		pHNode = SYS_LIST_ENTRY(pPos, HashNode, HLnk);
-		if (EquivDatum(Key, &pHNode->Key)) {
+		pHNode = SYS_LIST_ENTRY(pPos, HashNode, Lnk);
+		if ((*pHash->Ops.pCompare)(pHash->Ops.pPrivate, pKey,
+					   &pHNode->Key) == 0) {
 			*ppHNode = pHNode;
 			pHEnum->ulHIdx = ulHIdx;
 			pHEnum->pNext = SYS_LIST_NEXT(pPos, pHead);
@@ -168,8 +178,9 @@ int HashGetFirst(HASH_HANDLE hHash, Datum const *Key,
 	return ERR_NOT_FOUND;
 }
 
-int HashGetNext(HASH_HANDLE hHash, Datum const *Key,
-		HashEnum *pHEnum, HashNode **ppHNode) {
+int HashGetNext(HASH_HANDLE hHash, HashDatum const *pKey,
+		HashEnum *pHEnum, HashNode **ppHNode)
+{
 	Hash *pHash = (Hash *) hHash;
 	SysListHead *pPos, *pHead;
 	HashNode *pHNode;
@@ -177,8 +188,9 @@ int HashGetNext(HASH_HANDLE hHash, Datum const *Key,
 	pHead = &pHash->pBkts[pHEnum->ulHIdx];
 	for (pPos = pHEnum->pNext; pPos != NULL;
 	     pPos = SYS_LIST_NEXT(pPos, pHead)) {
-		pHNode = SYS_LIST_ENTRY(pPos, HashNode, HLnk);
-		if (EquivDatum(Key, &pHNode->Key)) {
+		pHNode = SYS_LIST_ENTRY(pPos, HashNode, Lnk);
+		if ((*pHash->Ops.pCompare)(pHash->Ops.pPrivate, pKey,
+					   &pHNode->Key) == 0) {
 			*ppHNode = pHNode;
 			pHEnum->pNext = SYS_LIST_NEXT(pPos, pHead);
 			return 0;
@@ -189,31 +201,46 @@ int HashGetNext(HASH_HANDLE hHash, Datum const *Key,
 	return ERR_NOT_FOUND;
 }
 
-int HashFirst(HASH_HANDLE hHash, SysListHead **ppPos, HashNode **ppHNode) {
+static int HashFetchNext(Hash *pHash, unsigned long ulFrom, HashEnum *pHEnum,
+			 HashNode **ppHNode)
+{
+	unsigned long i;
+	SysListHead *pHead, *pPos;
+
+	for (i = ulFrom; i <= pHash->ulHMask; i++) {
+		pHead = &pHash->pBkts[i];
+		if ((pPos = SYS_LIST_FIRST(pHead)) != NULL) {
+			pHEnum->ulHIdx = i;
+			pHEnum->pNext = SYS_LIST_NEXT(pPos, pHead);
+			*ppHNode = SYS_LIST_ENTRY(pPos, HashNode, Lnk);
+
+			return 0;
+		}
+	}
+
+	ErrSetErrorCode(ERR_NOT_FOUND);
+	return ERR_NOT_FOUND;
+}
+
+int HashFirst(HASH_HANDLE hHash, HashEnum *pHEnum, HashNode **ppHNode)
+{
+	Hash *pHash = (Hash *) hHash;
+
+	return HashFetchNext(pHash, 0, pHEnum, ppHNode);
+}
+
+int HashNext(HASH_HANDLE hHash, HashEnum *pHEnum, HashNode **ppHNode)
+{
 	Hash *pHash = (Hash *) hHash;
 	SysListHead *pPos;
 
-	if ((pPos = SYS_LIST_FIRST(&pHash->NodeList)) == NULL) {
-		ErrSetErrorCode(ERR_NOT_FOUND);
-		return ERR_NOT_FOUND;
+	if ((pPos = pHEnum->pNext) != NULL) {
+		pHEnum->pNext = SYS_LIST_NEXT(pPos, &pHash->pBkts[pHEnum->ulHIdx]);
+		*ppHNode = SYS_LIST_ENTRY(pPos, HashNode, Lnk);
+
+		return 0;
 	}
-	*ppHNode = SYS_LIST_ENTRY(pPos, HashNode, LLnk);
-	*ppPos = SYS_LIST_NEXT(pPos, &pHash->NodeList);
 
-	return 0;
-}
-
-int HashNext(HASH_HANDLE hHash, SysListHead **ppPos, HashNode **ppHNode) {
-	Hash *pHash = (Hash *) hHash;
-	SysListHead *pPos = *ppPos;
-
-	if (pPos == NULL) {
-		ErrSetErrorCode(ERR_NOT_FOUND);
-		return ERR_NOT_FOUND;
-	}
-	*ppHNode = SYS_LIST_ENTRY(pPos, HashNode, LLnk);
-	*ppPos = SYS_LIST_NEXT(pPos, &pHash->NodeList);
-
-	return 0;
+	return HashFetchNext(pHash, pHEnum->ulHIdx + 1, pHEnum, ppHNode);
 }
 

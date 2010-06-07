@@ -23,12 +23,9 @@
 #ifndef _SYSDEPUNIX_H
 #define _SYSDEPUNIX_H
 
-#define SYS_INT_CALL()     (!iShutDown && (errno == EINTR))
-
 #define MIN_TCP_SEND_SIZE  (1024 * 8)
 #define MAX_TCP_SEND_SIZE  (1024 * 128)
 #define K_IO_TIME_RATIO    8
-
 
 struct ThreadExitHook {
 	void (*pfHook)(void *, SYS_THREAD, int);
@@ -52,6 +49,11 @@ struct EventData {
 	pthread_mutex_t Mtx;
 	pthread_cond_t WaitCond;
 	int iSignaled;
+	int iManualReset;
+};
+
+struct PEventData {
+	int PipeFds[2];
 	int iManualReset;
 };
 

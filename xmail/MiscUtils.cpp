@@ -26,6 +26,7 @@
 #include "ShBlocks.h"
 #include "StrUtils.h"
 #include "SList.h"
+#include "Hash.h"
 #include "MD5.h"
 #include "Base64Enc.h"
 #include "BuffSock.h"
@@ -39,7 +40,7 @@
 #include "MiscUtils.h"
 
 #define IPPROP_LINE_MAX             1024
-#define SERVICE_ACCEPT_TIMEOUT      4
+#define SERVICE_ACCEPT_TIMEOUT      4000
 #define SERVICE_WAIT_SLEEP          2
 #define MAX_CLIENTS_WAIT            300
 #define MAX_RND_TIME                600
@@ -1556,5 +1557,18 @@ void MscRandomizeStringsOrder(char **ppszStrings)
 		ppszStrings[i] = ppszStrings[i + iChoice];
 		ppszStrings[i + iChoice] = pszTmp;
 	}
+}
+
+unsigned long MscStringHashCB(void *pPrivate, HashDatum const *pDatum)
+{
+	char const *pszStr = (char const *) pDatum->pData;
+
+	return MscHashString(pszStr, strlen(pszStr));
+}
+
+int MscStringCompareCB(void *pPrivate, HashDatum const *pDatum1,
+		       HashDatum const *pDatum2)
+{
+	return strcmp((char const *) pDatum1->pData, (char const *) pDatum2->pData);
 }
 

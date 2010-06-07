@@ -50,7 +50,7 @@
 #include "MailSvr.h"
 
 #define SMTP_MAX_LINE_SIZE      2048
-#define STD_SMTP_TIMEOUT        30
+#define STD_SMTP_TIMEOUT        30000
 #define SMTP_IPMAP_FILE         "smtp.ipmap.tab"
 #define SMTP_LOG_FILE           "smtp"
 #define SMTP_POST_RCPT_FILTER   "post-rcpt"
@@ -64,7 +64,7 @@
 #define SVR_SMTPAUTH_LINE_MAX   512
 #define SVR_SMTP_EXTAUTH_FILE   "smtpextauth.tab"
 #define SVR_SMTP_EXTAUTH_LINE_MAX   1024
-#define SVR_SMTP_EXTAUTH_TIMEOUT    60
+#define SVR_SMTP_EXTAUTH_TIMEOUT    60000
 #define SVR_SMTP_EXTAUTH_SUCCESS    0
 
 #define SMTPF_RELAY_ENABLED     (1 << 0)

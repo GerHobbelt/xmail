@@ -35,9 +35,6 @@ struct ErrorEnv {
 	char *pszInfo[1];
 };
 
-static void ErrFreeEnv(void *pData);
-static void ErrOnceSetup(void);
-static ErrorEnv *ErrSetupEnv(void);
 
 static SYS_THREAD_ONCE OnceSetup = SYS_THREAD_ONCE_INIT;
 static SYS_TLSKEY ErrTlsKey;
@@ -307,6 +304,7 @@ static ErrorStrings Errors[] = {
 	{ ERR_SSL_SHUTDOWN, "SSL connection shutdown error" },
 	{ ERR_TOO_MANY_ELEMENTS, "Too many elements" },
 	{ ERR_GET_RAND_BYTES, "Failed to retrieve entropy bytes" },
+	{ ERR_WAIT, "Failed to wait for event" },
 
 };
 

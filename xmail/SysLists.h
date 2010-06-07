@@ -60,8 +60,8 @@
 #define SYS_LIST_DEL(entry)						\
 	do {								\
 		SYS_LIST_UNLINK((entry)->pPrev, (entry)->pNext);	\
-		(entry)->pPrev = NULL;					\
-		(entry)->pNext = NULL;					\
+		(entry)->pPrev = entry;					\
+		(entry)->pNext = entry;					\
 	} while (0)
 
 #define SYS_LIST_EMTPY(head)            ((head)->pNext == head)

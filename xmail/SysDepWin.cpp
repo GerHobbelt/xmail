@@ -93,7 +93,7 @@ static SYS_INT64 PCFreq;
 static SYS_INT64 PCSysStart;
 static int iSndBufSize = -1, iRcvBufSize = -1;
 static CRITICAL_SECTION csLog;
-static void (*SysBreakHandler) (void) = NULL;
+static void (*pSysBreakHandler) (void) = NULL;
 static HANDLE hShutdownEvent = NULL;
 
 static void SysInitTlsKeyEntries(void)
@@ -210,14 +210,15 @@ int SysInitLibrary(void)
 	LARGE_INTEGER PerfCntFreq;
 	LARGE_INTEGER PerfCntCurr;
 
+	_tzset();
+
 	QueryPerformanceFrequency(&PerfCntFreq);
 	QueryPerformanceCounter(&PerfCntCurr);
 
-	PCFreq = *(SYS_INT64 *) &PerfCntFreq;
+	PCFreq = (SYS_INT64) PerfCntFreq.QuadPart;
 	PCFreq /= 1000;
-	PCSysStart = *(SYS_INT64 *) &PerfCntCurr;
+	PCSysStart = (SYS_INT64) PerfCntCurr.QuadPart;
 
-	_tzset();
 	time(&tSysStart);
 
 	iNumThExitHooks = 0;
@@ -413,8 +414,8 @@ static int SysRecvLL(SYS_SOCKET SockFD, char *pszBuffer, int iBufferSize)
 	WSABuff.len = iBufferSize;
 	WSABuff.buf = pszBuffer;
 
-	return (WSARecv(SockFD, &WSABuff, 1, &dwRtxBytes, &dwRtxFlags,
-			NULL, NULL) == 0) ? (int) dwRtxBytes: -WSAGetLastError();
+	return WSARecv(SockFD, &WSABuff, 1, &dwRtxBytes, &dwRtxFlags,
+		       NULL, NULL) == 0 ? (int) dwRtxBytes: -WSAGetLastError();
 }
 
 static int SysSendLL(SYS_SOCKET SockFD, char const *pszBuffer, int iBufferSize)
@@ -426,8 +427,8 @@ static int SysSendLL(SYS_SOCKET SockFD, char const *pszBuffer, int iBufferSize)
 	WSABuff.len = iBufferSize;
 	WSABuff.buf = (char *) pszBuffer;
 
-	return (WSASend(SockFD, &WSABuff, 1, &dwRtxBytes, 0,
-			NULL, NULL) == 0) ? (int) dwRtxBytes: -WSAGetLastError();
+	return WSASend(SockFD, &WSABuff, 1, &dwRtxBytes, 0,
+		       NULL, NULL) == 0 ? (int) dwRtxBytes: -WSAGetLastError();
 }
 
 int SysRecvData(SYS_SOCKET SockFD, char *pszBuffer, int iBufferSize, int iTimeout)
@@ -446,7 +447,7 @@ int SysRecvData(SYS_SOCKET SockFD, char *pszBuffer, int iBufferSize, int iTimeou
 		WSAEventSelect(SockFD, (WSAEVENT) hReadEvent, FD_READ | FD_CLOSE);
 
 		DWORD dwWaitResult = WSAWaitForMultipleEvents(2, hWaitEvents, FALSE,
-							      (DWORD) (iTimeout * 1000), TRUE);
+							      iTimeout, TRUE);
 
 		WSAEventSelect(SockFD, NULL, 0);
 
@@ -516,7 +517,7 @@ int SysRecvDataFrom(SYS_SOCKET SockFD, SYS_INET_ADDR *pFrom, char *pszBuffer,
 		WSAEventSelect(SockFD, (WSAEVENT) hReadEvent, FD_READ | FD_CLOSE);
 
 		DWORD dwWaitResult = WSAWaitForMultipleEvents(2, hWaitEvents, FALSE,
-							      (DWORD) (iTimeout * 1000), TRUE);
+							      iTimeout, TRUE);
 
 		WSAEventSelect(SockFD, NULL, 0);
 
@@ -568,7 +569,7 @@ int SysSendData(SYS_SOCKET SockFD, char const *pszBuffer, int iBufferSize, int i
 		WSAEventSelect(SockFD, (WSAEVENT) hWriteEvent, FD_WRITE | FD_CLOSE);
 
 		DWORD dwWaitResult = WSAWaitForMultipleEvents(2, hWaitEvents, FALSE,
-							      (DWORD) (iTimeout * 1000), TRUE);
+							      iTimeout, TRUE);
 
 		WSAEventSelect(SockFD, NULL, 0);
 
@@ -638,7 +639,7 @@ int SysSendDataTo(SYS_SOCKET SockFD, const SYS_INET_ADDR *pTo,
 		WSAEventSelect(SockFD, (WSAEVENT) hWriteEvent, FD_WRITE | FD_CLOSE);
 
 		DWORD dwWaitResult = WSAWaitForMultipleEvents(2, hWaitEvents, FALSE,
-							      (DWORD) (iTimeout * 1000), TRUE);
+							      iTimeout, TRUE);
 
 		WSAEventSelect(SockFD, NULL, 0);
 
@@ -690,7 +691,7 @@ int SysConnect(SYS_SOCKET SockFD, const SYS_INET_ADDR *pSockName, int iTimeout)
 	if (iConnectResult != 0 && iConnectError == WSAEWOULDBLOCK) {
 		HANDLE hWaitEvents[2] = { hConnectEvent, hShutdownEvent };
 		DWORD dwWaitResult = WSAWaitForMultipleEvents(2, hWaitEvents, FALSE,
-							      (DWORD) (iTimeout * 1000), TRUE);
+							      iTimeout, TRUE);
 
 		if (dwWaitResult == WSA_WAIT_EVENT_0) {
 			WSANETWORKEVENTS NetEvents;
@@ -736,7 +737,7 @@ SYS_SOCKET SysAccept(SYS_SOCKET SockFD, SYS_INET_ADDR *pSockName, int iTimeout)
 	if (SockFDAccept == INVALID_SOCKET && iConnectError == WSAEWOULDBLOCK) {
 		HANDLE hWaitEvents[2] = { hAcceptEvent, hShutdownEvent };
 		DWORD dwWaitResult = WSAWaitForMultipleEvents(2, hWaitEvents, FALSE,
-							      (DWORD) (iTimeout * 1000), TRUE);
+							      iTimeout, TRUE);
 
 		if (dwWaitResult == WSA_WAIT_EVENT_0) {
 			iNameLen = (INT) sizeof(pSockName->Addr);
@@ -770,10 +771,13 @@ int SysSelect(int iMaxFD, SYS_fd_set *pReadFDs, SYS_fd_set *pWriteFDs, SYS_fd_se
 	struct timeval TV;
 
 	ZeroData(TV);
-	TV.tv_sec = iTimeout;
-	TV.tv_usec = 0;
+	if (iTimeout != SYS_INFINITE_TIMEOUT) {
+		TV.tv_sec = iTimeout / 1000;
+		TV.tv_usec = (iTimeout % 1000) * 1000;
+	}
 
-	int iSelectResult = select(iMaxFD + 1, pReadFDs, pWriteFDs, pExcptFDs, &TV);
+	int iSelectResult = select(iMaxFD + 1, pReadFDs, pWriteFDs, pExcptFDs,
+				   iTimeout != SYS_INFINITE_TIMEOUT ? &TV: NULL);
 
 	if (iSelectResult < 0) {
 		ErrSetErrorCode(ERR_SELECT);
@@ -820,18 +824,19 @@ int SysSendFile(SYS_SOCKET SockFD, char const *pszFileName, SYS_OFF_T llBaseOffs
 		ErrSetErrorCode(ERR_MAPVIEWOFFILE);
 		return ERR_MAPVIEWOFFILE;
 	}
-	/* Send the file */
-	int iSndBuffSize = MIN_TCP_SEND_SIZE;
+
+	int iSndBuffSize = (iTimeout != SYS_INFINITE_TIMEOUT) ?
+		MIN_TCP_SEND_SIZE: MAX_TCP_SEND_SIZE;
 	SYS_UINT64 ullFileSize = (((SYS_UINT64) dwFileSizeHi) << 32) | (SYS_UINT64) dwFileSizeLo;
 	SYS_UINT64 ullEndOffset = (llEndOffset != -1) ? (SYS_UINT64) llEndOffset: ullFileSize;
 	SYS_UINT64 ullCurrOffset = (SYS_UINT64) llBaseOffset;
 	char *pszBuffer = (char *) pAddress + llBaseOffset;
-	time_t tStart;
+	SYS_INT64 tStart;
 
 	while (ullCurrOffset < ullEndOffset) {
 		int iCurrSend = (int) Min(iSndBuffSize, ullEndOffset - ullCurrOffset);
 
-		tStart = time(NULL);
+		tStart = SysMsTime();
 		if ((iCurrSend = SysSendData(SockFD, pszBuffer, iCurrSend, iTimeout)) < 0) {
 			ErrorPush();
 			UnmapViewOfFile(pAddress);
@@ -839,11 +844,9 @@ int SysSendFile(SYS_SOCKET SockFD, char const *pszFileName, SYS_OFF_T llBaseOffs
 			CloseHandle(hFile);
 			return ErrorPop();
 		}
-
-		if ((((time(NULL) - tStart) * K_IO_TIME_RATIO) < iTimeout) &&
-		    (iSndBuffSize < MAX_TCP_SEND_SIZE))
+		if (iSndBuffSize < MAX_TCP_SEND_SIZE &&
+		    ((SysMsTime() - tStart) * K_IO_TIME_RATIO) < (SYS_INT64) iTimeout)
 			iSndBuffSize = Min(iSndBuffSize * 2, MAX_TCP_SEND_SIZE);
-
 		pszBuffer += iCurrSend;
 		ullCurrOffset += (SYS_UINT64) iCurrSend;
 	}
@@ -881,7 +884,7 @@ int SysCloseSemaphore(SYS_SEMAPHORE hSemaphore)
 int SysWaitSemaphore(SYS_SEMAPHORE hSemaphore, int iTimeout)
 {
 	if (WaitForSingleObject((HANDLE) hSemaphore,
-				(DWORD) (iTimeout * 1000)) != WAIT_OBJECT_0) {
+				iTimeout) != WAIT_OBJECT_0) {
 		ErrSetErrorCode(ERR_TIMEOUT);
 		return ERR_TIMEOUT;
 	}
@@ -936,7 +939,7 @@ int SysCloseMutex(SYS_MUTEX hMutex)
 int SysLockMutex(SYS_MUTEX hMutex, int iTimeout)
 {
 	if (WaitForSingleObject((HANDLE) hMutex,
-				(DWORD) (iTimeout * 1000)) != WAIT_OBJECT_0) {
+				iTimeout) != WAIT_OBJECT_0) {
 		ErrSetErrorCode(ERR_TIMEOUT);
 		return ERR_TIMEOUT;
 	}
@@ -988,7 +991,7 @@ int SysCloseEvent(SYS_EVENT hEvent)
 int SysWaitEvent(SYS_EVENT hEvent, int iTimeout)
 {
 	if (WaitForSingleObject((HANDLE) hEvent,
-				(DWORD) (iTimeout * 1000)) != WAIT_OBJECT_0) {
+				iTimeout) != WAIT_OBJECT_0) {
 		ErrSetErrorCode(ERR_TIMEOUT);
 		return ERR_TIMEOUT;
 	}
@@ -1018,6 +1021,40 @@ int SysTryWaitEvent(SYS_EVENT hEvent)
 	}
 
 	return 0;
+}
+
+/*
+ * On Windows, Events and PEvents maps to the same implementation, since
+ * we use WaitForMultipleObjects() for general waiting.
+ */
+SYS_PEVENT SysCreatePEvent(int iManualReset)
+{
+	return (SYS_PEVENT) SysCreateEvent(iManualReset);
+}
+
+int SysClosePEvent(SYS_PEVENT hPEvent)
+{
+	return SysCloseEvent((SYS_EVENT) hPEvent);
+}
+
+int SysWaitPEvent(SYS_PEVENT hPEvent, int iTimeout)
+{
+	return SysWaitEvent((SYS_EVENT) hPEvent, iTimeout);
+}
+
+int SysSetPEvent(SYS_PEVENT hPEvent)
+{
+	return SysSetEvent((SYS_EVENT) hPEvent);
+}
+
+int SysResetPEvent(SYS_PEVENT hPEvent)
+{
+	return SysResetEvent((SYS_EVENT) hPEvent);
+}
+
+int SysTryWaitPEvent(SYS_PEVENT hPEvent)
+{
+	return SysTryWaitEvent((SYS_EVENT) hPEvent);
 }
 
 static unsigned int SysThreadRunner(void *pRunData)
@@ -1100,7 +1137,7 @@ int SysSetThreadPriority(SYS_THREAD ThreadID, int iPriority)
 int SysWaitThread(SYS_THREAD ThreadID, int iTimeout)
 {
 	if (WaitForSingleObject((HANDLE) ThreadID,
-				(DWORD) (iTimeout * 1000)) != WAIT_OBJECT_0) {
+				iTimeout) != WAIT_OBJECT_0) {
 		ErrSetErrorCode(ERR_TIMEOUT);
 		return ERR_TIMEOUT;
 	}
@@ -1149,8 +1186,8 @@ int SysExec(char const *pszCommand, char const *const *pszArgs, int iWaitTimeout
 
 	SysSetThreadPriority((SYS_THREAD) PI.hThread, iPriority);
 
-	if (iWaitTimeout > 0) {
-		if (WaitForSingleObject(PI.hProcess, iWaitTimeout * 1000) != WAIT_OBJECT_0) {
+	if (iWaitTimeout > 0 || iWaitTimeout == SYS_INFINITE_TIMEOUT) {
+		if (WaitForSingleObject(PI.hProcess, iWaitTimeout) != WAIT_OBJECT_0) {
 			CloseHandle(PI.hThread);
 			CloseHandle(PI.hProcess);
 
@@ -1182,20 +1219,20 @@ static BOOL WINAPI SysBreakHandlerRoutine(DWORD dwCtrlType)
 	case CTRL_C_EVENT:
 	case CTRL_CLOSE_EVENT:
 	case CTRL_SHUTDOWN_EVENT:
-		if (SysBreakHandler != NULL)
-			SysBreakHandler(), bReturnValue = TRUE;
+		if (pSysBreakHandler != NULL)
+			(*pSysBreakHandler)(), bReturnValue = TRUE;
 		break;
 	}
 
 	return bReturnValue;
 }
 
-void SysSetBreakHandler(void (*BreakHandler) (void))
+void SysSetBreakHandler(void (*pBreakHandler) (void))
 {
-	if (SysBreakHandler == NULL)
+	if (pSysBreakHandler == NULL)
 		SetConsoleCtrlHandler(SysBreakHandlerRoutine,
-				      (BreakHandler != NULL) ? TRUE: FALSE);
-	SysBreakHandler = BreakHandler;
+				      (pBreakHandler != NULL) ? TRUE: FALSE);
+	pSysBreakHandler = pBreakHandler;
 }
 
 unsigned long SysGetCurrentProcessId(void)
@@ -1484,15 +1521,14 @@ static time_t SysFileTimeToTimet(LPFILETIME pFT)
 
 SYS_INT64 SysMsTime(void)
 {
+	SYS_INT64 MsTicks;
 	LARGE_INTEGER PerfCntCurr;
 
 	QueryPerformanceCounter(&PerfCntCurr);
-
-	SYS_INT64 MsTicks = *(SYS_INT64 *) &PerfCntCurr;
-
+	MsTicks = (SYS_INT64) PerfCntCurr.QuadPart;
 	MsTicks -= PCSysStart;
 	MsTicks /= PCFreq;
-	MsTicks += (SYS_INT64) tSysStart *1000;
+	MsTicks += (SYS_INT64) tSysStart * 1000;
 
 	return MsTicks;
 }

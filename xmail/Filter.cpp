@@ -353,7 +353,7 @@ int FilExecPreParse(FilterExecCtx *pCtx, char **ppszPEError)
 			}
 		} else if (strcmp(pszVar, "timeo") == 0) {
 			if (pszVal != NULL)
-				pCtx->iTimeout = atoi(pszVal);
+				pCtx->iTimeout = atoi(pszVal) * 1000;
 		}
 	}
 	StrFreeStrings(ppszEToks);

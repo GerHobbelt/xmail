@@ -128,6 +128,19 @@ int SysSetEvent(SYS_EVENT hEvent);
 int SysResetEvent(SYS_EVENT hEvent);
 int SysTryWaitEvent(SYS_EVENT hEvent);
 
+/*
+ * Why? On Unix, the best implementation for events is based on the pthread
+ * API, which cannot be waited together with file/socket descriptors (unless
+ * you do use separate wait threads, which is a lot uglier than having two
+ * event APIs).
+ */
+SYS_PEVENT SysCreatePEvent(int iManualReset);
+int SysClosePEvent(SYS_PEVENT hPEvent);
+int SysWaitPEvent(SYS_PEVENT hPEvent, int iTimeout);
+int SysSetPEvent(SYS_PEVENT hPEvent);
+int SysResetPEvent(SYS_PEVENT hPEvent);
+int SysTryWaitPEvent(SYS_PEVENT hPEvent);
+
 SYS_THREAD SysCreateThread(unsigned int (*pThreadProc) (void *), void *pThreadData);
 void SysCloseThread(SYS_THREAD ThreadID, int iForce);
 int SysSetThreadPriority(SYS_THREAD ThreadID, int iPriority);
@@ -135,7 +148,7 @@ int SysWaitThread(SYS_THREAD ThreadID, int iTimeout);
 unsigned long SysGetCurrentThreadId(void);
 int SysExec(char const *pszCommand, char const *const *pszArgs, int iWaitTimeout = 0,
 	    int iPriority = SYS_PRIORITY_NORMAL, int *piExitStatus = NULL);
-void SysSetBreakHandler(void (*BreakHandler) (void));
+void SysSetBreakHandler(void (*pBreakHandler) (void));
 unsigned long SysGetCurrentProcessId(void);
 
 int SysCreateTlsKey(SYS_TLSKEY &TlsKey, void (*pFreeProc) (void *) = NULL);

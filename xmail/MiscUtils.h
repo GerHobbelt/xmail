@@ -23,6 +23,8 @@
 #ifndef _MISCUTILS_H
 #define _MISCUTILS_H
 
+#include "Hash.h"
+
 #define LOCK_FILE_WAITSTEP     1
 
 #define INVALID_FSCAN_HANDLE   ((FSCAN_HANDLE) 0)
@@ -143,6 +145,9 @@ int MscParseOptions(char const *pszOpts, int (*pfAssign)(void *, char const *, c
 		    void *pPrivate);
 void MscSysFreeCB(void *pPrivate, void *pData);
 void MscRandomizeStringsOrder(char **ppszStrings);
+unsigned long MscStringHashCB(void *pPrivate, HashDatum const *pDatum);
+int MscStringCompareCB(void *pPrivate, HashDatum const *pDatum1,
+		       HashDatum const *pDatum2);
 
 #endif
 
