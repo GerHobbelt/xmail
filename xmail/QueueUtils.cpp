@@ -91,7 +91,7 @@ static int QueUtDumpFrozen(QUEUE_HANDLE hQueue, QMSG_HANDLE hMessage, FILE *pLis
 		"\"<%s>\"\t"
 		"\"<%s>\"\t"
 		"\"%s\"\t"
-		"\"" SYS_OFFT_FMT "u\"\t"
+		"\"" SYS_OFFT_FMT "\"\t"
 		"\"%d\"\t"
 		"\"%s\"\n",
 		QueGetFileName(hMessage), QueGetLevel1(hMessage), QueGetLevel2(hMessage),

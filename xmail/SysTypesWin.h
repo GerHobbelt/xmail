@@ -46,7 +46,7 @@
 
 #define SYS_LLU_FMT             "%I64u"
 #define SYS_LLX_FMT             "%I64X"
-#define SYS_OFFT_FMT             "%I64"
+#define SYS_OFFT_FMT             "%I64d"
 
 #define SYS_INVALID_HANDLE      ((SYS_HANDLE) 0)
 #define SYS_INVALID_SOCKET      ((SYS_SOCKET) INVALID_SOCKET)

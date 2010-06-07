@@ -1206,7 +1206,7 @@ static int CTRLDo_userstat(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
 
 	if (BSckVSendString(hBSock, pCTRLCfg->iTimeout, "\"RealAddress\"\t\"%s\"",
 			    szRealAddress) < 0 ||
-	    BSckVSendString(hBSock, pCTRLCfg->iTimeout, "\"MailboxSize\"\t\"" SYS_OFFT_FMT "u\"",
+	    BSckVSendString(hBSock, pCTRLCfg->iTimeout, "\"MailboxSize\"\t\"" SYS_OFFT_FMT "\"",
 			    llMBSize) < 0 ||
 	    BSckVSendString(hBSock, pCTRLCfg->iTimeout, "\"MailboxMessages\"\t\"%lu\"",
 			    ulNumMessages) < 0 ||
@@ -1867,7 +1867,7 @@ static int CTRLDo_filelist(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
 				    szFullPath, SYS_SLASH_STR, szFileName);
 			if (SysGetFileInfo(szFilePath, FI) == 0) {
 				if (BSckVSendString(hBSock, pCTRLCfg->iTimeout,
-						    "\"%s\"\t\"" SYS_OFFT_FMT "u\"",
+						    "\"%s\"\t\"" SYS_OFFT_FMT "\"",
 						    szFileName, FI.llSize) < 0) {
 					ErrorPush();
 					MscCloseFindFile(hFileScan);

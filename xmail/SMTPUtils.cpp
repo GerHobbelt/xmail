@@ -1433,8 +1433,8 @@ int USmtpSendMail(SMTPCH_HANDLE hSmtpCh, char const *pszFrom, char const *pszRcp
 		if (llMessageSize == 0 && MscGetSectionSize(pFS, &llMessageSize) < 0)
 			return ErrGetErrorCode();
 
-		SysSNPrintf(szRTXBuffer, sizeof(szRTXBuffer) - 1, "MAIL FROM:<%s> SIZE=" SYS_OFFT_FMT "u",
-			    pszFrom, llMessageSize);
+		SysSNPrintf(szRTXBuffer, sizeof(szRTXBuffer) - 1,
+			    "MAIL FROM:<%s> SIZE=" SYS_OFFT_FMT, pszFrom, llMessageSize);
 	} else
 		SysSNPrintf(szRTXBuffer, sizeof(szRTXBuffer) - 1, "MAIL FROM:<%s>", pszFrom);
 

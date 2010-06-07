@@ -347,7 +347,6 @@ POP3_HANDLE UPopBuildSession(char const *pszDomain, char const *pszUsrName,
 	/* Check if the account is enabled for POP3 sessions */
 	if (!UsrGetUserInfoVarInt(pUI, "PopEnable", 1)) {
 		UsrFreeUserInfo(pUI);
-
 		ErrSetErrorCode(ERR_USER_DISABLED);
 		return INVALID_POP3_HANDLE;
 	}
@@ -357,8 +356,8 @@ POP3_HANDLE UPopBuildSession(char const *pszDomain, char const *pszUsrName,
 		return INVALID_POP3_HANDLE;
 	}
 	if (pszUsrPass != NULL && strcmp(pszUsrPass, pUI->pszPassword) != 0) {
-		ErrSetErrorCode(ERR_INVALID_PASSWORD);
 		UsrFreeUserInfo(pUI);
+		ErrSetErrorCode(ERR_INVALID_PASSWORD);
 		return INVALID_POP3_HANDLE;
 	}
 	if (UsrPOP3Lock(pUI) < 0) {
@@ -410,6 +409,8 @@ POP3_HANDLE UPopBuildSession(char const *pszDomain, char const *pszUsrName,
 
 static int UPopUpdateMailbox(POP3SessionData *pPOPSD)
 {
+	SysListHead *pPos;
+	POP3MsgData *pPOPMD;
 	char szMBPath[SYS_MAX_PATH];
 
 	UsrGetMailboxPath(pPOPSD->pUI, szMBPath, sizeof(szMBPath), 0);
@@ -420,10 +421,6 @@ static int UPopUpdateMailbox(POP3SessionData *pPOPSD)
 
 	if (hResLock == INVALID_RLCK_HANDLE)
 		return ErrGetErrorCode();
-
-	SysListHead *pPos;
-	POP3MsgData *pPOPMD;
-
 	SYS_LIST_FOR_EACH(pPos, &pPOPSD->MessageList) {
 		pPOPMD = SYS_LIST_ENTRY(pPos, POP3MsgData, LLnk);
 		if (pPOPMD->ulFlags & POPF_MSG_DELETED) {
@@ -612,10 +609,10 @@ static int UPopSendMessageFile(BSOCK_HANDLE hBSock, char const *pszFilePath,
 int UPopSessionSendMsg(POP3_HANDLE hPOPSession, int iMsgIndex, BSOCK_HANDLE hBSock)
 {
 	POP3SessionData *pPOPSD = (POP3SessionData *) hPOPSession;
+	POP3MsgData *pPOPMD;
+	char szMsgFilePath[SYS_MAX_PATH], szResponse[256];
 
-	POP3MsgData *pPOPMD = UPopMessageFromIndex(pPOPSD, iMsgIndex - 1);
-
-	if (pPOPMD == NULL) {
+	if ((pPOPMD = UPopMessageFromIndex(pPOPSD, iMsgIndex - 1)) == NULL) {
 		UPopSendErrorResponse(hBSock, ERR_MSG_NOT_IN_RANGE, pPOPSD->iTimeout);
 
 		ErrSetErrorCode(ERR_MSG_NOT_IN_RANGE);
@@ -628,14 +625,11 @@ int UPopSessionSendMsg(POP3_HANDLE hPOPSession, int iMsgIndex, BSOCK_HANDLE hBSo
 		return ERR_MSG_DELETED;
 	}
 
-	char szMsgFilePath[SYS_MAX_PATH];
-
 	UsrGetMailboxPath(pPOPSD->pUI, szMsgFilePath, sizeof(szMsgFilePath), 1);
 	StrNCat(szMsgFilePath, pPOPMD->szMsgName, sizeof(szMsgFilePath));
 
-	char szResponse[256];
-
-	sprintf(szResponse, "+OK " SYS_OFFT_FMT " bytes", pPOPMD->llMsgSize);
+	SysSNPrintf(szResponse, sizeof(szResponse) - 1,
+		    "+OK " SYS_OFFT_FMT " bytes", pPOPMD->llMsgSize);
 	if (BSckSendString(hBSock, szResponse, pPOPSD->iTimeout) < 0)
 		return ErrGetErrorCode();
 
@@ -656,10 +650,11 @@ int UPopSessionTopMsg(POP3_HANDLE hPOPSession, int iMsgIndex, int iNumLines,
 		      BSOCK_HANDLE hBSock)
 {
 	POP3SessionData *pPOPSD = (POP3SessionData *) hPOPSession;
+	POP3MsgData *pPOPMD;
+	FILE *pMsgFile;
+	char szMsgFilePath[SYS_MAX_PATH], szResponse[256];
 
-	POP3MsgData *pPOPMD = UPopMessageFromIndex(pPOPSD, iMsgIndex - 1);
-
-	if (pPOPMD == NULL) {
+	if ((pPOPMD = UPopMessageFromIndex(pPOPSD, iMsgIndex - 1)) == NULL) {
 		UPopSendErrorResponse(hBSock, ERR_MSG_NOT_IN_RANGE, pPOPSD->iTimeout);
 
 		ErrSetErrorCode(ERR_MSG_NOT_IN_RANGE);
@@ -672,24 +667,18 @@ int UPopSessionTopMsg(POP3_HANDLE hPOPSession, int iMsgIndex, int iNumLines,
 		return ERR_MSG_DELETED;
 	}
 
-	char szMsgFilePath[SYS_MAX_PATH];
-
 	UsrGetMailboxPath(pPOPSD->pUI, szMsgFilePath, sizeof(szMsgFilePath), 1);
 	StrNCat(szMsgFilePath, pPOPMD->szMsgName, sizeof(szMsgFilePath));
 
-	FILE *pMsgFile = fopen(szMsgFilePath, "rb");
-
-	if (pMsgFile == NULL) {
+	if ((pMsgFile = fopen(szMsgFilePath, "rb")) == NULL) {
 		UPopSendErrorResponse(hBSock, ERR_FILE_OPEN, pPOPSD->iTimeout);
 
 		ErrSetErrorCode(ERR_FILE_OPEN);
 		return ERR_FILE_OPEN;
 	}
 
-	char szResponse[256];
-
-	sprintf(szResponse, "+OK message is " SYS_OFFT_FMT " bytes",
-		pPOPMD->llMsgSize);
+	SysSNPrintf(szResponse, sizeof(szResponse) - 1,
+		    "+OK message is " SYS_OFFT_FMT " bytes", pPOPMD->llMsgSize);
 	if (BSckSendString(hBSock, szResponse, pPOPSD->iTimeout) < 0) {
 		fclose(pMsgFile);
 		return ErrGetErrorCode();
@@ -699,14 +688,14 @@ int UPopSessionTopMsg(POP3_HANDLE hPOPSession, int iMsgIndex, int iNumLines,
 	char szMsgLine[2048];
 
 	while (MscGetString(pMsgFile, szMsgLine, sizeof(szMsgLine) - 1) != NULL) {
-		if (bSendingMsg && (--iNumLines < 0))
+		if (bSendingMsg && --iNumLines < 0)
 			break;
 
 		if (BSckSendString(hBSock, szMsgLine, pPOPSD->iTimeout) < 0) {
 			fclose(pMsgFile);
 			return ErrGetErrorCode();
 		}
-		if (!bSendingMsg && (strlen(szMsgLine) == 0))
+		if (!bSendingMsg && strlen(szMsgLine) == 0)
 			bSendingMsg = true;
 		if (SvrInShutdown()) {
 			fclose(pMsgFile);
@@ -787,18 +776,18 @@ static int UPopGetResponse(BSOCK_HANDLE hBSock, char *pszResponse, int iMaxChars
 static char *UPopExtractServerTimeStamp(char const *pszResponse, char *pszTimeStamp,
 					int iMaxTimeStamp)
 {
-	char const *pszStartTS = strchr(pszResponse, '<');
-	char const *pszEndTS = strchr(pszResponse, '>');
+	int iSize;
+	char const *pszStartTS, *pszEndTS;
 
-	if (pszStartTS == NULL || pszEndTS == NULL || pszEndTS < pszStartTS)
+	if ((pszStartTS = strrchr(pszResponse, '<')) == NULL ||
+	    (pszEndTS = strchr(pszStartTS + 1, '>')) == NULL)
 		return NULL;
 
-	int iLengthTS = (int) (pszEndTS - pszStartTS) + 1;
+	iSize = (int) (pszEndTS - pszStartTS) + 1;
+	iSize = Min(iSize, iMaxTimeStamp - 1);
 
-	iLengthTS = Min(iLengthTS, iMaxTimeStamp - 1);
-
-	strncpy(pszTimeStamp, pszStartTS, iLengthTS);
-	pszTimeStamp[iLengthTS] = '\0';
+	strncpy(pszTimeStamp, pszStartTS, iSize);
+	pszTimeStamp[iSize] = '\0';
 
 	return pszTimeStamp;
 }
@@ -889,14 +878,14 @@ static int UPopInitiateTLS(BSOCK_HANDLE hBSock, char const *pszServer, char *psz
 static BSOCK_HANDLE UPopCreateChannel(char const *pszServer, char const *pszUsername,
 				      char const *pszPassword, POP3ChannelCfg const *pChCfg)
 {
+	SYS_SOCKET SockFD;
+	BSOCK_HANDLE hBSock;
 	SYS_INET_ADDR SvrAddr;
 
 	if (MscGetServerAddress(pszServer, SvrAddr, STD_POP3_PORT) < 0)
 		return INVALID_BSOCK_HANDLE;
-
-	SYS_SOCKET SockFD = SysCreateSocket(SysGetAddrFamily(SvrAddr), SOCK_STREAM, 0);
-
-	if (SockFD == SYS_INVALID_SOCKET)
+	if ((SockFD = SysCreateSocket(SysGetAddrFamily(SvrAddr), SOCK_STREAM,
+				      0)) == SYS_INVALID_SOCKET)
 		return INVALID_BSOCK_HANDLE;
 
 	/*
@@ -915,10 +904,7 @@ static BSOCK_HANDLE UPopCreateChannel(char const *pszServer, char const *pszUser
 		SysCloseSocket(SockFD);
 		return INVALID_BSOCK_HANDLE;
 	}
-
-	BSOCK_HANDLE hBSock = BSckAttach(SockFD);
-
-	if (hBSock == INVALID_BSOCK_HANDLE) {
+	if ((hBSock = BSckAttach(SockFD)) == INVALID_BSOCK_HANDLE) {
 		SysCloseSocket(SockFD);
 		return INVALID_BSOCK_HANDLE;
 	}
@@ -950,7 +936,7 @@ static BSOCK_HANDLE UPopCreateChannel(char const *pszServer, char const *pszUser
 		return INVALID_BSOCK_HANDLE;
 	}
 
-	/* Extract TimeStamp from server respose ( if any ) */
+	/* Extract TimeStamp from server respose (if any) */
 	char szTimeStamp[256] = "";
 
 	if ((pChCfg->ulFlags & POPCHF_USE_APOP) == 0 ||
@@ -964,12 +950,12 @@ static BSOCK_HANDLE UPopCreateChannel(char const *pszServer, char const *pszUser
 		}
 	} else {
 		/* Try APOP authentication first */
-		int iApopAuthResult = UPopDoAPOPAuth(hBSock, pszUsername, pszPassword,
-						     szTimeStamp, szRTXBuffer,
-						     sizeof(szRTXBuffer) - 1);
+		int iResult = UPopDoAPOPAuth(hBSock, pszUsername, pszPassword,
+					     szTimeStamp, szRTXBuffer,
+					     sizeof(szRTXBuffer) - 1);
 
-		if (iApopAuthResult < 0) {
-			if (iApopAuthResult != ERR_BAD_SERVER_RESPONSE ||
+		if (iResult < 0) {
+			if (iResult != ERR_BAD_SERVER_RESPONSE ||
 			    (pChCfg->ulFlags & POPCHF_FORCE_APOP)) {
 				UPopCloseChannel(hBSock);
 				return INVALID_BSOCK_HANDLE;
@@ -1022,9 +1008,9 @@ static int UPopGetMailboxStatus(BSOCK_HANDLE hBSock, int &iMsgCount,
 static int UPopRetrieveMessage(BSOCK_HANDLE hBSock, int iMsgIndex, char const *pszFileName,
 			       SYS_OFF_T *pllMsgSize)
 {
-	FILE *pMsgFile = fopen(pszFileName, "wb");
+	FILE *pMsgFile;
 
-	if (pMsgFile == NULL) {
+	if ((pMsgFile = fopen(pszFileName, "wb")) == NULL) {
 		ErrSetErrorCode(ERR_FILE_CREATE);
 		return ERR_FILE_CREATE;
 	}
@@ -1186,9 +1172,9 @@ static int UPopSChanFilterSeen(POP3SyncChannel *pPSChan)
 		return ErrGetErrorCode();
 	}
 
-	FILE *pUFile = fopen(szMsgSyncFile, "rt");
+	FILE *pUFile;
 
-	if (pUFile != NULL) {
+	if ((pUFile = fopen(szMsgSyncFile, "rt")) != NULL) {
 		HashDatum Key;
 		HashEnum HEnum;
 		char szUIDL[512];
@@ -1229,9 +1215,9 @@ static int UPopSChanWriteSeenDB(POP3SyncChannel *pPSChan)
 	if (hResLock == INVALID_RLCK_HANDLE)
 		return ErrGetErrorCode();
 
-	FILE *pUFile = fopen(szMsgSyncFile, "wt");
+	FILE *pUFile;
 
-	if (pUFile == NULL) {
+	if ((pUFile = fopen(szMsgSyncFile, "wt")) == NULL) {
 		RLckUnlockEX(hResLock);
 		ErrSetErrorCode(ERR_FILE_CREATE, szMsgSyncFile);
 		return ERR_FILE_CREATE;
