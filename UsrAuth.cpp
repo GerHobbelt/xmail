@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -45,7 +45,7 @@
 #define AUTH_MODIFY_CONFIG          "useredit"
 #define AUTH_DEL_CONFIG             "userdel"
 #define AUTH_DROPDOMAIN_CONFIG      "domaindrop"
-#define USER_AUTH_TIMEOUT           60
+#define USER_AUTH_TIMEOUT           60000
 #define USER_AUTH_PRIORITY          SYS_PRIORITY_NORMAL
 #define AUTH_SUCCESS_CODE           0
 
@@ -99,6 +99,45 @@ static int UAthGetConfigPath(char const *pszService, char const *pszDomain, char
 
 	ErrSetErrorCode(ERR_NO_EXTERNAL_AUTH_DEFINED);
 	return ERR_NO_EXTERNAL_AUTH_DEFINED;
+}
+
+static char *UAthAuthMacroLkupProc(void *pPrivate, char const *pszName, int iSize)
+{
+	UAuthMacroSubstCtx *pUATH = (UAuthMacroSubstCtx *) pPrivate;
+
+	if (MemMatch(pszName, iSize, "DOMAIN", 6)) {
+
+		return SysStrDup(pUATH->pszDomain != NULL ? pUATH->pszDomain: "");
+	} else if (MemMatch(pszName, iSize, "USER", 4)) {
+
+		return SysStrDup(pUATH->pszUsername != NULL ? pUATH->pszUsername: "");
+	} else if (MemMatch(pszName, iSize, "PASSWD", 6)) {
+
+		return SysStrDup(pUATH->pszPassword != NULL ? pUATH->pszPassword: "");
+	} else if (MemMatch(pszName, iSize, "PATH", 4)) {
+		char szUserPath[SYS_MAX_PATH] = "";
+
+		if (pUATH->pUI != NULL)
+			UsrGetUserPath(pUATH->pUI, szUserPath, sizeof(szUserPath), 0);
+
+		return SysStrDup(szUserPath);
+	}
+
+	return SysStrDup("");
+}
+
+static int UAthMacroSubstitutes(char **ppszCmdTokens, char const *pszDomain,
+				char const *pszUsername, char const *pszPassword, UserInfo *pUI)
+{
+	UAuthMacroSubstCtx UATH;
+
+	ZeroData(UATH);
+	UATH.pszDomain = pszDomain;
+	UATH.pszUsername = pszUsername;
+	UATH.pszPassword = pszPassword;
+	UATH.pUI = pUI;
+
+	return MscReplaceTokens(ppszCmdTokens, UAthAuthMacroLkupProc, &UATH);
 }
 
 static int UAthExecAuthOp(char const *pszService, char const *pszAuthOp,
@@ -196,44 +235,5 @@ int UAthDelUser(char const *pszService, UserInfo *pUI)
 int UAthDropDomain(char const *pszService, char const *pszDomain)
 {
 	return UAthExecAuthOp(pszService, AUTH_DROPDOMAIN_CONFIG, pszDomain, NULL, NULL, NULL);
-}
-
-static char *UAthAuthMacroLkupProc(void *pPrivate, char const *pszName, int iSize)
-{
-	UAuthMacroSubstCtx *pUATH = (UAuthMacroSubstCtx *) pPrivate;
-
-	if (MemMatch(pszName, iSize, "DOMAIN", 6)) {
-
-		return SysStrDup(pUATH->pszDomain != NULL ? pUATH->pszDomain: "");
-	} else if (MemMatch(pszName, iSize, "USER", 4)) {
-
-		return SysStrDup(pUATH->pszUsername != NULL ? pUATH->pszUsername: "");
-	} else if (MemMatch(pszName, iSize, "PASSWD", 6)) {
-
-		return SysStrDup(pUATH->pszPassword != NULL ? pUATH->pszPassword: "");
-	} else if (MemMatch(pszName, iSize, "PATH", 4)) {
-		char szUserPath[SYS_MAX_PATH] = "";
-
-		if (pUATH->pUI != NULL)
-			UsrGetUserPath(pUATH->pUI, szUserPath, sizeof(szUserPath), 0);
-
-		return SysStrDup(szUserPath);
-	}
-
-	return SysStrDup("");
-}
-
-static int UAthMacroSubstitutes(char **ppszCmdTokens, char const *pszDomain,
-				char const *pszUsername, char const *pszPassword, UserInfo *pUI)
-{
-	UAuthMacroSubstCtx UATH;
-
-	ZeroData(UATH);
-	UATH.pszDomain = pszDomain;
-	UATH.pszUsername = pszUsername;
-	UATH.pszPassword = pszPassword;
-	UATH.pUI = pUI;
-
-	return MscReplaceTokens(ppszCmdTokens, UAthAuthMacroLkupProc, &UATH);
 }
 

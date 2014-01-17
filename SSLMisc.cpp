@@ -20,27 +20,33 @@
  *
  */
 
-#ifndef _SMTPSVR_H
-#define _SMTPSVR_H
+#include "SysInclude.h"
+#include "SysDep.h"
+#include "SvrDefines.h"
+#include "StrUtils.h"
+#include "SSLMisc.h"
 
-#define SMTP_SERVER_NAME           "[" APP_NAME_VERSION_STR " ESMTP Server]"
-#define STD_SMTP_PORT               25
-#define SMTPS_SERVER_NAME          "[" APP_NAME_VERSION_STR " ESMTPS Server]"
-#define STD_SMTPS_PORT              465
-#define SMTP_LISTEN_SIZE            64
-
-#define SMTPF_LOG_ENABLED           (1 << 0)
-
-struct SMTPConfig {
-	unsigned long ulFlags;
-	long lThreadCount;
-	long lMaxThreads;
-	int iSessionTimeout;
-	int iTimeout;
-	int iMaxRcpts;
-	unsigned int uPopAuthExpireTime;
-};
-
-unsigned int SMTPClientThread(void *pThreadData);
-
+#include "openssl/bio.h"
+#include "openssl/rsa.h"
+#include "openssl/crypto.h"
+#include "openssl/x509.h"
+#include "openssl/pem.h"
+#include "openssl/ssl.h"
+#include "openssl/evp.h"
+#include "openssl/err.h"
+#include "openssl/rand.h"
+#ifndef OPENSSL_NO_ENGINE
+#include "openssl/engine.h"
 #endif
+
+
+int SSLGetRandBytes(unsigned char *pBytes, int iCount)
+{
+	if (!RAND_pseudo_bytes(pBytes, iCount)) {
+		ErrSetErrorCode(ERR_GET_RAND_BYTES);
+		return ERR_GET_RAND_BYTES;
+	}
+
+	return 0;
+}
+

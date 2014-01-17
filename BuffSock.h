@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -36,13 +36,19 @@ struct BSockLineBuffer {
 	int iSize;
 };
 
+typedef union
+{
+	void *ptr;
+	SYS_SOCKET handle;
+} PrivateDataRef;
+
 struct BufSockIOOps {
-	void *pPrivate;
-	const char *(*pName)(void *);
-	int (*pFree)(void *);
-	int (*pRead)(void *, void *, int, int);
-	int (*pWrite)(void *, const void *, int, int);
-	int (*pSendFile)(void *, const char *, SYS_OFF_T, SYS_OFF_T, int);
+	PrivateDataRef pPrivate;
+	char const *(*pName)(PrivateDataRef);
+	int (*pFree)(PrivateDataRef);
+	int (*pRead)(PrivateDataRef, void *, int, int);
+	int (*pWrite)(PrivateDataRef, void const *, int, int);
+	int (*pSendFile)(PrivateDataRef, char const *, SYS_OFF_T, SYS_OFF_T, int);
 };
 
 BSOCK_HANDLE BSckAttach(SYS_SOCKET SockFD, int iBufferSize = STD_SOCK_BUFFER_SIZE);
@@ -52,19 +58,19 @@ char *BSckChGetString(BSOCK_HANDLE hBSock, char *pszBuffer, int iMaxChars, int i
 		      int *pLineLength = NULL, int *piGotNL = NULL);
 char *BSckGetString(BSOCK_HANDLE hBSock, char *pszBuffer, int iMaxChars, int iTimeout,
 		    int *pLineLength = NULL, int *piGotNL = NULL);
-int BSckSendString(BSOCK_HANDLE hBSock, const char *pszBuffer, int iTimeout);
-int BSckVSendString(BSOCK_HANDLE hBSock, int iTimeout, const char *pszFormat, ...);
-int BSckSendData(BSOCK_HANDLE hBSock, const char *pszBuffer, int iSize, int iTimeout);
+int BSckSendString(BSOCK_HANDLE hBSock, char const *pszBuffer, int iTimeout);
+int BSckVSendString(BSOCK_HANDLE hBSock, int iTimeout, char const *pszFormat, ...);
+int BSckSendData(BSOCK_HANDLE hBSock, char const *pszBuffer, int iSize, int iTimeout);
 int BSckReadData(BSOCK_HANDLE hBSock, char *pszBuffer, int iSize, int iTimeout,
 		 int iSizeFill = 0);
-int BSckSendFile(BSOCK_HANDLE hBSock, const char *pszFilePath, SYS_OFF_T llBaseOffset,
+int BSckSendFile(BSOCK_HANDLE hBSock, char const *pszFilePath, SYS_OFF_T llBaseOffset,
 		 SYS_OFF_T llEndOffset, int iTimeout);
 SYS_SOCKET BSckGetAttachedSocket(BSOCK_HANDLE hBSock);
-int BSckSetIOops(BSOCK_HANDLE hBSock, const BufSockIOOps *pIOops);
-const char *BSckBioName(BSOCK_HANDLE hBSock);
+int BSckSetIOops(BSOCK_HANDLE hBSock, BufSockIOOps const *pIOops);
+char const *BSckBioName(BSOCK_HANDLE hBSock);
 int BSckBufferInit(BSockLineBuffer *pBLB, int iSize = -1);
 void BSckBufferFree(BSockLineBuffer *pBLB);
 char *BSckBufferGet(BSOCK_HANDLE hBSock, BSockLineBuffer *pBLB, int iTimeout,
-		    int *piLineLength = NULL);
+		    int *piLnLength = NULL);
 
 #endif

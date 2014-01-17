@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -218,8 +218,8 @@ static ErrorStrings Errors[] = {
 	{ ERR_SET_THREAD_PRIORITY, "Error setting thread priority" },
 	{ ERR_NULL_SENDER, "Empty message sender" },
 	{ ERR_RCPTTO_UNKNOWN, "Mail tag \"To:\" missing" },
-	{ ERR_LOADMODULE, "Error moading dynamic module" },
-	{ ERR_LOADMODULESYMBOL, "Error moading dynamic module symbol" },
+	{ ERR_LOADMODULE, "Error loading dynamic module" },
+	{ ERR_LOADMODULESYMBOL, "Error loading dynamic module symbol" },
 	{ ERR_NOMORE_TLSKEYS, "No more TLS keys are available" },
 	{ ERR_INVALID_TLSKEY, "Invalid TLS key" },
 	{ ERR_ERRORINIT_FAILED, "Error initialization failed" },
@@ -307,6 +307,9 @@ static ErrorStrings Errors[] = {
 	{ ERR_SSL_SHUTDOWN, "SSL connection shutdown error" },
 	{ ERR_I_ARG_TOO_MANY_IP_PORT_COMBOS, "Too many ip[:port] combos specified for this server" },
 	{ ERR_TOO_MANY_ELEMENTS, "Too many elements" },
+	{ ERR_GET_RAND_BYTES, "Failed to retrieve entropy bytes" },
+	{ ERR_WAIT, "Failed to wait for event" },
+	{ ERR_EVENTFD, "Failed to create for eventfd" },
 
 };
 

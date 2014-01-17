@@ -20,27 +20,10 @@
  *
  */
 
-#ifndef _SMTPSVR_H
-#define _SMTPSVR_H
+#ifndef _SSLMISC_H
+#define _SSLMISC_H
 
-#define SMTP_SERVER_NAME           "[" APP_NAME_VERSION_STR " ESMTP Server]"
-#define STD_SMTP_PORT               25
-#define SMTPS_SERVER_NAME          "[" APP_NAME_VERSION_STR " ESMTPS Server]"
-#define STD_SMTPS_PORT              465
-#define SMTP_LISTEN_SIZE            64
-
-#define SMTPF_LOG_ENABLED           (1 << 0)
-
-struct SMTPConfig {
-	unsigned long ulFlags;
-	long lThreadCount;
-	long lMaxThreads;
-	int iSessionTimeout;
-	int iTimeout;
-	int iMaxRcpts;
-	unsigned int uPopAuthExpireTime;
-};
-
-unsigned int SMTPClientThread(void *pThreadData);
+int SSLGetRandBytes(unsigned char *pBytes, int iCount);
 
 #endif
+

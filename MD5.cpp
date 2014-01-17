@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -165,13 +165,13 @@ void md5_init(md5_ctx_t *mdctx)
 	mdctx->buf[3] = (md5_u32) 0x10325476;
 }
 
-void md5_update(md5_ctx_t *mdctx, unsigned char const *data, unsigned int size)
+void md5_update(md5_ctx_t *mdctx, unsigned char const *data, size_t size)
 {
-	unsigned int i, j, mdi;
+	size_t i, j, mdi;
 	md5_u32 in[16];
 
 	/* compute number of bytes mod 64 */
-	mdi = (unsigned int) ((mdctx->i[0] >> 3) & 0x3F);
+	mdi = (size_t) ((mdctx->i[0] >> 3) & 0x3F);
 
 	/* update number of bits */
 	if ((mdctx->i[0] + ((md5_u32) size << 3)) < mdctx->i[0])
@@ -263,7 +263,7 @@ void do_md5_file(FILE *file, long start, long bytes, char *hash)
 	md5_init(&ctx);
 	fseek(file, start, SEEK_SET);
 	while (bytes > 0) {
-		n = fread(buff, 1, Min(bytes, sizeof(buff)), file);
+		n = (int)fread(buff, 1, Min(bytes, sizeof(buff)), file);
 		if (n <= 0)
 			break;
 		md5_update(&ctx, buff, n);
@@ -273,7 +273,7 @@ void do_md5_file(FILE *file, long start, long bytes, char *hash)
 	md5_hex(ctx.digest, hash);
 }
 
-void do_md5_string(char const *pass, int passlen, char *hash)
+void do_md5_string(char const *pass, size_t passlen, char *hash)
 {
 	md5_ctx_t ctx;
 

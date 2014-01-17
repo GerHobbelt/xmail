@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -108,8 +108,9 @@ static int MnSetupStdHandles(void)
 		return -1;
 	}
 
-	if (!SetStdHandle(STD_INPUT_HANDLE, hInFile) || !SetStdHandle(STD_OUTPUT_HANDLE, hOutFile)
-	    || !SetStdHandle(STD_ERROR_HANDLE, hErrFile)) {
+	if (!SetStdHandle(STD_INPUT_HANDLE, hInFile) ||
+	    !SetStdHandle(STD_OUTPUT_HANDLE, hOutFile) ||
+	    !SetStdHandle(STD_ERROR_HANDLE, hErrFile)) {
 		AddToMessageLog(_T("SetStdHandle"));
 		CloseHandle(hErrFile);
 		CloseHandle(hOutFile);
@@ -131,9 +132,8 @@ int _tmain(int argc, TCHAR * argv[])
 	_stprintf(szServiceDispName, _T("%s Server"), szServiceName);
 
 	SERVICE_TABLE_ENTRY DispTable[] = {
-		{szServiceName, (LPSERVICE_MAIN_FUNCTION) ServiceMain}
-		,
-		{NULL, NULL}
+		{ szServiceName, (LPSERVICE_MAIN_FUNCTION) ServiceMain },
+		{ NULL, NULL }
 	};
 
 	if (argc > 1) {
@@ -202,8 +202,8 @@ static void WINAPI ServiceMain(DWORD dwArgc, LPTSTR lpszArgv[])
 static VOID WINAPI ServiceCtrl(DWORD dwCtrlCode)
 {
 	switch (dwCtrlCode) {
-	case (SERVICE_CONTROL_SHUTDOWN):
-	case (SERVICE_CONTROL_STOP):
+	case SERVICE_CONTROL_SHUTDOWN:
+	case SERVICE_CONTROL_STOP:
 	{
 		ReportStatusToSCMgr(SERVICE_STOP_PENDING, NO_ERROR, SERVER_STOP_WAIT);
 
@@ -393,16 +393,14 @@ static LPTSTR GetLastErrorText(LPTSTR lpszBuf, DWORD dwSize)
 	DWORD dwError = GetLastError();
 	LPTSTR lpszTemp = NULL;
 
-	dwRet =
-		FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
+	dwRet = FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
 			      FORMAT_MESSAGE_ARGUMENT_ARRAY, NULL, dwError, LANG_NEUTRAL,
-			      (LPTSTR) & lpszTemp, 0, NULL);
+			      (LPTSTR) &lpszTemp, 0, NULL);
 
 	if ((dwRet == 0) || ((long) dwSize < (long) (dwRet + 14)))
 		lpszBuf[0] = TCHAR('\0');
 	else {
 		lpszTemp[lstrlen(lpszTemp) - 2] = TCHAR('\0');
-
 		_stprintf(lpszBuf, _T("%s (0x%x)"), lpszTemp, dwError);
 	}
 

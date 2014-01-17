@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -59,9 +59,6 @@
 #define SPAMMERS_LINE_MAX       512
 #define SPAM_ADDRESS_LINE_MAX   512
 #define SMTPAUTH_LINE_MAX       512
-#define SMTP_EXTAUTH_TIMEOUT    60
-#define SMTP_EXTAUTH_PRIORITY   SYS_PRIORITY_NORMAL
-#define SMTP_EXTAUTH_SUCCESS    0
 
 #define SMTPCH_SUPPORT_SIZE     (1 << 0)
 #define SMTPCH_SUPPORT_TLS      (1 << 1)
@@ -127,7 +124,7 @@ static int USmtpGetResultCode(const char *pszResult);
 static int USmtpIsPartialResponse(char const *pszResponse);
 static int USmtpGetResponse(BSOCK_HANDLE hBSock, char *pszResponse, int iMaxResponse,
 			    int iTimeout = STD_SMTP_TIMEOUT);
-static int USmtpSendCommand(BSOCK_HANDLE hBSock, const char *pszCommand,
+static int USmtpSendCommand(BSOCK_HANDLE hBSock, char const *pszCommand,
 			    char *pszResponse, int iMaxResponse, int iTimeout = STD_SMTP_TIMEOUT);
 static int USmtpGetServerAuthFile(char const *pszServer, char *pszAuthFilePath);
 static int USmtpDoPlainAuth(SmtpChannel *pSmtpCh, char const *pszServer,
@@ -268,7 +265,7 @@ void USmtpFreeGateways(SMTPGateway **ppGws)
 }
 
 SMTPGateway **USmtpGetCfgGateways(SVRCFG_HANDLE hSvrConfig,  char const * const *ppszGwHosts,
-				  const char *pszOptions)
+				  char const *pszOptions)
 {
 	int i = 0;
 	char *pszCfgOptions;
@@ -288,7 +285,7 @@ SMTPGateway **USmtpGetCfgGateways(SVRCFG_HANDLE hSvrConfig,  char const * const 
 	return ppGws;
 }
 
-SMTPGateway **USmtpGetFwdGateways(SVRCFG_HANDLE hSvrConfig, const char *pszDomain)
+SMTPGateway **USmtpGetFwdGateways(SVRCFG_HANDLE hSvrConfig, char const *pszDomain)
 {
 	char szFwdFilePath[SYS_MAX_PATH] = "";
 
@@ -332,20 +329,8 @@ SMTPGateway **USmtpGetFwdGateways(SVRCFG_HANDLE hSvrConfig, const char *pszDomai
 
 			if (ppszStrings[fwdGateway][0] == '#') {
 				if ((ppszFwdGws =
-				     StrTokenize(ppszStrings[fwdGateway] + 1, ";")) != NULL) {
-					int iGwCount = StrStringsCount(ppszFwdGws);
-
-					srand((unsigned int) time(NULL));
-					for (int i = 0; i < (iGwCount / 2); i++) {
-						int iSwap1 = rand() % iGwCount;
-						int iSwap2 = rand() % iGwCount;
-						char *pszGw1 = ppszFwdGws[iSwap1];
-						char *pszGw2 = ppszFwdGws[iSwap2];
-
-						ppszFwdGws[iSwap1] = pszGw2;
-						ppszFwdGws[iSwap2] = pszGw1;
-					}
-				}
+				     StrTokenize(ppszStrings[fwdGateway] + 1, ";")) != NULL)
+					MscRandomizeStringsOrder(ppszFwdGws);
 			} else
 				ppszFwdGws = StrTokenize(ppszStrings[fwdGateway], ";");
 			if (ppszFwdGws != NULL) {
@@ -379,7 +364,7 @@ static char *USmtpGetRelayFilePath(char *pszRelayFilePath, int iMaxPath)
 	return pszRelayFilePath;
 }
 
-int USmtpGetGateway(SVRCFG_HANDLE hSvrConfig, const char *pszDomain, char *pszGateway,
+int USmtpGetGateway(SVRCFG_HANDLE hSvrConfig, char const *pszDomain, char *pszGateway,
 		    int iSize)
 {
 	char szGwFilePath[SYS_MAX_PATH] = "";
@@ -431,7 +416,7 @@ int USmtpGetGateway(SVRCFG_HANDLE hSvrConfig, const char *pszDomain, char *pszGa
 	return ERR_SMTPGW_NOT_FOUND;
 }
 
-static int USmtpWriteGateway(FILE *pGwFile, const char *pszDomain, const char *pszGateway)
+static int USmtpWriteGateway(FILE *pGwFile, char const *pszDomain, char const *pszGateway)
 {
 	/* Domain */
 	char *pszQuoted = StrQuote(pszDomain, '"');
@@ -454,7 +439,7 @@ static int USmtpWriteGateway(FILE *pGwFile, const char *pszDomain, const char *p
 	return 0;
 }
 
-int USmtpAddGateway(const char *pszDomain, const char *pszGateway)
+int USmtpAddGateway(char const *pszDomain, char const *pszGateway)
 {
 	char szGwFilePath[SYS_MAX_PATH] = "";
 
@@ -509,13 +494,13 @@ int USmtpAddGateway(const char *pszDomain, const char *pszGateway)
 	return 0;
 }
 
-int USmtpRemoveGateway(const char *pszDomain)
+int USmtpRemoveGateway(char const *pszDomain)
 {
 	char szGwFilePath[SYS_MAX_PATH] = "";
 	char szTmpFile[SYS_MAX_PATH] = "";
 
 	USmtpGetGwTableFilePath(szGwFilePath, sizeof(szGwFilePath));
-	SysGetTmpFile(szTmpFile);
+	UsrGetTmpFile(NULL, szTmpFile, sizeof(szTmpFile));
 
 	char szResLock[SYS_MAX_PATH] = "";
 	RLCK_HANDLE hResLock = RLckLockEX(CfgGetBasedPath(szGwFilePath, szResLock,
@@ -639,9 +624,9 @@ int USmtpIsAllowedRelay(const SYS_INET_ADDR &PeerInfo, SVRCFG_HANDLE hSvrConfig)
 	return ERR_RELAY_NOT_ALLOWED;
 }
 
-char **USmtpGetPathStrings(const char *pszMailCmd)
+char **USmtpGetPathStrings(char const *pszMailCmd)
 {
-	const char *pszOpen, *pszClose;
+	char const *pszOpen, *pszClose;
 
 	if ((pszOpen = strchr(pszMailCmd, '<')) == NULL ||
 	    (pszClose = strchr(pszOpen + 1, '>')) == NULL) {
@@ -655,6 +640,14 @@ char **USmtpGetPathStrings(const char *pszMailCmd)
 		ErrSetErrorCode(ERR_SMTP_PATH_PARSE_ERROR, pszMailCmd);
 		return NULL;
 	}
+	/*
+	 * USmlValidAddress() will fail with an empty address, but
+	 * USmtpGetPathStrings() should succeed anyway (returning an empty
+	 * recipient path array), so we check for length before calling
+	 * USmlValidAddress().
+	 */
+	if (iPathLength > 0 && USmlValidAddress(pszOpen + 1, pszClose) < 0)
+		return NULL;
 
 	char *pszPath = (char *) SysAlloc(iPathLength + 1);
 
@@ -669,7 +662,7 @@ char **USmtpGetPathStrings(const char *pszMailCmd)
 	return ppszDomains;
 }
 
-int USmtpSplitEmailAddr(const char *pszAddr, char *pszUser, char *pszDomain)
+int USmtpSplitEmailAddr(char const *pszAddr, char *pszUser, char *pszDomain)
 {
 	if (USmlValidAddress(pszAddr, pszAddr + strlen(pszAddr)) < 0)
 		return ErrGetErrorCode();
@@ -695,7 +688,6 @@ int USmtpSplitEmailAddr(const char *pszAddr, char *pszUser, char *pszDomain)
 			break;
 		}
 	}
-
 
 	if (pszAT == NULL) {
 		ErrSetErrorCode(ERR_BAD_EMAIL_ADDR);
@@ -849,7 +841,7 @@ static int USmtpResponseClass(int iResponseCode, int iResponseClass)
 
 }
 
-static int USmtpGetResultCode(const char *pszResult)
+static int USmtpGetResultCode(char const *pszResult)
 {
 	int i;
 	char szResCode[64] = "";
@@ -905,7 +897,7 @@ static int USmtpGetResponse(BSOCK_HANDLE hBSock, char *pszResponse, int iMaxResp
 	return iResultCode;
 }
 
-static int USmtpSendCommand(BSOCK_HANDLE hBSock, const char *pszCommand,
+static int USmtpSendCommand(BSOCK_HANDLE hBSock, char const *pszCommand,
 			    char *pszResponse, int iMaxResponse, int iTimeout)
 {
 	if (BSckSendString(hBSock, pszCommand, iTimeout) <= 0)
@@ -1261,7 +1253,21 @@ static int USmtpSwitchToSSL(SmtpChannel *pSmtpCh, SMTPGateway const *pGw, SMTPEr
 	return iError;
 }
 
-SMTPCH_HANDLE USmtpCreateChannel(SMTPGateway const *pGw, const char *pszDomain, SMTPError *pSMTPE)
+static void USmtpCleanEHLO(SmtpChannel *pSmtpCh)
+{
+	pSmtpCh->ulFlags &= ~(SMTPCH_SUPPORT_SIZE | SMTPCH_SUPPORT_TLS);
+	pSmtpCh->ulMaxMsgSize = 0;
+}
+
+static void USmtpFreeChannel(SmtpChannel *pSmtpCh)
+{
+	BSckDetach(pSmtpCh->hBSock, 1);
+	SysFree(pSmtpCh->pszServer);
+	SysFree(pSmtpCh->pszDomain);
+	SysFree(pSmtpCh);
+}
+
+SMTPCH_HANDLE USmtpCreateChannel(SMTPGateway const *pGw, char const *pszDomain, SMTPError *pSMTPE)
 {
 	/* Decode server address */
 	int iPortNo = STD_SMTP_PORT;
@@ -1416,20 +1422,6 @@ SendHELO:
 	return (SMTPCH_HANDLE) pSmtpCh;
 }
 
-static void USmtpCleanEHLO(SmtpChannel *pSmtpCh)
-{
-	pSmtpCh->ulFlags &= ~(SMTPCH_SUPPORT_SIZE | SMTPCH_SUPPORT_TLS);
-	pSmtpCh->ulMaxMsgSize = 0;
-}
-
-static void USmtpFreeChannel(SmtpChannel *pSmtpCh)
-{
-	BSckDetach(pSmtpCh->hBSock, 1);
-	SysFree(pSmtpCh->pszServer);
-	SysFree(pSmtpCh->pszDomain);
-	SysFree(pSmtpCh);
-}
-
 int USmtpCloseChannel(SMTPCH_HANDLE hSmtpCh, int iHardClose, SMTPError *pSMTPE)
 {
 	SmtpChannel *pSmtpCh = (SmtpChannel *) hSmtpCh;
@@ -1483,7 +1475,7 @@ int USmtpChannelReset(SMTPCH_HANDLE hSmtpCh, SMTPError *pSMTPE)
 	return 0;
 }
 
-int USmtpSendMail(SMTPCH_HANDLE hSmtpCh, const char *pszFrom, const char *pszRcpt,
+int USmtpSendMail(SMTPCH_HANDLE hSmtpCh, char const *pszFrom, char const *pszRcpt,
 		  FileSection const *pFS, SMTPError *pSMTPE)
 {
 	SmtpChannel *pSmtpCh = (SmtpChannel *) hSmtpCh;
@@ -1513,8 +1505,8 @@ int USmtpSendMail(SMTPCH_HANDLE hSmtpCh, const char *pszFrom, const char *pszRcp
 		if (llMessageSize == 0 && MscGetSectionSize(pFS, &llMessageSize) < 0)
 			return ErrGetErrorCode();
 
-		SysSNPrintf(szRTXBuffer, sizeof(szRTXBuffer) - 1, "MAIL FROM:<%s> SIZE=" SYS_OFFT_FMT "u",
-			    pszFrom, llMessageSize);
+		SysSNPrintf(szRTXBuffer, sizeof(szRTXBuffer) - 1,
+			    "MAIL FROM:<%s> SIZE=" SYS_OFFT_FMT, pszFrom, llMessageSize);
 	} else
 		SysSNPrintf(szRTXBuffer, sizeof(szRTXBuffer) - 1, "MAIL FROM:<%s>", pszFrom);
 
@@ -1585,8 +1577,8 @@ int USmtpSendMail(SMTPCH_HANDLE hSmtpCh, const char *pszFrom, const char *pszRcp
 	return 0;
 }
 
-int USmtpSendMail(SMTPGateway const *pGw, const char *pszDomain, const char *pszFrom,
-		  const char *pszRcpt, FileSection const *pFS, SMTPError *pSMTPE)
+int USmtpSendMail(SMTPGateway const *pGw, char const *pszDomain, char const *pszFrom,
+		  char const *pszRcpt, FileSection const *pFS, SMTPError *pSMTPE)
 {
 	/* Set server host name inside the SMTP error structure */
 	if (pSMTPE != NULL)
@@ -1605,7 +1597,7 @@ int USmtpSendMail(SMTPGateway const *pGw, const char *pszDomain, const char *psz
 	return iSendResult;
 }
 
-static SMTPGateway *USmtpGetDefaultGateway(SVRCFG_HANDLE hSvrConfig, const char *pszServer)
+static SMTPGateway *USmtpGetDefaultGateway(SVRCFG_HANDLE hSvrConfig, char const *pszServer)
 {
 	SMTPGateway *pGw;
 	char *pszCfgOptions;
@@ -1624,8 +1616,8 @@ static SMTPGateway *USmtpGetDefaultGateway(SVRCFG_HANDLE hSvrConfig, const char 
 	return pGw;
 }
 
-int USmtpMailRmtDeliver(SVRCFG_HANDLE hSvrConfig, const char *pszServer, const char *pszDomain,
-			const char *pszFrom, const char *pszRcpt, FileSection const *pFS,
+int USmtpMailRmtDeliver(SVRCFG_HANDLE hSvrConfig, char const *pszServer, char const *pszDomain,
+			char const *pszFrom, char const *pszRcpt, FileSection const *pFS,
 			SMTPError *pSMTPE)
 {
 	int iError;
@@ -1666,16 +1658,18 @@ char *USmtpBuildRcptPath(char const *const *ppszRcptTo, SVRCFG_HANDLE hSvrConfig
 
 	char *pszRcptPath = (char *) SysAlloc(strlen(pszSendRcpt) + strlen(szSpecMXHost) + 2);
 
-	if (iRcptCount == 1)
-		sprintf(pszRcptPath, "%s:%s", szSpecMXHost, pszSendRcpt);
-	else
-		sprintf(pszRcptPath, "%s,%s", szSpecMXHost, pszSendRcpt);
+	if (pszRcptPath != NULL) {
+		if (iRcptCount == 1)
+			sprintf(pszRcptPath, "%s:%s", szSpecMXHost, pszSendRcpt);
+		else
+			sprintf(pszRcptPath, "%s,%s", szSpecMXHost, pszSendRcpt);
+	}
 	SysFree(pszSendRcpt);
 
 	return pszRcptPath;
 }
 
-SMTPGateway **USmtpGetMailExchangers(SVRCFG_HANDLE hSvrConfig, const char *pszDomain)
+SMTPGateway **USmtpGetMailExchangers(SVRCFG_HANDLE hSvrConfig, char const *pszDomain)
 {
 	/* Try to get default gateways */
 	char *pszDefaultGws = SvrGetConfigVar(hSvrConfig, "DefaultSMTPGateways");
@@ -1735,7 +1729,7 @@ SMTPGateway **USmtpGetMailExchangers(SVRCFG_HANDLE hSvrConfig, const char *pszDo
 	return ppGws;
 }
 
-static int USmtpGetDomainMX(SVRCFG_HANDLE hSvrConfig, const char *pszDomain, char *&pszMXDomains)
+static int USmtpGetDomainMX(SVRCFG_HANDLE hSvrConfig, char const *pszDomain, char *&pszMXDomains)
 {
 	int iResult;
 	char *pszSmartDNS = SvrGetConfigVar(hSvrConfig, "SmartDNSHost");
@@ -1765,7 +1759,7 @@ int USmtpCheckMailDomain(SVRCFG_HANDLE hSvrConfig, char const *pszDomain)
 	return 0;
 }
 
-MXS_HANDLE USmtpGetMXFirst(SVRCFG_HANDLE hSvrConfig, const char *pszDomain, char *pszMXHost)
+MXS_HANDLE USmtpGetMXFirst(SVRCFG_HANDLE hSvrConfig, char const *pszDomain, char *pszMXHost)
 {
 	/* Make a DNS query for domain MXs */
 	char *pszMXHosts = NULL;

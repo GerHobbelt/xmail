@@ -18,6 +18,10 @@ typedef signed int MachInt32;
 typedef unsigned int MachUInt32;
 #define MACH_TYPE_32BIT int
 
+typedef signed long long MachInt64;
+typedef unsigned long long MachUInt64;
+#define MACH_TYPE_64BIT long long
+
 
 
 #endif

@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -30,7 +30,11 @@
 #define BIG_ENDIAN_BITFIELD
 #endif
 
-#define SYS_INFINITE_TIMEOUT    (4 * 1024 * 1024)
+#ifndef CHAR_BIT
+#define CHAR_BIT                8
+#endif
+
+#define SYS_INFINITE_TIMEOUT    INFINITE
 #define SYS_DEFAULT_MAXCOUNT    (INT_MAX - 1)
 
 #define SYS_EOL                 "\r\n"
@@ -42,13 +46,14 @@
 
 #define SYS_LLU_FMT             "%I64u"
 #define SYS_LLX_FMT             "%I64X"
-#define SYS_OFFT_FMT             "%I64"
+#define SYS_OFFT_FMT             "%I64d"
 
 #define SYS_INVALID_HANDLE      ((SYS_HANDLE) 0)
 #define SYS_INVALID_SOCKET      ((SYS_SOCKET) INVALID_SOCKET)
 #define SYS_INVALID_SEMAPHORE   ((SYS_SEMAPHORE) 0)
 #define SYS_INVALID_MUTEX       ((SYS_MUTEX) 0)
 #define SYS_INVALID_EVENT       ((SYS_EVENT) 0)
+#define SYS_INVALID_PEVENT      ((SYS_PEVENT) 0)
 #define SYS_INVALID_THREAD      ((SYS_THREAD) 0)
 #define SYS_INVALID_MMAP        ((SYS_MMAP) 0)
 
@@ -56,7 +61,15 @@
 
 #define SysSNPrintf             _snprintf
 
+#ifdef HAS_NO_OFFT_FSTREAM
 #define Sys_fseek(f, o, w)      fseek(f, (long) (o), w)
+#define Sys_ftell(f)            ftell(f)
+#else
+#define Sys_fseek(f, o, w)      _fseeki64(f, (__int64) (o), w)
+#define Sys_ftell(f)            _ftelli64(f)
+#endif
+
+#define Sys_atoi64(s)           _atoi64(s)
 
 #define SYS_fd_set              fd_set
 #define SYS_FD_ZERO             FD_ZERO
@@ -68,16 +81,14 @@
 #define SYS_SHUT_WR             SD_SEND
 #define SYS_SHUT_RDWR           SD_BOTH
 
-typedef char SYS_INT8;
+typedef signed char SYS_INT8;
 typedef unsigned char SYS_UINT8;
-typedef short int SYS_INT16;
+typedef signed short int SYS_INT16;
 typedef unsigned short int SYS_UINT16;
-typedef int SYS_INT32;
+typedef signed int SYS_INT32;
 typedef unsigned int SYS_UINT32;
-typedef __int64 SYS_INT64;
+typedef signed __int64 SYS_INT64;
 typedef unsigned __int64 SYS_UINT64;
-typedef unsigned __int64 SYS_LONGLONG;
-typedef unsigned int SYS_PTRUINT;
 typedef unsigned long SYS_HANDLE;
 typedef int SYS_TLSKEY;
 typedef SOCKET SYS_SOCKET;
@@ -85,6 +96,7 @@ typedef int socklen_t;
 typedef HANDLE SYS_SEMAPHORE;
 typedef HANDLE SYS_MUTEX;
 typedef HANDLE SYS_EVENT;
+typedef HANDLE SYS_PEVENT;
 typedef unsigned long SYS_THREAD;
 typedef void *SYS_MMAP;
 typedef SYS_INT64 SYS_OFF_T;

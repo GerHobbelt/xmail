@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -54,6 +54,7 @@ struct SslBindCtx {
 };
 
 
+/*
 static void BSslLockingCB(int iMode, int iType, const char *pszFile, int iLine);
 static void BSslThreadExit(void *pPrivate, SYS_THREAD ThreadID, int iMode);
 static void BSslFreeOSSL(void);
@@ -72,7 +73,7 @@ static int BSslEnvExport(SSL_CTX *pSCtx, SSL *pSSL, X509 *pCert,
 			 int (*pfEnvCB)(void *, int, void const *), void *pPrivate);
 static int BSslCertVerifyCB(int iOK, X509_STORE_CTX *pXsCtx);
 static int BSslSetupVerify(SSL_CTX *pSCtx, SslServerBind const *pSSLB);
-
+*/
 
 
 static SYS_MUTEX *pSslMtxs = NULL; /* [i_a] - without it, the app will crash when run without args and compiled in debug mode */
@@ -101,7 +102,6 @@ static void BSslLockingCB(int iMode, int iType, const char *pszFile, int iLine)
 
 static void BSslThreadExit(void *pPrivate, SYS_THREAD ThreadID, int iMode)
 {
-
 	if (iMode == SYS_THREAD_DETACH) {
 		/*
 		 * This needs to be called at every thread exit, in order to give
@@ -137,7 +137,7 @@ int BSslInit(void)
 			ErrorPush();
 			for (i--; i >= 0; i--)
 				SysCloseMutex(pSslMtxs[i]);
-			SysFree(pSslMtxs);
+			SysFreeNullify(pSslMtxs);
 			pSslMtxs = NULL; /* [i_a] */
 			return ErrorPop();
 		}
@@ -173,7 +173,7 @@ void BSslCleanup(void)
 	 */
 	for (i = 0; i < iNumLocks; i++)
 		SysCloseMutex(pSslMtxs[i]);
-	SysFree(pSslMtxs);
+	SysFreeNullify(pSslMtxs);
 	pSslMtxs = NULL; /* [i_a] */
 }
 
@@ -255,15 +255,14 @@ static int BSslShutdown(SslBindCtx *pCtx)
 	return 0;
 }
 
-static char const *BSslCtx__Name(void *pPrivate)
+static char const *BSslCtx__Name(PrivateDataRef pPrivate)
 {
-
 	return BSSL_BIO_NAME;
 }
 
-static int BSslCtx__Free(void *pPrivate)
+static int BSslCtx__Free(PrivateDataRef pPrivate)
 {
-	SslBindCtx *pCtx = (SslBindCtx *) pPrivate;
+	SslBindCtx *pCtx = (SslBindCtx *) pPrivate.ptr;
 
 	BSslShutdown(pCtx);
 	SSL_free(pCtx->pSSL);
@@ -278,24 +277,24 @@ static int BSslCtx__Free(void *pPrivate)
 	return 0;
 }
 
-static int BSslCtx__Read(void *pPrivate, void *pData, int iSize, int iTimeo)
+static int BSslCtx__Read(PrivateDataRef pPrivate, void *pData, int iSize, int iTimeo)
 {
-	SslBindCtx *pCtx = (SslBindCtx *) pPrivate;
+	SslBindCtx *pCtx = (SslBindCtx *) pPrivate.ptr;
 
 	return BSslReadLL(pCtx, pData, iSize, iTimeo);
 }
 
-static int BSslCtx__Write(void *pPrivate, void const *pData, int iSize, int iTimeo)
+static int BSslCtx__Write(PrivateDataRef pPrivate, void const *pData, int iSize, int iTimeo)
 {
-	SslBindCtx *pCtx = (SslBindCtx *) pPrivate;
+	SslBindCtx *pCtx = (SslBindCtx *) pPrivate.ptr;
 
 	return BSslWriteLL(pCtx, pData, iSize, iTimeo);
 }
 
-static int BSslCtx__SendFile(void *pPrivate, char const *pszFilePath, SYS_OFF_T llOffStart,
+static int BSslCtx__SendFile(PrivateDataRef pPrivate, char const *pszFilePath, SYS_OFF_T llOffStart,
 			     SYS_OFF_T llOffEnd, int iTimeo)
 {
-	SslBindCtx *pCtx = (SslBindCtx *) pPrivate;
+	SslBindCtx *pCtx = (SslBindCtx *) pPrivate.ptr;
 	SYS_MMAP hMap;
 	SYS_OFF_T llSize, llAlnOff;
 	void *pMapAddr;
@@ -343,7 +342,7 @@ static int BSslAllocCtx(SslBindCtx **ppCtx, SYS_SOCKET SockFD, SSL_CTX *pSCtx, S
 
 	if ((pCtx = (SslBindCtx *) SysAlloc(sizeof(SslBindCtx))) == NULL)
 		return ErrGetErrorCode();
-	pCtx->IOOps.pPrivate = pCtx;
+	pCtx->IOOps.pPrivate.ptr = (void *)pCtx;
 	pCtx->IOOps.pName = BSslCtx__Name;
 	pCtx->IOOps.pFree = BSslCtx__Free;
 	pCtx->IOOps.pRead = BSslCtx__Read;
@@ -416,13 +415,20 @@ static int BSslCertVerifyCB(int iOK, X509_STORE_CTX *pXsCtx)
 	return iOK;
 }
 
+int ERR_print_xmail_cb_method(const char *str, size_t len, void *u)
+{
+	int ret = ErrSetErrorCode((int)u, str, (int)len);
+	ASSERT(ret <= 0);
+	return (ret == 0 ? 1 /* OK */ : ret);
+}
+
 static int BSslSetupVerify(SSL_CTX *pSCtx, SslServerBind const *pSSLB)
 {
 	char const *pszKeyFile = pSSLB->pszKeyFile;
 
 	if (pSSLB->pszCertFile != NULL) {
-		if (SSL_CTX_use_certificate_file(pSCtx, pSSLB->pszCertFile,
-						 SSL_FILETYPE_PEM) <= 0) {
+		if (SSL_CTX_use_certificate_chain_file(pSCtx,
+						       pSSLB->pszCertFile) <= 0) {
 			ErrSetErrorCode(ERR_SSL_SETCERT, pSSLB->pszCertFile);
 			return ERR_SSL_SETCERT;
 		}
@@ -456,7 +462,8 @@ static int BSslSetupVerify(SSL_CTX *pSCtx, SslServerBind const *pSSLB)
 				ErrSetErrorCode(ERR_SSL_VERPATHS);
 				return ERR_SSL_VERPATHS;
 			}
-		} else if (!SSL_CTX_set_default_verify_paths(pSCtx)) {
+		} else if (!SSL_CTX_set_default_verify_paths(pSCtx, ERR_print_xmail_cb_method, (void *)ERR_SSL_VERPATHS)) {
+			/* The ErrSetErrorCode() call shouldn't be needed anymore as the callback takes care of that. */
 			ErrSetErrorCode(ERR_SSL_VERPATHS);
 			return ERR_SSL_VERPATHS;
 		}
@@ -470,7 +477,7 @@ int BSslBindClient(BSOCK_HANDLE hBSock, SslServerBind const *pSSLB,
 {
 	int iError;
 	SYS_SOCKET SockFD;
-	const SSL_METHOD *pMethod;   /* [i_a] due to const-corrected OpenSSL 0.9.9 port */
+	SSL_METHOD const *pMethod;   /* [i_a] due to const-corrected OpenSSL 0.9.9 port */
 	SSL_CTX *pSCtx;
 	SSL *pSSL;
 	X509 *pCert;
@@ -544,7 +551,7 @@ int BSslBindServer(BSOCK_HANDLE hBSock, SslServerBind const *pSSLB,
 {
 	int iError;
 	SYS_SOCKET SockFD;
-	const SSL_METHOD *pMethod;   /* [i_a] due to const-corrected OpenSSL 0.9.9 port */
+	SSL_METHOD const *pMethod;   /* [i_a] due to const-corrected OpenSSL 0.9.9 port */
 	SSL_CTX *pSCtx;
 	SSL *pSSL;
 	X509 *pCert;

@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -247,7 +247,7 @@ static int CDNS_BuildStrMX(DNSAnswer *pAns, char *&pszMXDomains, SYS_UINT32 *pTT
 		if (StrDynSize(&DynMX) > 0)
 			StrDynAdd(&DynMX, ",");
 		if (StrDynPrint(&DynMX, "%u:%s", (unsigned int) pRec->U.MX.Pref,
-				pRec->szName) < 0) {
+				pRec->U.MX.szName) < 0) {
 			StrDynFree(&DynMX);
 			return ErrGetErrorCode();
 		}

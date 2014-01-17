@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -31,8 +31,10 @@
 #include "MiscUtils.h"
 #include "TabIndex.h"
 
-/* The index version MUST be incremented at every file format change */
-#define TAB_INDEX_CURR_VERSION      1
+/*
+ * The index version MUST be incremented at every file format change!
+ */
+#define TAB_INDEX_CURR_VERSION      3
 
 #define TAB_SAMPLE_LINES            32
 #define TAB_MIN_HASH_SIZE           17
@@ -44,25 +46,25 @@
 #define TAB_INIT_RESSET_SIZE        128
 
 
-struct HashLink {
-	SysListHead LLink;
+struct TabHashLink {
+	SysListHead Lnk;
 	TabIdxUINT uOffset;
 };
 
-struct HashNode {
+struct TabHashNode {
 	SysListHead NodeList;
 	TabIdxUINT uCount;
 };
 
-struct HashFileHeader {
+struct TabHashFileHeader {
 	SYS_UINT32 uMagic;
 	SYS_UINT32 uVersion;
-	TabIdxUINT uHashSize;
+	SYS_UINT32 uHashSize;
 };
 
 struct TabHashIndex {
-	HashFileHeader HFH;
-	FILE *pIndexFile;
+	TabHashFileHeader HFH;
+	FILE *pIdxFile;
 };
 
 struct IndexLookupData {
@@ -86,79 +88,70 @@ static int TbixCheckIndex(char const *pszIndexFile);
 static TabIdxUINT *TbixReadTable(TabHashIndex &THI, TabIdxUINT uHashVal, char const *pszTabFilePath);
 static char **TbixLoadRecord(FILE *pTabFile, TabIdxUINT uOffset);
 
-static int TbixCalcHashSize(FILE *pTabFile, char *pszLineBuffer, int iBufferSize)
+static int TbixCalcHashSize(FILE *pTabFile, char *pszLnBuff, int iBufferSize)
 {
-	int iSampleLines = 0;
-	unsigned long ulOrigOffset = (unsigned long) ftell(pTabFile);
-	unsigned long ulCurrOffset = 0;
-	unsigned long ulLineSize = 0;
+	int iLineCnt = 0, iHashSize;
+	SYS_OFF_T llOrigOffset, llOffset, llCurrOffset, llLineSize, llFileSize;
 
+	llOrigOffset = Sys_ftell(pTabFile);
 	rewind(pTabFile);
-	while (iSampleLines < TAB_SAMPLE_LINES) {
-		if (MscGetString(pTabFile, pszLineBuffer, iBufferSize - 1) == NULL)
+	llCurrOffset = llLineSize = 0;
+	while (iLineCnt < TAB_SAMPLE_LINES) {
+		if (MscGetString(pTabFile, pszLnBuff, iBufferSize - 1) == NULL)
 			break;
 
-		unsigned long ulOffset = (unsigned long) ftell(pTabFile);
-
-		if (!IsEmptyString(pszLineBuffer) &&
-		    pszLineBuffer[0] != TAB_COMMENT_CHAR) {
-			ulLineSize += ulOffset - ulCurrOffset;
-
-			++iSampleLines;
+		llOffset = Sys_ftell(pTabFile);
+		if (!IsEmptyString(pszLnBuff) &&
+		    pszLnBuff[0] != TAB_COMMENT_CHAR) {
+			llLineSize += llOffset - llCurrOffset;
+			++iLineCnt;
 		}
-		ulCurrOffset = ulOffset;
+		llCurrOffset = llOffset;
 	}
-	if (iSampleLines == 0) {
-		fseek(pTabFile, ulOrigOffset, SEEK_SET);
+	if (iLineCnt == 0) {
+		Sys_fseek(pTabFile, llOrigOffset, SEEK_SET);
 		return TAB_MIN_HASH_SIZE;
 	}
+	llLineSize /= iLineCnt;
+	Sys_fseek(pTabFile, 0, SEEK_END);
+	llFileSize = Sys_ftell(pTabFile);
+	Sys_fseek(pTabFile, llOrigOffset, SEEK_SET);
 
-	ulLineSize /= iSampleLines;
-
-	fseek(pTabFile, 0, SEEK_END);
-
-	unsigned long ulFileSize = (unsigned long) ftell(pTabFile);
-
-	fseek(pTabFile, ulOrigOffset, SEEK_SET);
-
-	int iHashSize = (int) (ulFileSize / ulLineSize) + TAB_MIN_HASH_SIZE;
-
+	iHashSize = (int) (llFileSize / llLineSize) + TAB_MIN_HASH_SIZE;
 	while (!IsPrimeNumber(iHashSize))
 		++iHashSize;
 
 	return iHashSize;
 }
 
-char *TbixGetIndexFile(char const *pszTabFilePath, int const *piFieldsIdx, char *pszIndexFile)
+char *TbixGetIndexFile(char const *pszTabFilePath, int const *piFieldsIdx, char *pszIdxFile)
 {
-	char szFileDir[SYS_MAX_PATH] = "";
-	char szFileName[SYS_MAX_PATH] = "";
+	int i;
+	char szFileDir[SYS_MAX_PATH], szFileName[SYS_MAX_PATH], szIndex[64];
 
 	MscSplitPath(pszTabFilePath, szFileDir, sizeof(szFileDir),
 		     szFileName, sizeof(szFileName), NULL, 0);
-	sprintf(pszIndexFile, "%s%s%s%s-", szFileDir, TAB_INDEX_DIR, SYS_SLASH_STR, szFileName);
-
-	for (int i = 0; piFieldsIdx[i] != INDEX_SEQUENCE_TERMINATOR; i++) {
-		char szIndex[64] = "";
-
+	sprintf(pszIdxFile, "%s%s%s%s-", szFileDir, TAB_INDEX_DIR, SYS_SLASH_STR, szFileName);
+	for (i = 0; piFieldsIdx[i] != INDEX_SEQUENCE_TERMINATOR; i++) {
 		sprintf(szIndex, "%02d", piFieldsIdx[i]);
-		strcat(pszIndexFile, szIndex);
+		strcat(pszIdxFile, szIndex);
 	}
-	strcat(pszIndexFile, ".hdx");
+	strcat(pszIdxFile, ".hdx");
 
-	return pszIndexFile;
+	return pszIdxFile;
 }
 
-static int TbixFreeHash(HashNode *pHash, int iHashSize)
+static int TbixFreeHash(TabHashNode *pHash, int iHashSize)
 {
-	for (int i = 0; i < iHashSize; i++) {
-		SysListHead *pHead = &pHash[i].NodeList;
-		SysListHead *pLLink;
+	int i;
+	SysListHead *pHead, *pPos;
+	TabHashLink *pHL;
 
-		while ((pLLink = SYS_LIST_FIRST(pHead)) != NULL) {
-			HashLink *pHL = SYS_LIST_ENTRY(pLLink, HashLink, LLink);
-
-			SYS_LIST_DEL(&pHL->LLink);
+	for (i = 0; i < iHashSize; i++) {
+		pHead = &pHash[i].NodeList;
+		while ((pPos = SYS_LIST_FIRST(pHead)) != NULL) {
+			pHL = SYS_LIST_ENTRY(pPos, TabHashLink, Lnk);
+			SYS_LIST_DEL(&pHL->Lnk);
 			SysFree(pHL);
 		}
 	}
@@ -168,104 +161,91 @@ static int TbixFreeHash(HashNode *pHash, int iHashSize)
 }
 
 int TbixCreateIndex(char const *pszTabFilePath, int const *piFieldsIdx, bool bCaseSens,
-		    int (*pHashFunc) (char const *const *, int const *, TabIdxUINT *, bool))
+		    int (*pHashFunc) (char const *const *, int const *, unsigned long *,
+				      bool))
 {
+	int i, iHashSize;
+	FILE *pTabFile, *pIdxFile;
+	TabHashNode *pHash;
+	TabHashFileHeader HFH;
+	char szIdxFile[SYS_MAX_PATH], szLnBuff[TAB_RECORD_BUFFER_SIZE];
+
 	/* Adjust hash function */
 	if (pHashFunc == NULL)
 		pHashFunc = TbixCalculateHash;
 
 	/* Build index file name */
-	char szIndexFile[SYS_MAX_PATH] = "";
-
-	if (TbixGetIndexFile(pszTabFilePath, piFieldsIdx, szIndexFile) < 0)
+	if (TbixGetIndexFile(pszTabFilePath, piFieldsIdx, szIdxFile) < 0)
 		return ErrGetErrorCode();
 
-	FILE *pTabFile = fopen(pszTabFilePath, "rb");
-
-	if (pTabFile == NULL) {
+	if ((pTabFile = fopen(pszTabFilePath, "rb")) == NULL) {
 		ErrSetErrorCode(ERR_FILE_OPEN, pszTabFilePath);
 		return ERR_FILE_OPEN;
 	}
+
 	/* Calculate file lookup hash size */
-	char szLineBuffer[TAB_RECORD_BUFFER_SIZE] = "";
-	int iHashSize = TbixCalcHashSize(pTabFile, szLineBuffer, sizeof(szLineBuffer));
+	iHashSize = TbixCalcHashSize(pTabFile, szLnBuff, sizeof(szLnBuff));
 
 	/* Alloc and init hash records */
-	HashNode *pHash = (HashNode *) SysAlloc(iHashSize * sizeof(HashNode));
-
-	if (pHash == NULL) {
+	if ((pHash = (TabHashNode *) SysAlloc(iHashSize * sizeof(TabHashNode))) == NULL) {
 		fclose(pTabFile);
 		return ErrGetErrorCode();
 	}
-
-	int i;
-
-	for (i = 0; i < iHashSize; i++) {
+	for (i = 0; i < iHashSize; i++)
 		SYS_INIT_LIST_HEAD(&pHash[i].NodeList);
-		pHash[i].uCount = 0;
-	}
 
 	/* Setup indexes records */
 	for (;;) {
 		/* Get current offset */
-		TabIdxUINT uFileOffset = (TabIdxUINT) ftell(pTabFile);
+		unsigned long ulHashVal;
+		TabIdxUINT uFileOffset;
+		char **ppszToks;
 
-		if (MscGetString(pTabFile, szLineBuffer, sizeof(szLineBuffer) - 1) == NULL)
+		uFileOffset = (TabIdxUINT) Sys_ftell(pTabFile);
+		if (MscGetString(pTabFile, szLnBuff, sizeof(szLnBuff) - 1) == NULL)
 			break;
-
-		if (szLineBuffer[0] == TAB_COMMENT_CHAR)
-			continue;
-
-		char **ppszTabTokens = StrGetTabLineStrings(szLineBuffer);
-
-		if (ppszTabTokens == NULL)
+		if (szLnBuff[0] == TAB_COMMENT_CHAR ||
+		    (ppszToks = StrGetTabLineStrings(szLnBuff)) == NULL)
 			continue;
 
 		/* Calculate hash value */
-		TabIdxUINT uHashVal = 0;
+		if ((*pHashFunc)(ppszToks, piFieldsIdx, &ulHashVal, bCaseSens) == 0) {
+			int iHashIndex = (int) (ulHashVal % (unsigned int) iHashSize);
+			TabHashLink *pHL;
 
-		if ((*pHashFunc)(ppszTabTokens, piFieldsIdx, &uHashVal, bCaseSens) == 0) {
-			int iHashIndex = (int) (uHashVal % (TabIdxUINT) iHashSize);
-			HashLink *pHL = (HashLink *) SysAlloc(sizeof(HashLink));
-
-			if (pHL == NULL) {
-				StrFreeStrings(ppszTabTokens);
+			if ((pHL = (TabHashLink *) SysAlloc(sizeof(TabHashLink))) == NULL) {
+				StrFreeStrings(ppszToks);
 				TbixFreeHash(pHash, iHashSize);
 				fclose(pTabFile);
 				return ErrGetErrorCode();
 			}
-
 			pHL->uOffset = uFileOffset;
-			SYS_LIST_ADDT(&pHL->LLink, &pHash[iHashIndex].NodeList);
-			++pHash[iHashIndex].uCount;
+			SYS_LIST_ADDT(&pHL->Lnk, &pHash[iHashIndex].NodeList);
+			pHash[iHashIndex].uCount++;
 		}
-		StrFreeStrings(ppszTabTokens);
+		StrFreeStrings(ppszToks);
 	}
 	fclose(pTabFile);
 
 	/* Write index file */
-	FILE *pIndexFile = fopen(szIndexFile, "wb");
-
-	if (pIndexFile == NULL) {
+	if ((pIdxFile = fopen(szIdxFile, "wb")) == NULL) {
 		TbixFreeHash(pHash, iHashSize);
 
-		ErrSetErrorCode(ERR_FILE_CREATE, szIndexFile);
+		ErrSetErrorCode(ERR_FILE_CREATE, szIdxFile);
 		return ERR_FILE_CREATE;
 	}
 	/* Write file header */
-	HashFileHeader HFH;
-
 	ZeroData(HFH);
 	HFH.uMagic = TAB_INDEX_MAGIC;
 	HFH.uVersion = TAB_INDEX_CURR_VERSION;
-	HFH.uHashSize = (TabIdxUINT) iHashSize;
+	HFH.uHashSize = iHashSize;
 
-	if (!fwrite(&HFH, sizeof(HFH), 1, pIndexFile)) {
-		fclose(pIndexFile);
-		SysRemove(szIndexFile);
+	if (!fwrite(&HFH, sizeof(HFH), 1, pIdxFile)) {
+		fclose(pIdxFile);
+		SysRemove(szIdxFile);
 		TbixFreeHash(pHash, iHashSize);
 
-		ErrSetErrorCode(ERR_FILE_WRITE, szIndexFile); /* [i_a] */
+		ErrSetErrorCode(ERR_FILE_WRITE, szIdxFile); /* [i_a] */
 		return ERR_FILE_WRITE;
 	}
 	/* Dump main table */
@@ -278,12 +258,12 @@ int TbixCreateIndex(char const *pszTabFilePath, int const *piFieldsIdx, bool bCa
 			uTableOffset = uCurrOffset;
 			uCurrOffset += (pHash[i].uCount + 1) * sizeof(TabIdxUINT);
 		}
-		if (!fwrite(&uTableOffset, sizeof(uTableOffset), 1, pIndexFile)) {
-			fclose(pIndexFile);
-			SysRemove(szIndexFile);
+		if (!fwrite(&uTableOffset, sizeof(uTableOffset), 1, pIdxFile)) {
+			fclose(pIdxFile);
+			SysRemove(szIdxFile);
 			TbixFreeHash(pHash, iHashSize);
 
-			ErrSetErrorCode(ERR_FILE_WRITE, szIndexFile); /* [i_a] */
+			ErrSetErrorCode(ERR_FILE_WRITE, szIdxFile); /* [i_a] */
 			return ERR_FILE_WRITE;
 		}
 	}
@@ -293,34 +273,35 @@ int TbixCreateIndex(char const *pszTabFilePath, int const *piFieldsIdx, bool bCa
 		TabIdxUINT uRecCount = pHash[i].uCount;
 
 		if (uRecCount != 0) {
-			if (!fwrite(&uRecCount, sizeof(uRecCount), 1, pIndexFile)) {
-				fclose(pIndexFile);
-				SysRemove(szIndexFile);
+			SysListHead *pHead, *pPos;
+
+			if (!fwrite(&uRecCount, sizeof(uRecCount), 1, pIdxFile)) {
+				fclose(pIdxFile);
+				SysRemove(szIdxFile);
 				TbixFreeHash(pHash, iHashSize);
 
-				ErrSetErrorCode(ERR_FILE_WRITE, szIndexFile); /* [i_a] */
+				ErrSetErrorCode(ERR_FILE_WRITE, szIdxFile); /* [i_a] */
 				return ERR_FILE_WRITE;
 			}
-
-			SysListHead *pHead = &pHash[i].NodeList;
-			SysListHead *pLLink;
-
-			SYS_LIST_FOR_EACH(pLLink, pHead) {
-				HashLink *pHL = SYS_LIST_ENTRY(pLLink, HashLink, LLink);
+			pHead = &pHash[i].NodeList;
+			SYS_LIST_FOR_EACH(pPos, pHead) {
+				TabHashLink *pHL = SYS_LIST_ENTRY(pPos, TabHashLink,
+								  Lnk);
 				TabIdxUINT uRecordOffset = pHL->uOffset;
 
-				if (!fwrite(&uRecordOffset, sizeof(uRecordOffset), 1, pIndexFile)) {
-					fclose(pIndexFile);
-					SysRemove(szIndexFile);
+				if (!fwrite(&uRecordOffset, sizeof(uRecordOffset), 1,
+					    pIdxFile)) {
+					fclose(pIdxFile);
+					SysRemove(szIdxFile);
 					TbixFreeHash(pHash, iHashSize);
 
-					ErrSetErrorCode(ERR_FILE_WRITE, szIndexFile); /* [i_a] */
+					ErrSetErrorCode(ERR_FILE_WRITE, szIdxFile); /* [i_a] */
 					return ERR_FILE_WRITE;
 				}
 			}
 		}
 	}
-	fclose(pIndexFile);
+	fclose(pIdxFile);
 	TbixFreeHash(pHash, iHashSize);
 
 	return 0;
@@ -342,20 +323,20 @@ static int TbixBuildKey(char *pszKey, va_list Args, bool bCaseSens)
 	return 0;
 }
 
-static int TbixBuildKey(char *pszKey, char const *const *ppszTabTokens,
+static int TbixBuildKey(char *pszKey, char const *const *ppszToks,
 			int const *piFieldsIdx, bool bCaseSens)
 {
-	int iFieldsCount = StrStringsCount(ppszTabTokens);
+	int i, iFieldsCount = StrStringsCount(ppszToks);
 
 	SetEmptyString(pszKey);
-	for (int i = 0; piFieldsIdx[i] != INDEX_SEQUENCE_TERMINATOR; i++) {
+	for (i = 0; piFieldsIdx[i] != INDEX_SEQUENCE_TERMINATOR; i++) {
 		if (piFieldsIdx[i] < 0 || piFieldsIdx[i] >= iFieldsCount) {
 			ErrSetErrorCode(ERR_BAD_TAB_INDEX_FIELD);
 			return ERR_BAD_TAB_INDEX_FIELD;
 		}
 		if (i > 0)
 			strcat(pszKey, TOKEN_SEP_STR);
-		strcat(pszKey, ppszTabTokens[piFieldsIdx[i]]);
+		strcat(pszKey, ppszToks[piFieldsIdx[i]]);
 	}
 	if (!bCaseSens)
 		StrLower(pszKey);
@@ -363,131 +344,140 @@ static int TbixBuildKey(char *pszKey, char const *const *ppszTabTokens,
 	return 0;
 }
 
-static TabIdxUINT TbixHashData(char const *pData, long lSize)
+int TbixCalculateHash(char const *const *ppszToks, int const *piFieldsIdx,
+		      unsigned long *pulHashVal, bool bCaseSens)
 {
-	unsigned long ulHashVal = MscHashString(pData, lSize);
+	char szKey[KEY_BUFFER_SIZE];
 
-	/*
-	 * We may want to use upper bits also, in architectures
-	 * where sizeof(long) > 4 ...
-	 */
-
-	return (TabIdxUINT) ulHashVal;
-}
-
-int TbixCalculateHash(char const *const *ppszTabTokens, int const *piFieldsIdx,
-		      TabIdxUINT *puHashVal, bool bCaseSens)
-{
-	char szKey[KEY_BUFFER_SIZE] = "";
-
-	if (TbixBuildKey(szKey, ppszTabTokens, piFieldsIdx, bCaseSens) < 0)
+	if (TbixBuildKey(szKey, ppszToks, piFieldsIdx, bCaseSens) < 0)
 		return ErrGetErrorCode();
-	*puHashVal = TbixHashData(szKey, strlen(szKey));
+	*pulHashVal = MscHashString(szKey, strlen(szKey));
 
 	return 0;
 }
 
-static int TbixOpenIndex(char const *pszIndexFile, TabHashIndex &THI)
+static int TbixOpenIndex(char const *pszIdxFile, TabHashIndex &THI)
 {
-	FILE *pIndexFile = fopen(pszIndexFile, "rb");
+	FILE *pIdxFile = fopen(pszIdxFile, "rb");
 
-	if (pIndexFile == NULL) {
-		ErrSetErrorCode(ERR_FILE_OPEN, pszIndexFile);
+	if (pIdxFile == NULL) {
+		ErrSetErrorCode(ERR_FILE_OPEN, pszIdxFile);
 		return ERR_FILE_OPEN;
 	}
 	/* Read header and check signature */
 	ZeroData(THI);
 
-	if (!fread(&THI.HFH, sizeof(THI.HFH), 1, pIndexFile)) {
-		fclose(pIndexFile);
+	if (!fread(&THI.HFH, sizeof(THI.HFH), 1, pIdxFile)) {
+		fclose(pIdxFile);
 
-		ErrSetErrorCode(ERR_FILE_READ, pszIndexFile);
+		ErrSetErrorCode(ERR_FILE_READ, pszIdxFile);
 		return ERR_FILE_READ;
 	}
-	if (THI.HFH.uMagic != TAB_INDEX_MAGIC || THI.HFH.uVersion != TAB_INDEX_CURR_VERSION) {
-		fclose(pIndexFile);
+	if (THI.HFH.uMagic != TAB_INDEX_MAGIC ||
+	    THI.HFH.uVersion != TAB_INDEX_CURR_VERSION) {
+		fclose(pIdxFile);
 
-		ErrSetErrorCode(ERR_BAD_INDEX_FILE, pszIndexFile);
+		ErrSetErrorCode(ERR_BAD_INDEX_FILE, pszIdxFile);
 		return ERR_BAD_INDEX_FILE;
 	}
-	THI.pIndexFile = pIndexFile;
+	THI.pIdxFile = pIdxFile;
 
 	return 0;
 }
 
 static int TbixCloseIndex(TabHashIndex &THI)
 {
-	fclose(THI.pIndexFile);
+	fclose(THI.pIdxFile);
 	ZeroData(THI);
 
 	return 0;
 }
 
-static int TbixCheckIndex(char const *pszIndexFile)
+static int TbixCheckIndex(char const *pszIdxFile)
 {
 	TabHashIndex THI;
 
-	if (TbixOpenIndex(pszIndexFile, THI) < 0)
+	if (TbixOpenIndex(pszIdxFile, THI) < 0)
 		return ErrGetErrorCode();
-
 	TbixCloseIndex(THI);
 
 	return 0;
 }
 
-static TabIdxUINT *TbixReadTable(TabHashIndex &THI, TabIdxUINT uHashVal, char const *pszTabFilePath)
+static TabIdxUINT *TbixReadTable(TabHashIndex &THI, unsigned long ulHashVal)
 {
-	TabIdxUINT uHashIndex = uHashVal % THI.HFH.uHashSize, uTableOffset, uTableSize;
-	unsigned long ulTableOffset = sizeof(HashFileHeader) + uHashIndex * sizeof(TabIdxUINT);
+	unsigned long ulHashIndex;
+	TabIdxUINT uTableOffset, uTableSize;
+	SYS_OFF_T llTblOffset;
+	TabIdxUINT *pOffTbl;
 
-	if (fseek(THI.pIndexFile, ulTableOffset, SEEK_SET) != 0) {
-		ErrSetErrorCode(ERR_BAD_INDEX_FILE, pszTabFilePath);
+	ulHashIndex = ulHashVal % THI.HFH.uHashSize;
+	llTblOffset = sizeof(TabHashFileHeader) + ulHashIndex * sizeof(TabIdxUINT);
+	if (Sys_fseek(THI.pIdxFile, llTblOffset, SEEK_SET) != 0) {
+		ErrSetErrorCode(ERR_BAD_INDEX_FILE);
 		return NULL;
 	}
-	if (!fread(&uTableOffset, sizeof(uTableOffset), 1, THI.pIndexFile)) {
-		ErrSetErrorCode(ERR_FILE_READ, pszTabFilePath);
+	if (!fread(&uTableOffset, sizeof(uTableOffset), 1, THI.pIdxFile)) {
+		ErrSetErrorCode(ERR_FILE_READ);
 		return NULL;
 	}
 	if (uTableOffset == 0) {
-		ErrSetErrorCode(ERR_RECORD_NOT_FOUND, pszTabFilePath);
+		ErrSetErrorCode(ERR_RECORD_NOT_FOUND);
 		return NULL;
 	}
-	if (fseek(THI.pIndexFile, uTableOffset, SEEK_SET) != 0) {
-		ErrSetErrorCode(ERR_BAD_INDEX_FILE, pszTabFilePath);
+	if (Sys_fseek(THI.pIdxFile, uTableOffset, SEEK_SET) != 0) {
+		ErrSetErrorCode(ERR_BAD_INDEX_FILE);
 		return NULL;
 	}
-	if (!fread(&uTableSize, sizeof(uTableSize), 1, THI.pIndexFile)) {
-		ErrSetErrorCode(ERR_FILE_READ, pszTabFilePath);
+	if (!fread(&uTableSize, sizeof(uTableSize), 1, THI.pIdxFile)) {
+		ErrSetErrorCode(ERR_FILE_READ);
 		return NULL;
 	}
-
-	TabIdxUINT *pOffTable = (TabIdxUINT *) SysAlloc((uTableSize + 1) * sizeof(TabIdxUINT));
-
-	if (pOffTable == NULL)
+	if ((pOffTbl = (TabIdxUINT *)
+	     SysAlloc((uTableSize + 1) * sizeof(TabIdxUINT))) == NULL)
 		return NULL;
-
-	pOffTable[0] = uTableSize;
-	if (!fread(&pOffTable[1], uTableSize * sizeof(TabIdxUINT), 1, THI.pIndexFile)) {
-		SysFree(pOffTable);
-		ErrSetErrorCode(ERR_FILE_READ, pszTabFilePath);
+	pOffTbl[0] = uTableSize;
+	if (!fread(&pOffTbl[1], uTableSize * sizeof(TabIdxUINT), 1,
+		   THI.pIdxFile)) {
+		SysFree(pOffTbl);
+		ErrSetErrorCode(ERR_FILE_READ);
 		return NULL;
 	}
 
-	return pOffTable;
+	return pOffTbl;
+}
+
+static char **TbixLoadRecord(FILE *pTabFile, TabIdxUINT uOffset)
+{
+	char szLnBuff[TAB_RECORD_BUFFER_SIZE];
+
+	if (Sys_fseek(pTabFile, uOffset, SEEK_SET) != 0) {
+		ErrSetErrorCode(ERR_BAD_INDEX_FILE);
+		return NULL;
+	}
+	if (MscGetString(pTabFile, szLnBuff,
+			 sizeof(szLnBuff) - 1) == NULL) {
+		ErrSetErrorCode(ERR_FILE_READ);
+		return NULL;
+	}
+
+	return StrGetTabLineStrings(szLnBuff);
 }
 
 char **TbixLookup(char const *pszTabFilePath, int const *piFieldsIdx, bool bCaseSens, ...)
 {
-	/* Build index file name */
-	char szIndexFile[SYS_MAX_PATH] = "";
+	int i, iHashNodes;
+	unsigned long ulHashVal;
+	TabIdxUINT *pHashTable;
+	FILE *pTabFile;
+	va_list Args;
+	TabHashIndex THI;
+	char szIdxFile[SYS_MAX_PATH], szRefKey[KEY_BUFFER_SIZE];
 
-	if (TbixGetIndexFile(pszTabFilePath, piFieldsIdx, szIndexFile) < 0)
+	if (TbixGetIndexFile(pszTabFilePath, piFieldsIdx, szIdxFile) < 0)
 		return NULL;
 
 	/* Calculate key & hash */
-	va_list Args;
-	char szRefKey[KEY_BUFFER_SIZE] = "";
-
 	va_start(Args, bCaseSens);
 	if (TbixBuildKey(szRefKey, Args, bCaseSens) < 0) {
 		va_end(Args);
@@ -495,99 +485,69 @@ char **TbixLookup(char const *pszTabFilePath, int const *piFieldsIdx, bool bCase
 	}
 	va_end(Args);
 
-	TabIdxUINT uHashVal = TbixHashData(szRefKey, strlen(szRefKey));
-
 	/* Open index */
-	TabHashIndex THI;
-
-	if (TbixOpenIndex(szIndexFile, THI) < 0)
+	ulHashVal = MscHashString(szRefKey, strlen(szRefKey));
+	if (TbixOpenIndex(szIdxFile, THI) < 0)
 		return NULL;
 
 	/* Try to lookup records */
-	TabIdxUINT *pHashTable = TbixReadTable(THI, uHashVal, szIndexFile);
+	pHashTable = TbixReadTable(THI, ulHashVal);
 
 	TbixCloseIndex(THI);
 	if (pHashTable == NULL)
 		return NULL;
 
 	/* Search for the matched one */
-	FILE *pTabFile = fopen(pszTabFilePath, "rb");
-
-	if (pTabFile == NULL) {
+	if ((pTabFile = fopen(pszTabFilePath, "rb")) == NULL) {
 		SysFree(pHashTable);
 		ErrSetErrorCode(ERR_FILE_OPEN, pszTabFilePath);
 		return NULL;
 	}
 
-	int iHashNodes = (int) pHashTable[0];
+	iHashNodes = (int) pHashTable[0];
+	for (i = 0; i < iHashNodes; i++) {
+		char **ppszToks = TbixLoadRecord(pTabFile, pHashTable[i + 1]);
+		char szKey[KEY_BUFFER_SIZE];
 
-	for (int i = 0; i < iHashNodes; i++) {
-		char **ppszTabTokens = TbixLoadRecord(pTabFile, pHashTable[i + 1]);
-
-		if (ppszTabTokens != NULL) {
-			char szKey[KEY_BUFFER_SIZE] = "";
-
-			if (TbixBuildKey(szKey, ppszTabTokens, piFieldsIdx, bCaseSens) == 0) {
+		if (ppszToks != NULL) {
+			if (TbixBuildKey(szKey, ppszToks, piFieldsIdx, bCaseSens) == 0) {
 				if (bCaseSens) {
 					if (strcmp(szKey, szRefKey) == 0) {
 						fclose(pTabFile);
 						SysFree(pHashTable);
-						return ppszTabTokens;
+						return ppszToks;
 					}
 				} else {
 					if (stricmp(szKey, szRefKey) == 0) {
 						fclose(pTabFile);
 						SysFree(pHashTable);
-						return ppszTabTokens;
+						return ppszToks;
 					}
 				}
 			}
-			StrFreeStrings(ppszTabTokens);
+			StrFreeStrings(ppszToks);
 		}
 	}
 	fclose(pTabFile);
 	SysFree(pHashTable);
 
-	ErrSetErrorCode(ERR_RECORD_NOT_FOUND, pszTabFilePath);
+	ErrSetErrorCode(ERR_RECORD_NOT_FOUND);
 
 	return NULL;
 }
 
-static char **TbixLoadRecord(FILE *pTabFile, TabIdxUINT uOffset)
-{
-	char szLineBuffer[TAB_RECORD_BUFFER_SIZE] = "";
-
-	if (fseek(pTabFile, uOffset, SEEK_SET) != 0) {
-		ErrSetErrorCode(ERR_BAD_INDEX_FILE);
-		return NULL;
-	}
-	if (MscGetString(pTabFile, szLineBuffer, sizeof(szLineBuffer) - 1) == NULL) {
-		ErrSetErrorCode(ERR_FILE_READ);
-		return NULL;
-	}
-
-	return StrGetTabLineStrings(szLineBuffer);
-}
-
 int TbixCheckIndex(char const *pszTabFilePath, int const *piFieldsIdx, bool bCaseSens,
-		   int (*pHashFunc) (char const *const *, int const *, TabIdxUINT *, bool))
+		   int (*pHashFunc) (char const *const *, int const *, unsigned long *,
+				     bool))
 {
-	SYS_FILE_INFO FI_Tab;
+	SYS_FILE_INFO FI_Tab, FI_Index;
+	char szIdxFile[SYS_MAX_PATH];
 
-	if (SysGetFileInfo(pszTabFilePath, FI_Tab) < 0)
+	if (SysGetFileInfo(pszTabFilePath, FI_Tab) < 0 ||
+	    TbixGetIndexFile(pszTabFilePath, piFieldsIdx, szIdxFile) < 0)
 		return ErrGetErrorCode();
-
-	/* Build index file name */
-	char szIndexFile[SYS_MAX_PATH] = "";
-
-	if (TbixGetIndexFile(pszTabFilePath, piFieldsIdx, szIndexFile) < 0)
-		return ErrGetErrorCode();
-
-	/* Compare TAB <-> Index dates */
-	SYS_FILE_INFO FI_Index;
-
-	if (SysGetFileInfo(szIndexFile, FI_Index) < 0 || FI_Tab.tMod > FI_Index.tMod ||
-	    TbixCheckIndex(szIndexFile) < 0) {
+	if (SysGetFileInfo(szIdxFile, FI_Index) < 0 || FI_Tab.tMod > FI_Index.tMod ||
+	    TbixCheckIndex(szIdxFile) < 0) {
 
 		/* Rebuild the index */
 		if (TbixCreateIndex(pszTabFilePath, piFieldsIdx, bCaseSens, pHashFunc) < 0)
@@ -598,24 +558,26 @@ int TbixCheckIndex(char const *pszTabFilePath, int const *piFieldsIdx, bool bCas
 }
 
 INDEX_HANDLE TbixOpenHandle(char const *pszTabFilePath, int const *piFieldsIdx,
-			    TabIdxUINT const *puHashVal, int iNumVals)
+			    unsigned long const *pulHashVal, int iNumVals)
 {
 	int i;
 	long lRecCount;
 	ARRAY_HANDLE hArray;
+	FILE *pTabFile;
+	IndexLookupData *pILD;
 	TabHashIndex THI;
-	char szIndexFile[SYS_MAX_PATH] = "";
+	char szIdxFile[SYS_MAX_PATH];
 
-	if (TbixGetIndexFile(pszTabFilePath, piFieldsIdx, szIndexFile) < 0 ||
+	if (TbixGetIndexFile(pszTabFilePath, piFieldsIdx, szIdxFile) < 0 ||
 	    (hArray = ArrayCreate(TAB_INIT_RESSET_SIZE)) == INVALID_ARRAY_HANDLE)
 		return INVALID_INDEX_HANDLE;
 
-	if (TbixOpenIndex(szIndexFile, THI) < 0) {
+	if (TbixOpenIndex(szIdxFile, THI) < 0) {
 		ArrayFree(hArray, MscSysFreeCB, NULL);
 		return INVALID_INDEX_HANDLE;
 	}
 	for (i = 0, lRecCount = 0; i < iNumVals; i++) {
-		TabIdxUINT *pHashTable = TbixReadTable(THI, puHashVal[i], szIndexFile);
+		TabIdxUINT *pHashTable = TbixReadTable(THI, pulHashVal[i]);
 
 		if (pHashTable != NULL) {
 			if (ArrayAppend(hArray, pHashTable) < 0) {
@@ -635,17 +597,13 @@ INDEX_HANDLE TbixOpenHandle(char const *pszTabFilePath, int const *piFieldsIdx,
 	}
 
 	/* Open tab file */
-	FILE *pTabFile = fopen(pszTabFilePath, "rb");
-
-	if (pTabFile == NULL) {
+	if ((pTabFile = fopen(pszTabFilePath, "rb")) == NULL) {
 		ArrayFree(hArray, MscSysFreeCB, NULL);
 		ErrSetErrorCode(ERR_FILE_OPEN, pszTabFilePath);
 		return INVALID_INDEX_HANDLE;
 	}
 	/* Setup lookup struct */
-	IndexLookupData *pILD = (IndexLookupData *) SysAlloc(sizeof(IndexLookupData));
-
-	if (pILD == NULL) {
+	if ((pILD = (IndexLookupData *) SysAlloc(sizeof(IndexLookupData))) == NULL) {
 		fclose(pTabFile);
 		ArrayFree(hArray, MscSysFreeCB, NULL);
 		return INVALID_INDEX_HANDLE;

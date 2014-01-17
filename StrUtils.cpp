@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -494,8 +494,10 @@ char *StrLoadFile(FILE *pFile)
 
 	fseek(pFile, 0, SEEK_SET);
 
-	fread(pszData, uFileSize, 1, pFile);
-	pszData[uFileSize] = '\0';
+	int sr = (int)fread(pszData, uFileSize, 1, pFile);
+	if (sr < 0)
+		sr = 0;
+	pszData[sr] = '\0';
 
 	return pszData;
 }

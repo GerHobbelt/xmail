@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -53,17 +53,15 @@ static int MnEventLog(char const *pszFormat, ...)
 	openlog(APP_NAME_STR, LOG_PID, LOG_DAEMON);
 
 	va_list Args;
+	char szBuffer[2048];
 
 	va_start(Args, pszFormat);
-
-	char szBuffer[2048] = "";
+	openlog(APP_NAME_STR, LOG_PID, LOG_DAEMON);
 
 	vsnprintf(szBuffer, sizeof(szBuffer) - 1, pszFormat, Args);
 
 	syslog(LOG_ERR, "%s", szBuffer);
-
 	va_end(Args);
-
 	closelog();
 
 	return 0;
@@ -78,9 +76,10 @@ static char const *MnGetPIDDir(void)
 
 static int MnSavePID(char const *pszPidFile)
 {
-	char szPidFile[SYS_MAX_PATH] = "";
+	char szPidFile[SYS_MAX_PATH];
 
-	snprintf(szPidFile, sizeof(szPidFile) - 1, "%s/%s.pid", MnGetPIDDir(), pszPidFile);
+	snprintf(szPidFile, sizeof(szPidFile) - 1, "%s/%s.pid", MnGetPIDDir(),
+		 pszPidFile);
 
 	FILE *pFile = fopen(szPidFile, "w");
 
@@ -88,9 +87,7 @@ static int MnSavePID(char const *pszPidFile)
 		perror(szPidFile);
 		return -errno;
 	}
-
 	fprintf(pFile, "%u", (unsigned int) getpid());
-
 	fclose(pFile);
 
 	return 0;
@@ -98,10 +95,10 @@ static int MnSavePID(char const *pszPidFile)
 
 static int MnRemovePID(char const *pszPidFile)
 {
-	char szPidFile[SYS_MAX_PATH] = "";
+	char szPidFile[SYS_MAX_PATH];
 
-	snprintf(szPidFile, sizeof(szPidFile) - 1, "%s/%s.pid", MnGetPIDDir(), pszPidFile);
-
+	snprintf(szPidFile, sizeof(szPidFile) - 1, "%s/%s.pid", MnGetPIDDir(),
+		 pszPidFile);
 	if (unlink(szPidFile) != 0) {
 		perror(szPidFile);
 		return -errno;
@@ -123,16 +120,17 @@ static void MnSetupStdHandles(void)
 		MnEventLog("File descriptor duplication error : %s", strerror(errno));
 		exit(errno);
 	}
-
-	close(iFD);
-
+	if (iFD > 2)
+		close(iFD);
 }
 
 static int MnDaemonBootStrap(void)
 {
-	/* This code is inspired from the code of the great Richard Stevens books. */
-	/* May You RIP in programmers paradise great Richard. */
-	/* I suggest You to buy all his collection, soon ! */
+	/*
+	 * This code is inspired from the code of the great Richard Stevens books.
+	 * May You RIP in programmers paradise great Richard.
+	 * I suggest You to buy all his collection, soon!
+	 */
 
 	/* For BSD */
 #ifdef SIGTTOU
@@ -202,8 +200,8 @@ static int MnDaemonBootStrap(void)
 
 static int MnIsDebugStartup(int iArgCount, char *pszArgs[])
 {
-	for (int ii = 0; ii < iArgCount; ii++)
-		if (strcmp(pszArgs[ii], XMAIL_DEBUG_OPTION) == 0)
+	for (int i = 0; i < iArgCount; i++)
+		if (strcmp(pszArgs[i], XMAIL_DEBUG_OPTION) == 0)
 			return 1;
 
 	return 0;

@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -35,11 +35,11 @@ typedef struct s_md5_ctx {
 } md5_ctx_t;
 
 void md5_init(md5_ctx_t *mdctx);
-void md5_update(md5_ctx_t *mdctx, unsigned char const *data, unsigned int size);
+void md5_update(md5_ctx_t *mdctx, unsigned char const *data, size_t size);
 void md5_final(md5_ctx_t *mdctx);
 
 void md5_hex(unsigned char *src, char *dst);
 void do_md5_file(FILE *file, long start, long bytes, char *hash);
-void do_md5_string(char const *pass, int passlen, char *hash);
+void do_md5_string(char const *pass, size_t passlen, char *hash);
 
 #endif

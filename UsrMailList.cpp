@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -249,7 +249,7 @@ int UsrMLRemoveUser(UserInfo * pUI, const char *pszMLUser)
 
 	char szTmpFile[SYS_MAX_PATH] = "";
 
-	SysGetTmpFile(szTmpFile);
+	UsrGetTmpFile(NULL, szTmpFile, sizeof(szTmpFile));
 
 	char szResLock[SYS_MAX_PATH] = "";
 	RLCK_HANDLE hResLock = RLckLockEX(CfgGetBasedPath(szMLTablePath, szResLock,
@@ -352,7 +352,7 @@ USRML_HANDLE UsrMLOpenDB(UserInfo * pUI)
 	if (pMLUSD == NULL)
 		return INVALID_USRML_HANDLE;
 
-	SysGetTmpFile(pMLUSD->szTmpDBFile);
+	UsrGetTmpFile(NULL, pMLUSD->szTmpDBFile, sizeof(pMLUSD->szTmpDBFile));
 
 	if (UsrMLGetUsersFileSnapShot(pUI, pMLUSD->szTmpDBFile) < 0) {
 		SysFree(pMLUSD);

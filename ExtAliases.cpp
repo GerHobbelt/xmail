@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -66,6 +66,16 @@ static int iIdxExAlias_RmtDomain_RmtName[] = {
 	INDEX_SEQUENCE_TERMINATOR
 };
 
+static char *ExAlGetTableFilePath(char *pszLnkFilePath, int iMaxPath)
+{
+	CfgGetRootPath(pszLnkFilePath, iMaxPath);
+	StrNCat(pszLnkFilePath, SVR_EXT_ALIAS_FILE, iMaxPath);
+
+	SysLogMessage(LOG_LEV_DEBUG, "Going to look at config file: '%s'\n", pszLnkFilePath);
+
+	return pszLnkFilePath;
+}
+
 int ExAlCheckAliasIndexes(void)
 {
 	char szAliasFilePath[SYS_MAX_PATH] = "";
@@ -88,17 +98,7 @@ static int ExAlRebuildAliasIndexes(char const *pszAliasFilePath)
 	return 0;
 }
 
-static char *ExAlGetTableFilePath(char *pszLnkFilePath, int iMaxPath)
-{
-	CfgGetRootPath(pszLnkFilePath, iMaxPath);
-	StrNCat(pszLnkFilePath, SVR_EXT_ALIAS_FILE, iMaxPath);
-
-	SysLogMessage(LOG_LEV_DEBUG, "Going to look at config file: '%s'\n", pszLnkFilePath);
-
-	return pszLnkFilePath;
-}
-
-static ExtAlias *ExAlGetAliasFromStrings(char **ppszStrings, const char *pszLine)
+static ExtAlias *ExAlGetAliasFromStrings(char **ppszStrings, char const *pszLine)
 {
 	int iFieldsCount = StrStringsCount(ppszStrings);
 
@@ -302,7 +302,7 @@ int ExAlRemoveAlias(ExtAlias * pExtAlias)
 	char szTmpFile[SYS_MAX_PATH] = "";
 
 	ExAlGetTableFilePath(szAliasFilePath, sizeof(szAliasFilePath));
-	SysGetTmpFile(szTmpFile);
+	UsrGetTmpFile(NULL, szTmpFile, sizeof(szTmpFile));
 
 	char szResLock[SYS_MAX_PATH] = "";
 	RLCK_HANDLE hResLock = RLckLockEX(CfgGetBasedPath(szAliasFilePath, szResLock,
@@ -388,7 +388,7 @@ int ExAlRemoveUserAliases(const char *pszDomain, const char *pszName)
 	char szTmpFile[SYS_MAX_PATH] = "";
 
 	ExAlGetTableFilePath(szAliasFilePath, sizeof(szAliasFilePath));
-	SysGetTmpFile(szTmpFile);
+	UsrGetTmpFile(NULL, szTmpFile, sizeof(szTmpFile));
 
 	char szResLock[SYS_MAX_PATH] = "";
 	RLCK_HANDLE hResLock = RLckLockEX(CfgGetBasedPath(szAliasFilePath, szResLock,
@@ -477,7 +477,7 @@ int ExAlRemoveDomainAliases(const char *pszDomain)
 	char szTmpFile[SYS_MAX_PATH] = "";
 
 	ExAlGetTableFilePath(szAliasFilePath, sizeof(szAliasFilePath));
-	SysGetTmpFile(szTmpFile);
+	UsrGetTmpFile(NULL, szTmpFile, sizeof(szTmpFile));
 
 	char szResLock[SYS_MAX_PATH] = "";
 	RLCK_HANDLE hResLock = RLckLockEX(CfgGetBasedPath(szAliasFilePath, szResLock,
@@ -589,7 +589,7 @@ EXAL_HANDLE ExAlOpenDB(void)
 	if (pGLSD == NULL)
 		return INVALID_EXAL_HANDLE;
 
-	SysGetTmpFile(pGLSD->szTmpDBFile);
+	UsrGetTmpFile(NULL, pGLSD->szTmpDBFile, sizeof(pGLSD->szTmpDBFile));
 	if (ExAlGetDBFileSnapShot(pGLSD->szTmpDBFile) < 0) {
 		SysFree(pGLSD);
 		return INVALID_EXAL_HANDLE;

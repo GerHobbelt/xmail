@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -384,7 +384,7 @@ int FilExecPreParse(FilterExecCtx *pCtx, char **ppszPEError)
 			}
 		} else if (strcmp(pszVar, "timeo") == 0) {
 			if (pszVal != NULL)
-				pCtx->iTimeout = atoi(pszVal);
+				pCtx->iTimeout = atoi(pszVal) * 1000;
 		}
 	}
 	StrFreeStrings(ppszEToks);
@@ -401,6 +401,69 @@ static int FilPreExec(FilterMsgInfo const &FMI, FilterExecCtx *pFCtx,
 	pFCtx->iTimeout = iFilterTimeout;
 
 	return FilExecPreParse(pFCtx, ppszPEError);
+}
+
+static char *FilMacroLkupProc(void *pPrivate, char const *pszName, int iSize)
+{
+	FilterMacroSubstCtx *pFMS = (FilterMacroSubstCtx *) pPrivate;
+
+	if (MemMatch(pszName, iSize, "FROM", 4)) {
+		char const *const *ppszFrom = USmlGetMailFrom(pFMS->hFSpool);
+		int iFromDomains = StrStringsCount(ppszFrom);
+
+		return SysStrDup((iFromDomains > 0) ? ppszFrom[iFromDomains - 1] : "");
+	} else if (MemMatch(pszName, iSize, "RCPT", 4)) {
+		char const *const *ppszRcpt = USmlGetRcptTo(pFMS->hFSpool);
+		int iRcptDomains = StrStringsCount(ppszRcpt);
+
+		return SysStrDup((iRcptDomains > 0) ? ppszRcpt[iRcptDomains - 1] : "");
+	} else if (MemMatch(pszName, iSize, "RFROM", 5)) {
+
+		return SysStrDup(pFMS->pFMI->szSender);
+	} else if (MemMatch(pszName, iSize, "RRCPT", 5)) {
+
+		return SysStrDup(pFMS->pFMI->szRecipient);
+	} else if (MemMatch(pszName, iSize, "FILE", 4)) {
+
+		return SysStrDup(pFMS->FSect.szFilePath);
+	} else if (MemMatch(pszName, iSize, "MSGID", 5)) {
+
+		return SysStrDup(USmlGetSpoolFile(pFMS->hFSpool));
+	} else if (MemMatch(pszName, iSize, "MSGREF", 6)) {
+
+		return SysStrDup(USmlGetSmtpMessageID(pFMS->hFSpool));
+	} else if (MemMatch(pszName, iSize, "LOCALADDR", 9)) {
+		char const *const *ppszInfo = USmlGetInfo(pFMS->hFSpool);
+
+		return SysStrDup(ppszInfo[smiServerAddr]);
+	} else if (MemMatch(pszName, iSize, "REMOTEADDR", 10)) {
+		char const *const *ppszInfo = USmlGetInfo(pFMS->hFSpool);
+
+		return SysStrDup(ppszInfo[smiClientAddr]);
+	} else if (MemMatch(pszName, iSize, "USERAUTH", 8)) {
+
+		return SysStrDup(IsEmptyString(pFMS->pFMI->szAuthName) ? "-":
+				 pFMS->pFMI->szAuthName);
+	}
+
+	return SysStrDup("");
+}
+
+static int FilFilterMacroSubstitutes(char **ppszCmdTokens, SPLF_HANDLE hFSpool,
+				     FilterMsgInfo const &FMI)
+{
+	FilterMacroSubstCtx FMS;
+
+	FMS.hFSpool = hFSpool;
+	FMS.pFMI = &FMI;
+	/*
+	 * This function retrieve the spool file message section and sync the content.
+	 * This is necessary before passing the file name to external programs.
+	 */
+	if (USmlGetMsgFileSection(hFSpool, FMS.FSect) < 0)
+		return ErrGetErrorCode();
+
+	return MscReplaceTokens(ppszCmdTokens, FilMacroLkupProc, &FMS);
 }
 
 static int FilApplyFilter(char const *pszFilterPath, SPLF_HANDLE hFSpool,
@@ -613,68 +676,5 @@ int FilFilterMessage(SPLF_HANDLE hFSpool, QUEUE_HANDLE hQueue,
 	FilFreeMsgInfo(FMI);
 
 	return 0;
-}
-
-static char *FilMacroLkupProc(void *pPrivate, char const *pszName, int iSize)
-{
-	FilterMacroSubstCtx *pFMS = (FilterMacroSubstCtx *) pPrivate;
-
-	if (MemMatch(pszName, iSize, "FROM", 4)) {
-		char const *const *ppszFrom = USmlGetMailFrom(pFMS->hFSpool);
-		int iFromDomains = StrStringsCount(ppszFrom);
-
-		return SysStrDup((iFromDomains > 0) ? ppszFrom[iFromDomains - 1] : "");
-	} else if (MemMatch(pszName, iSize, "RCPT", 4)) {
-		char const *const *ppszRcpt = USmlGetRcptTo(pFMS->hFSpool);
-		int iRcptDomains = StrStringsCount(ppszRcpt);
-
-		return SysStrDup((iRcptDomains > 0) ? ppszRcpt[iRcptDomains - 1] : "");
-	} else if (MemMatch(pszName, iSize, "RFROM", 5)) {
-
-		return SysStrDup(pFMS->pFMI->szSender);
-	} else if (MemMatch(pszName, iSize, "RRCPT", 5)) {
-
-		return SysStrDup(pFMS->pFMI->szRecipient);
-	} else if (MemMatch(pszName, iSize, "FILE", 4)) {
-
-		return SysStrDup(pFMS->FSect.szFilePath);
-	} else if (MemMatch(pszName, iSize, "MSGID", 5)) {
-
-		return SysStrDup(USmlGetSpoolFile(pFMS->hFSpool));
-	} else if (MemMatch(pszName, iSize, "MSGREF", 6)) {
-
-		return SysStrDup(USmlGetSmtpMessageID(pFMS->hFSpool));
-	} else if (MemMatch(pszName, iSize, "LOCALADDR", 9)) {
-		char const *const *ppszInfo = USmlGetInfo(pFMS->hFSpool);
-
-		return SysStrDup(ppszInfo[smiServerAddr]);
-	} else if (MemMatch(pszName, iSize, "REMOTEADDR", 10)) {
-		char const *const *ppszInfo = USmlGetInfo(pFMS->hFSpool);
-
-		return SysStrDup(ppszInfo[smiClientAddr]);
-	} else if (MemMatch(pszName, iSize, "USERAUTH", 8)) {
-
-		return SysStrDup(IsEmptyString(pFMS->pFMI->szAuthName) ? "-":
-				 pFMS->pFMI->szAuthName);
-	}
-
-	return SysStrDup("");
-}
-
-static int FilFilterMacroSubstitutes(char **ppszCmdTokens, SPLF_HANDLE hFSpool,
-				     FilterMsgInfo const &FMI)
-{
-	FilterMacroSubstCtx FMS;
-
-	FMS.hFSpool = hFSpool;
-	FMS.pFMI = &FMI;
-	/*
-	 * This function retrieve the spool file message section and sync the content.
-	 * This is necessary before passing the file name to external programs.
-	 */
-	if (USmlGetMsgFileSection(hFSpool, FMS.FSect) < 0)
-		return ErrGetErrorCode();
-
-	return MscReplaceTokens(ppszCmdTokens, FilMacroLkupProc, &FMS);
 }
 

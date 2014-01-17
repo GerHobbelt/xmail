@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -238,7 +238,7 @@ int MDomRemoveDomain(char const *pszDomain)
 
 	char szTmpFile[SYS_MAX_PATH] = "";
 
-	SysGetTmpFile(szTmpFile);
+	UsrGetTmpFile(NULL, szTmpFile, sizeof(szTmpFile));
 
 	char szResLock[SYS_MAX_PATH] = "";
 	RLCK_HANDLE hResLock = RLckLockEX(CfgGetBasedPath(szDomainsFilePath, szResLock,
@@ -379,7 +379,7 @@ DOMLS_HANDLE MDomOpenDB(void)
 	if (pDSD == NULL)
 		return INVALID_DOMLS_HANDLE;
 
-	SysGetTmpFile(pDSD->szTmpDBFile);
+	UsrGetTmpFile(NULL, pDSD->szTmpDBFile, sizeof(pDSD->szTmpDBFile));
 
 	if (MDomGetDomainsFileSnapShot(pDSD->szTmpDBFile) < 0) {
 		CheckRemoveFile(pDSD->szTmpDBFile);
