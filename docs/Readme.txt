@@ -69,7 +69,7 @@ VERSION
 
   current
 
-    1.26
+    1.27
 
   release type
 
@@ -77,7 +77,7 @@ VERSION
 
   release date
 
-    Jun 27, 2009
+    Feb 25, 2010
 
   project by
 
@@ -243,8 +243,8 @@ BUILD
       (located in "win32ssl\dll") inside the same folder where the XMail.exe binary resides.
 
       C:> nmake /f Makefile.win
-      
-  If once you run the XMail binaries, Windows complains about missing DLLs, your system
+  
+      If once you run the XMail binaries, Windows complains about missing DLLs, your system
       is probably missing the Microsoft CRT redistributable package, that you can download
       here L<http://www.xmailserver.org/vcredist_x86.exe>.
 
@@ -341,38 +341,43 @@ CONFIGURATION
 
     6.  Copy XMail executables to /var/MailRoot/bin.
 
-    7.  If you have 'inetd' installed, comment out the lines of
+    7.  Optionally, you can setup a dedicated temporary files directory for
+        XMail, by setting the environment variable XMAIL_TEMP, which
+        defaults to /tmp/. XMail uses such directory when it has to create
+        files that must be accessible to external programs like filters.
+
+    8.  If you have 'inetd' installed, comment out the lines of
         '/etc/inetd.conf' that involve SMTP, POP3, and Finger. Restart
         'inetd' (kill -HUP ...).
 
-    8.  Since XMail uses syslog to log messages, enable syslogd if it's not
+    9.  Since XMail uses syslog to log messages, enable syslogd if it's not
         running.
 
-    9.  Setup the 'SERVER.TAB' configuration file (after reading the rest of
+    10. Setup the 'SERVER.TAB' configuration file (after reading the rest of
         this document well).
 
-    10. Add your users and domains (after reading the rest of this document
+    11. Add your users and domains (after reading the rest of this document
         well).
 
-    11. Change or comment out (#) the example account in 'ctrlaccounts.tab'
+    12. Change or comment out (#) the example account in 'ctrlaccounts.tab'
         by using a non-trivial username and password.
 
-    12. Copy the xmail startup script to your init.d directory (it's
+    13. Copy the xmail startup script to your init.d directory (it's
         position depends on your distro). If you've setup XMail to work in a
         subdirectory other than '/var/MailRoot' you must edit the xmail
         startup script to customize its boot parameters.
 
-    13. Use the 'sysv_inst.sh' shell script (from root user) to create SysV
+    14. Use the 'sysv_inst.sh' shell script (from root user) to create SysV
         boot script - unless your distro has other tools to do this.
 
-    14. To start XMail without reboot you can run (from root):
+    15. To start XMail without reboot you can run (from root):
         /etc/rc.d/init.d/xmail start otherwise reboot your machine.
 
-    15. Setup the file 'smtprelay.tab' if you want to extend mail relaying
+    16. Setup the file 'smtprelay.tab' if you want to extend mail relaying
         to IPs outside of the internet's private IP blocks (or you want to
         deny even those - that comes enabled by default with XMail).
 
-    16  Look at [SSL CONFIGURATION] for information about how to create the
+    17  Look at [SSL CONFIGURATION] for information about how to create the
         required 'server.key' and 'server.cert' files.
 
     For further configuration options, please see the [COMMAND LINE]
@@ -397,7 +402,10 @@ CONFIGURATION
 
     5.  With 'regedit', create 'GNU' key inside
         'HKEY_LOCAL_MACHINE\SOFTWARE\' and then 'XMail' key inside
-        'HKEY_LOCAL_MACHINE\SOFTWARE\GNU'.
+        'HKEY_LOCAL_MACHINE\SOFTWARE\GNU'. Note: If you are using a 32bit
+        binary with a 64bit Windows, replace 'HKEY_LOCAL_MACHINE\SOFTWARE\'
+        with 'HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\' here, and in the
+        points below.
 
     6.  Create a new string value named 'MAIL_ROOT' inside
         'HKEY_LOCAL_MACHINE\SOFTWARE\GNU\XMail\' with value 'C:\MailRoot'.
@@ -581,38 +589,38 @@ CONFIGURATION
 
     The following sections explain each file's structure and use.
 
-    "ALIASES.TAB"
-    "ALIASDOMAIN.TAB"
-    "DOMAINS.TAB"
-    "DNSROOTS"
-    "EXTALIASES.TAB"
-    "MAILUSERS.TAB"
-    "MESSAGE.ID"
-    "POP3LINKS.TAB"
-    "SERVER.TAB"
-    "SMTPGW.TAB"
-    "SMTPFWD.TAB"
-    "SMTPRELAY.TAB"
-    "SMTPAUTH.TAB"
-    "SMTPEXTAUTH.TAB"
-    "USERDEF.TAB"
-    "CTRLACCOUNTS.TAB"
-    "SPAMMERS.TAB"
-    "SPAM-ADDRESS.TAB"
-    "POP3.IPMAP.TAB"
-    "SMTP.IPMAP.TAB"
-    "CTRL.IPMAP.TAB"
-    "FINGER.IPMAP.TAB"
-    "USER.TAB"
-    "MLUSERS.TAB"
-    "MAILPROC.TAB"
-    "SMTP.IPPROP.TAB"
-    "SMTP.HNPROP.TAB"
-    "FILTERS.IN.TAB"
-    "FILTERS.OUT.TAB"
-    "FILTERS.POST-RCPT.TAB"
-    "FILTERS.PRE-DATA.TAB"
-    "FILTERS.POST-DATA.TAB"
+    "ALIASES.TAB file"
+    "ALIASDOMAIN.TAB file"
+    "DOMAINS.TAB file"
+    "DNSROOTS file"
+    "EXTALIASES.TAB file"
+    "MAILUSERS.TAB file"
+    "MESSAGE.ID file"
+    "POP3LINKS.TAB file"
+    "SERVER.TAB file"
+    "SMTPGW.TAB file"
+    "SMTPFWD.TAB file"
+    "SMTPRELAY.TAB file"
+    "SMTPAUTH.TAB file"
+    "SMTPEXTAUTH.TAB file"
+    "USERDEF.TAB file"
+    "CTRLACCOUNTS.TAB file"
+    "SPAMMERS.TAB file"
+    "SPAM-ADDRESS.TAB file"
+    "POP3.IPMAP.TAB file"
+    "SMTP.IPMAP.TAB file"
+    "CTRL.IPMAP.TAB file"
+    "FINGER.IPMAP.TAB file"
+    "USER.TAB file"
+    "MLUSERS.TAB file"
+    "MAILPROC.TAB file"
+    "SMTP.IPPROP.TAB file"
+    "SMTP.HNPROP.TAB file"
+    "FILTERS.IN.TAB file"
+    "FILTERS.OUT.TAB file"
+    "FILTERS.POST-RCPT.TAB file"
+    "FILTERS.PRE-DATA.TAB file"
+    "FILTERS.POST-DATA.TAB file"
 
     [configuration] [top]
 
@@ -782,7 +790,9 @@ CONFIGURATION
         command.
 
     POP3S
-        Establish a full POP3S connection with the remote server.
+        Establish a full POP3S connection with the remote server. Note that
+        the POP3S port (default 995) must be set inside the external domain
+        declaration.
 
     Leave
         Leave messages on the server, and download only the new ones. In
@@ -1538,9 +1548,9 @@ EXTERNAL AUTHENTICATION
     You can use external modules (executables) to perform user
     authentication instead of using XMail 'mailusers.tab' lookups. Inside
     the userauth directory you'll find one directory for each service whose
-    authentication can be handled externally (for now only POP3). Suppose We
-    must authenticate 'USERNAME' inside 'DOMAIN', XMail first tries to
-    lookup (inside userauth/pop3) a file named:
+    authentication can be handled externally (see "SMTPEXTAUTH.TAB" for
+    SMTP). Suppose We must authenticate 'USERNAME' inside 'DOMAIN', XMail
+    first tries to lookup (inside userauth/pop3) a file named:
 
     'DOMAIN.tab'
 
@@ -2581,9 +2591,9 @@ SSL CONFIGURATION
     XMail uses to identify itself during SSL negotiations, by the mean of
     the two files 'server.cert' and 'server.key'. These files 'MUST' be
     available inside the 'MAIL_ROOT' directory. Both are in PEM format, and
-    one represent the server certificate file ('server.cert') while the
-    other represent the server private key file ('server.key'). XMail uses
-    the OpenSSL libraries for its SSL operations.
+    one represent the server certificate file/chain ('server.cert') while
+    the other represent the server private key file ('server.key'). XMail
+    uses the OpenSSL libraries for its SSL operations.
     <http://www.openssl.org/docs/HOWTO/certificates.txt> contains examples
     about how to create certificates to be use by XMail, while
     <http://www.openssl.org/docs/HOWTO/keys.txt> describes own to generate
@@ -2604,12 +2614,14 @@ SSL CONFIGURATION
 
       C:> openssl req -new -x509 -key server.key -out server.cert -config openssl.cnf
 
-    If you want to have a certificate signed by an authority, you need to
-    generate a certificate request file:
+    Remeber that the Common Name (CN) that you supply to the OpenSSL binary,
+    is the fully qualified host name that answers to the IP where your XMail
+    server is listening. If you want to have a certificate signed by an
+    authority, you need to generate a certificate request file:
 
       $ openssl req -new -key server.key -out cert.csr
-      
-  C:> openssl req -new -key server.key -out cert.csr -config openssl.cnf
+  
+      C:> openssl req -new -key server.key -out cert.csr -config openssl.cnf
 
     The 'openssl.cnf' file is supplied inside the Xmail's Windows binary
     package, and inside the 'win32ssl\conf' directory of the source package.
@@ -4403,10 +4415,10 @@ POD ERRORS
     Hey! The above document had some coding errors, which are explained
     below:
 
-    Around line 784:
+    Around line 793:
         =back doesn't take any parameters, but you said =back end html
 
-    Around line 1811:
-        You can't have =items (as at line 1817) unless the first thing after
+    Around line 1821:
+        You can't have =items (as at line 1827) unless the first thing after
         the =over is an =item
 

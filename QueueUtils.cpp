@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -91,7 +91,7 @@ static int QueUtDumpFrozen(QUEUE_HANDLE hQueue, QMSG_HANDLE hMessage, FILE *pLis
 		"\"<%s>\"\t"
 		"\"<%s>\"\t"
 		"\"%s\"\t"
-		"\"" SYS_OFFT_FMT "u\"\t"
+		"\"" SYS_OFFT_FMT "\"\t"
 		"\"%d\"\t"
 		"\"%s\"\n",
 		QueGetFileName(hMessage), QueGetLevel1(hMessage), QueGetLevel2(hMessage),
@@ -528,9 +528,11 @@ static int QueUtBuildErrorResponse(char const *pszSMTPDomain, SPLF_HANDLE hFSpoo
 
 	fprintf(pRespFile, "[<05>] Here is listed the initial part of the message:\r\n\r\n");
 
+	int iGotNL;
 	bool bInHeaders = true;
 
-	while (MscGetString(pMsgFile, szBuffer, sizeof(szBuffer) - 1) != NULL) {
+	while (MscGetString(pMsgFile, szBuffer, sizeof(szBuffer) - 1,
+			    &iGotNL) != NULL) {
 		char *pszXDomain, *pszTmp;
 
 		/* Mail error loop deteced */
@@ -545,14 +547,13 @@ static int QueUtBuildErrorResponse(char const *pszSMTPDomain, SPLF_HANDLE hFSpoo
 			ErrSetErrorCode(ERR_MAIL_ERROR_LOOP);
 			return ERR_MAIL_ERROR_LOOP;
 		}
-
 		if (bInHeaders && IsEmptyString(szBuffer))
 			bInHeaders = false;
 
-		if (!bInHeaders && (iLinesExtra-- < 0))
+		if (!bInHeaders && iGotNL && (iLinesExtra-- < 0))
 			break;
 
-		fprintf(pRespFile, "%s\r\n", szBuffer);
+		fprintf(pRespFile, "%s%s", szBuffer, iGotNL ? "\r\n": "");
 	}
 	fclose(pMsgFile);
 	fclose(pRespFile);
@@ -866,7 +867,7 @@ int QueUtCleanupNotifyRoot(QUEUE_HANDLE hQueue, QMSG_HANDLE hMessage,
 		QueUtFreeLastLogInfo(&QLI);
 	QueCleanupMessage(hQueue, hMessage, !QueUtRemoveSpoolErrors());
 
-	return 0;
+	return iResult;
 }
 
 int QueUtResendMessage(QUEUE_HANDLE hQueue, QMSG_HANDLE hMessage, SPLF_HANDLE hFSpool)

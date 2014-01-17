@@ -2,7 +2,7 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-<title>XMail mail server v 1.26</title>
+<title>XMail mail server v 1.27</title>
 <link rel="stylesheet" href="./xmail.css" type="text/css" />
 <meta http-equiv="content-type" content="text/html; charset=utf-8" />
 <link rev="made" href="mailto:root@localhost" />
@@ -227,7 +227,7 @@ Linux, FreeBSD, OpenBSD and Solaris and M$ Visual C++ for NT/2K.</p>
 <p>
 </p>
 <h2><a name="current">current</a></h2>
-<p>1.26</p>
+<p>1.27</p>
 <p>
 </p>
 <h2><a name="release_type">release type</a></h2>
@@ -235,7 +235,7 @@ Linux, FreeBSD, OpenBSD and Solaris and M$ Visual C++ for NT/2K.</p>
 <p>
 </p>
 <h2><a name="release_date">release date</a></h2>
-<p>Jun 27, 2009</p>
+<p>Feb 25, 2010</p>
 <p>
 </p>
 <h2><a name="project_by">project by</a></h2>
@@ -507,6 +507,12 @@ to setup MailRoot directory access rights.</p>
 <p>Copy XMail executables to  /var/MailRoot/bin.</p>
 </li>
 <li>
+<p>Optionally, you can setup a dedicated temporary files directory for XMail, by
+setting the environment variable XMAIL_TEMP, which defaults to /tmp/.
+XMail uses such directory when it has to create files that must be accessible to
+external programs like filters.</p>
+</li>
+<li>
 <p>If you have '<strong>inetd</strong>' installed, comment out the lines of '<strong>/etc/inetd.conf</strong>'
 that involve SMTP, POP3, and Finger. Restart '<strong>inetd</strong>' (kill -HUP ...).</p>
 </li>
@@ -573,7 +579,9 @@ if you're Administrator (service startup as System).</p>
 </li>
 <li>
 <p>With '<strong>regedit</strong>', create '<strong>GNU</strong>' key inside '<strong>HKEY_LOCAL_MACHINE\SOFTWARE\</strong>' and then '<strong>XMail</strong>'
-key inside '<strong>HKEY_LOCAL_MACHINE\SOFTWARE\GNU</strong>'.</p>
+key inside '<strong>HKEY_LOCAL_MACHINE\SOFTWARE\GNU</strong>'.
+Note: If you are using a 32bit binary with a 64bit Windows, replace '<strong>HKEY_LOCAL_MACHINE\SOFTWARE\</strong>' with
+'<strong>HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\</strong>' here, and in the points below.</p>
 </li>
 <li>
 <p>Create a new string value named '<strong>MAIL_ROOT</strong>' inside '<strong>HKEY_LOCAL_MACHINE\SOFTWARE\GNU\XMail\</strong>'
@@ -765,69 +773,69 @@ will store UIDL DB files.</p>
  &quot;value1&quot;[TAB]&quot;value2&quot;[TAB]...[NEWLINE]</pre>
 <p>The following sections explain each file's structure and use.</p>
 <dl>
-<dt><strong><a name="aliases_tab" class="item"><a href="#aliases_tab">ALIASES.TAB</a></a></strong></dt>
+<dt><strong><a name="aliases_tab_file_aliases_tab" class="item"><a href="#aliases_tab">&quot;ALIASES.TAB file&quot;</a></a></strong></dt>
 
-<dt><strong><a name="aliasdomain_tab" class="item"><a href="#aliasdomain_tab">ALIASDOMAIN.TAB</a></a></strong></dt>
+<dt><strong><a name="aliasdomain_tab_file_aliasdomain_tab" class="item"><a href="#aliasdomain_tab">&quot;ALIASDOMAIN.TAB file&quot;</a></a></strong></dt>
 
-<dt><strong><a name="domains_tab" class="item"><a href="#domains_tab">DOMAINS.TAB</a></a></strong></dt>
+<dt><strong><a name="domains_tab_file_domains_tab" class="item"><a href="#domains_tab">&quot;DOMAINS.TAB file&quot;</a></a></strong></dt>
 
-<dt><strong><a name="dnsroots" class="item"><a href="#dnsroots">DNSROOTS</a></a></strong></dt>
+<dt><strong><a name="dnsroots_file_dnsroots" class="item"><a href="#dnsroots">&quot;DNSROOTS file&quot;</a></a></strong></dt>
 
-<dt><strong><a name="extaliases_tab" class="item"><a href="#extaliases_tab">EXTALIASES.TAB</a></a></strong></dt>
+<dt><strong><a name="extaliases_tab_file_extaliases_tab" class="item"><a href="#extaliases_tab">&quot;EXTALIASES.TAB file&quot;</a></a></strong></dt>
 
-<dt><strong><a name="mailusers_tab" class="item"><a href="#mailusers_tab">MAILUSERS.TAB</a></a></strong></dt>
+<dt><strong><a name="mailusers_tab_file_mailusers_tab" class="item"><a href="#mailusers_tab">&quot;MAILUSERS.TAB file&quot;</a></a></strong></dt>
 
-<dt><strong><a name="message_id" class="item"><a href="#message_id">MESSAGE.ID</a></a></strong></dt>
+<dt><strong><a name="message_id_file_message_id" class="item"><a href="#message_id">&quot;MESSAGE.ID file&quot;</a></a></strong></dt>
 
-<dt><strong><a name="pop3links_tab" class="item"><a href="#pop3links_tab">POP3LINKS.TAB</a></a></strong></dt>
+<dt><strong><a name="pop3links_tab_file_pop3links_tab" class="item"><a href="#pop3links_tab">&quot;POP3LINKS.TAB file&quot;</a></a></strong></dt>
 
-<dt><strong><a name="server_tab" class="item"><a href="#server_tab">SERVER.TAB</a></a></strong></dt>
+<dt><strong><a name="server_tab_file_server_tab" class="item"><a href="#server_tab">&quot;SERVER.TAB file&quot;</a></a></strong></dt>
 
-<dt><strong><a name="smtpgw_tab" class="item"><a href="#smtpgw_tab">SMTPGW.TAB</a></a></strong></dt>
+<dt><strong><a name="smtpgw_tab_file_smtpgw_tab" class="item"><a href="#smtpgw_tab">&quot;SMTPGW.TAB file&quot;</a></a></strong></dt>
 
-<dt><strong><a name="smtpfwd_tab" class="item"><a href="#smtpfwd_tab">SMTPFWD.TAB</a></a></strong></dt>
+<dt><strong><a name="smtpfwd_tab_file_smtpfwd_tab" class="item"><a href="#smtpfwd_tab">&quot;SMTPFWD.TAB file&quot;</a></a></strong></dt>
 
-<dt><strong><a name="smtprelay_tab" class="item"><a href="#smtprelay_tab">SMTPRELAY.TAB</a></a></strong></dt>
+<dt><strong><a name="smtprelay_tab_file_smtprelay_tab" class="item"><a href="#smtprelay_tab">&quot;SMTPRELAY.TAB file&quot;</a></a></strong></dt>
 
-<dt><strong><a name="smtpauth_tab" class="item"><a href="#smtpauth_tab">SMTPAUTH.TAB</a></a></strong></dt>
+<dt><strong><a name="smtpauth_tab_file_smtpauth_tab" class="item"><a href="#smtpauth_tab">&quot;SMTPAUTH.TAB file&quot;</a></a></strong></dt>
 
-<dt><strong><a name="smtpextauth_tab" class="item"><a href="#smtpextauth_tab">SMTPEXTAUTH.TAB</a></a></strong></dt>
+<dt><strong><a name="smtpextauth_tab_file_smtpextauth_tab" class="item"><a href="#smtpextauth_tab">&quot;SMTPEXTAUTH.TAB file&quot;</a></a></strong></dt>
 
-<dt><strong><a name="userdef_tab" class="item"><a href="#userdef_tab">USERDEF.TAB</a></a></strong></dt>
+<dt><strong><a name="userdef_tab_file_userdef_tab" class="item"><a href="#userdef_tab">&quot;USERDEF.TAB file&quot;</a></a></strong></dt>
 
-<dt><strong><a name="ctrlaccounts_tab" class="item"><a href="#ctrlaccounts_tab">CTRLACCOUNTS.TAB</a></a></strong></dt>
+<dt><strong><a name="ctrlaccounts_tab_file_ctrlaccounts_tab" class="item"><a href="#ctrlaccounts_tab">&quot;CTRLACCOUNTS.TAB file&quot;</a></a></strong></dt>
 
-<dt><strong><a name="spammers_tab" class="item"><a href="#spammers_tab">SPAMMERS.TAB</a></a></strong></dt>
+<dt><strong><a name="spammers_tab_file_spammers_tab" class="item"><a href="#spammers_tab">&quot;SPAMMERS.TAB file&quot;</a></a></strong></dt>
 
-<dt><strong><a name="spam_address_tab" class="item"><a href="#spam_address_tab">SPAM-ADDRESS.TAB</a></a></strong></dt>
+<dt><strong><a name="spam_address_tab_file_spam_address_tab" class="item"><a href="#spam_address_tab">&quot;SPAM-ADDRESS.TAB file&quot;</a></a></strong></dt>
 
-<dt><strong><a name="pop3_ipmap_tab" class="item"><a href="#pop3_ipmap_tab">POP3.IPMAP.TAB</a></a></strong></dt>
+<dt><strong><a name="pop3_ipmap_tab_file_pop3_ipmap_tab" class="item"><a href="#pop3_ipmap_tab">&quot;POP3.IPMAP.TAB file&quot;</a></a></strong></dt>
 
-<dt><strong><a name="smtp_ipmap_tab" class="item"><a href="#smtp_ipmap_tab">SMTP.IPMAP.TAB</a></a></strong></dt>
+<dt><strong><a name="smtp_ipmap_tab_file_smtp_ipmap_tab" class="item"><a href="#smtp_ipmap_tab">&quot;SMTP.IPMAP.TAB file&quot;</a></a></strong></dt>
 
-<dt><strong><a name="ctrl_ipmap_tab" class="item"><a href="#ctrl_ipmap_tab">CTRL.IPMAP.TAB</a></a></strong></dt>
+<dt><strong><a name="ctrl_ipmap_tab_file_ctrl_ipmap_tab" class="item"><a href="#ctrl_ipmap_tab">&quot;CTRL.IPMAP.TAB file&quot;</a></a></strong></dt>
 
-<dt><strong><a name="finger_ipmap_tab" class="item"><a href="#finger_ipmap_tab">FINGER.IPMAP.TAB</a></a></strong></dt>
+<dt><strong><a name="finger_ipmap_tab_file_finger_ipmap_tab" class="item"><a href="#finger_ipmap_tab">&quot;FINGER.IPMAP.TAB file&quot;</a></a></strong></dt>
 
-<dt><strong><a name="user_tab" class="item"><a href="#user_tab">USER.TAB</a></a></strong></dt>
+<dt><strong><a name="user_tab_file_user_tab" class="item"><a href="#user_tab">&quot;USER.TAB file&quot;</a></a></strong></dt>
 
-<dt><strong><a name="mlusers_tab" class="item"><a href="#mlusers_tab">MLUSERS.TAB</a></a></strong></dt>
+<dt><strong><a name="mlusers_tab_file_mlusers_tab" class="item"><a href="#mlusers_tab">&quot;MLUSERS.TAB file&quot;</a></a></strong></dt>
 
-<dt><strong><a name="mailproc_tab" class="item"><a href="#mailproc_tab">MAILPROC.TAB</a></a></strong></dt>
+<dt><strong><a name="mailproc_tab_file_mailproc_tab" class="item"><a href="#mailproc_tab">&quot;MAILPROC.TAB file&quot;</a></a></strong></dt>
 
-<dt><strong><a name="smtp_ipprop_tab" class="item"><a href="#smtp_ipprop_tab">SMTP.IPPROP.TAB</a></a></strong></dt>
+<dt><strong><a name="smtp_ipprop_tab_file_smtp_ipprop_tab" class="item"><a href="#smtp_ipprop_tab">&quot;SMTP.IPPROP.TAB file&quot;</a></a></strong></dt>
 
-<dt><strong><a name="smtp_hnprop_tab" class="item"><a href="#smtp_hnprop_tab">SMTP.HNPROP.TAB</a></a></strong></dt>
+<dt><strong><a name="smtp_hnprop_tab_file_smtp_hnprop_tab" class="item"><a href="#smtp_hnprop_tab">&quot;SMTP.HNPROP.TAB file&quot;</a></a></strong></dt>
 
-<dt><strong><a name="filters_in_tab" class="item"><a href="#filters_in_tab">FILTERS.IN.TAB</a></a></strong></dt>
+<dt><strong><a name="filters_in_tab_file_filters_in_tab" class="item"><a href="#filters_in_tab">&quot;FILTERS.IN.TAB file&quot;</a></a></strong></dt>
 
-<dt><strong><a name="filters_out_tab" class="item"><a href="#filters_out_tab">FILTERS.OUT.TAB</a></a></strong></dt>
+<dt><strong><a name="filters_out_tab_file_filters_out_tab" class="item"><a href="#filters_out_tab">&quot;FILTERS.OUT.TAB file&quot;</a></a></strong></dt>
 
-<dt><strong><a name="filters_post_rcpt_tab" class="item"><a href="#filters_post_rcpt_tab">FILTERS.POST-RCPT.TAB</a></a></strong></dt>
+<dt><strong><a name="filters_post_rcpt_tab_file_filters_post_rcpt_tab" class="item"><a href="#filters_post_rcpt_tab">&quot;FILTERS.POST-RCPT.TAB file&quot;</a></a></strong></dt>
 
-<dt><strong><a name="filters_pre_data_tab" class="item"><a href="#filters_pre_data_tab">FILTERS.PRE-DATA.TAB</a></a></strong></dt>
+<dt><strong><a name="filters_pre_data_tab_file_filters_pre_data_tab" class="item"><a href="#filters_pre_data_tab">&quot;FILTERS.PRE-DATA.TAB file&quot;</a></a></strong></dt>
 
-<dt><strong><a name="filters_post_data_tab" class="item"><a href="#filters_post_data_tab">FILTERS.POST-DATA.TAB</a></a></strong></dt>
+<dt><strong><a name="filters_post_data_tab_file_filters_post_data_tab" class="item"><a href="#filters_post_data_tab">&quot;FILTERS.POST-DATA.TAB file&quot;</a></a></strong></dt>
 
 </dl>
 <p>[<a href="#configuration">configuration</a>] [<a href="#__index__">top</a>]</p>
@@ -975,7 +983,8 @@ Continue with the non-encrypted link if STLS is not supported</p>
 <dt><strong><a name="pop3s" class="item">POP3S</a></strong></dt>
 
 <dd>
-<p>Establish a full POP3S connection with the remote server.</p>
+<p>Establish a full POP3S connection with the remote server. Note that the POP3S port
+(default 995) must be set inside the external domain declaration.</p>
 </dd>
 <dt><strong><a name="leave" class="item">Leave</a></strong></dt>
 
@@ -1717,7 +1726,7 @@ inside the parameter declaration, like:</p>
 <p>You can use external modules (executables) to perform user authentication instead
 of using XMail  '<strong>mailusers.tab</strong>' lookups.
 Inside  the userauth  directory you'll find one directory for each service whose
-authentication can be handled externally (for now only POP3).
+authentication can be handled externally (see <a href="#smtpextauth_tab">SMTPEXTAUTH.TAB</a> for SMTP).
 Suppose We must authenticate '<strong>USERNAME</strong>' inside '<strong>DOMAIN</strong>', XMail first tries
 to lookup (inside  userauth/pop3) a file named:</p>
 <p>'<strong>DOMAIN.tab</strong>'</p>
@@ -2911,8 +2920,8 @@ host using such IP.</p>
 <h1><a name="ssl_configuration">SSL CONFIGURATION</a></h1>
 <p>XMail uses to identify itself during SSL negotiations, by the mean of the two files
 '<strong>server.cert</strong>' and '<strong>server.key</strong>'. These files '<strong>MUST</strong>' be available inside the
-'<strong>MAIL_ROOT</strong>' directory. Both are in PEM format, and one represent the server certificate file
-('<strong>server.cert</strong>') while the other represent the server private key file ('<strong>server.key</strong>').
+'<strong>MAIL_ROOT</strong>' directory. Both are in PEM format, and one represent the server certificate
+file/chain ('<strong>server.cert</strong>') while the other represent the server private key file ('<strong>server.key</strong>').
 XMail uses the OpenSSL libraries for its SSL operations. <a href="http://www.openssl.org/docs/HOWTO/certificates.txt">http://www.openssl.org/docs/HOWTO/certificates.txt</a>
 contains examples about how to create certificates to be use by XMail, while
 <a href="http://www.openssl.org/docs/HOWTO/keys.txt">http://www.openssl.org/docs/HOWTO/keys.txt</a> describes own to generate keys.
@@ -2929,7 +2938,9 @@ certificate with:</p>
   $ openssl req -new -x509 -key server.key -out server.cert</pre>
 <pre>
   C:&gt; openssl req -new -x509 -key server.key -out server.cert -config openssl.cnf</pre>
-<p>If you want to have a certificate signed by an authority, you need to generate a certificate
+<p>Remeber that the Common Name (CN) that you supply to the OpenSSL binary, is the fully
+qualified host name that answers to the IP where your XMail server is listening.
+If you want to have a certificate signed by an authority, you need to generate a certificate
 request file:</p>
 <pre>
   $ openssl req -new -key server.key -out cert.csr

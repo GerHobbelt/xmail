@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -60,8 +60,8 @@
 #define SYS_LIST_DEL(entry)						\
 	do {								\
 		SYS_LIST_UNLINK((entry)->pPrev, (entry)->pNext);	\
-		(entry)->pPrev = NULL;					\
-		(entry)->pNext = NULL;					\
+		(entry)->pPrev = entry;					\
+		(entry)->pNext = entry;					\
 	} while (0)
 
 #define SYS_LIST_EMTPY(head)            ((head)->pNext == head)

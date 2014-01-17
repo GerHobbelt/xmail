@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -52,7 +52,7 @@
 
 #define CTRL_ACCOUNTS_FILE      "ctrlaccounts.tab"
 #define CTRL_ACCOUNTS_LINE_MAX  512
-#define STD_CTRL_TIMEOUT        45
+#define STD_CTRL_TIMEOUT        45000
 #define CTRL_IPMAP_FILE         "ctrl.ipmap.tab"
 #define CTRL_LOG_FILE           "ctrl"
 #define CTRL_MAX_LINE_SIZE      4096
@@ -69,115 +69,8 @@ enum CtrlAccountsFileds {
 	accMax
 };
 
-static CTRLConfig *CTRLGetConfigCopy(SHB_HANDLE hShbCTRL);
 static int CTRLLogEnabled(SHB_HANDLE hShbCTRL, CTRLConfig *pCTRLCfg = NULL);
-static int CTRLCheckPeerIP(SYS_SOCKET SockFD);
-static int CTRLLogSession(char const *pszUsername, char const *pszPassword,
-			  SYS_INET_ADDR const &PeerInfo, int iStatus);
 static int CTRLThreadCountAdd(long lCount, SHB_HANDLE hShbCTRL, CTRLConfig *pCTRLCfg = NULL);
-static int CTRLSendCmdResult(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock, int iErrorCode);
-static int CTRLSendCmdResult(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock, int iErrorCode,
-			     char const *pszMessage);
-static int CTRLVSendCmdResult(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock, int iErrorCode,
-			      char const *pszFormat, ...);
-static int CTRLSendCmdResult(BSOCK_HANDLE hBSock, int iErrorCode, char const *pszMessage,
-			     int iTimeout);
-static char *CTRLGetAccountsFilePath(char *pszAccFilePath, int iMaxPath);
-static int CTRLAccountCheck(CTRLConfig *pCTRLCfg, char const *pszUsername,
-			    char const *pszPassword, char const *pszTimeStamp);
-static int CTRLSslEnvCB(void *pPrivate, int iID, void const *pData);
-static int CTRLLogin(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-		     char const *pszTimeStamp, SYS_INET_ADDR const &PeerInfo);
-static int CTRLHandleSession(ThreadConfig const *pThCfg, BSOCK_HANDLE hBSock,
-			     SYS_INET_ADDR const &PeerInfo);
-static int CTRLProcessCommand(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock, char const *pszCommand);
-static int CTRLDo_useradd(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-			  char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_userdel(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-			  char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_userpasswd(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-			     char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_aliasadd(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-			   char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_aliasdel(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-			   char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_aliaslist(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-			    char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_exaliasadd(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-			     char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_exaliasdel(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-			     char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_exaliaslist(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-			      char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_uservars(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-			   char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_uservarsset(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-			      char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_userlist(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-			   char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_usergetmproc(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-			       char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_usersetmproc(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-			       char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_userauth(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-			   char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_userstat(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-			   char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_mluseradd(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-			    char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_mluserdel(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-			    char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_mluserlist(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-			     char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_domainadd(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-			    char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_domaindel(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-			    char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_domainlist(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-			     char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_custdomget(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-			     char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_custdomset(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-			     char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_custdomlist(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-			      char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_noop(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-		       char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_quit(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-		       char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_poplnkadd(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-			    char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_poplnkdel(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-			    char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_poplnklist(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-			     char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_poplnkenable(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-			       char const *const *ppszTokens, int iTokensCount);
-static int CTRLCheckRelativePath(char const *pszPath);
-static int CTRLDo_filelist(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-			   char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_cfgfileget(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-			     char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_cfgfileset(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-			     char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_frozlist(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-			   char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_frozsubmit(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-			     char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_frozdel(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-			  char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_frozgetlog(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-			     char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_frozgetmsg(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-			     char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_etrn(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-		       char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_aliasdomainadd(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-				 char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_aliasdomaindel(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-				 char const *const *ppszTokens, int iTokensCount);
-static int CTRLDo_aliasdomainlist(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
-				  char const *const *ppszTokens, int iTokensCount);
 
 static CTRLConfig *CTRLGetConfigCopy(SHB_HANDLE hShbCTRL)
 {
@@ -285,103 +178,25 @@ static int CTRLThreadCountAdd(long lCount, SHB_HANDLE hShbCTRL, CTRLConfig *pCTR
 	return 0;
 }
 
-unsigned int CTRLClientThread(void *pThreadData)
+static int CTRLSendCmdResult(BSOCK_HANDLE hBSock, int iErrorCode, char const *pszMessage,
+			     int iTimeout)
 {
-	ThreadCreateCtx *pThCtx = (ThreadCreateCtx *) pThreadData;
+	int iSendResult;
 
-	/* Link socket to the bufferer */
-	BSOCK_HANDLE hBSock = BSckAttach(pThCtx->SockFD);
+	if (iErrorCode >= 0)
+		iSendResult = BSckVSendString(hBSock, iTimeout, "+%05d %s", iErrorCode,
+					      pszMessage);
+	else
+		iSendResult = BSckVSendString(hBSock, iTimeout, "-%05d %s", -iErrorCode,
+					      pszMessage);
 
-	if (hBSock == INVALID_BSOCK_HANDLE) {
-		ErrorPush();
-		SysCloseSocket(pThCtx->SockFD);
-		SysFree(pThCtx);
-		return ErrorPop();
-	}
+	return iSendResult;
+}
 
-	/*
-	 * Do we need to switch to TLS?
-	 */
-	if (pThCtx->pThCfg->ulFlags & THCF_USE_SSL) {
-		int iError;
-		SslServerBind SSLB;
-		SslBindEnv SslE;
-
-		if (CSslBindSetup(&SSLB) < 0) {
-			ErrorPush();
-			SysCloseSocket(pThCtx->SockFD);
-			SysFree(pThCtx);
-			return ErrorPop();
-		}
-		ZeroData(SslE);
-
-		iError = BSslBindServer(hBSock, &SSLB, MscSslEnvCB, &SslE);
-
-		CSslBindCleanup(&SSLB);
-		if (iError < 0) {
-			ErrorPush();
-			SysCloseSocket(pThCtx->SockFD);
-			SysFree(pThCtx);
-			return ErrorPop();
-		}
-		/*
-		 * We may want to add verify code here ...
-		 */
-
-		SysFree(SslE.pszIssuer);
-		SysFree(SslE.pszSubject);
-	}
-	/* Check IP permission */
-	if (CTRLCheckPeerIP(pThCtx->SockFD) < 0) {
-		ErrorPush();
-		SysLogMessage(LOG_LEV_ERROR, "%s (CTRL check peer IP)\n",
-			      ErrGetErrorString(ErrorFetch()));
-		CTRLSendCmdResult(hBSock, ErrorFetch(), ErrGetErrorString(), STD_CTRL_TIMEOUT);
-		BSckDetach(hBSock, 1);
-		SysFree(pThCtx);
-		return ErrorPop();
-	}
-	/* Increase threads count */
-	if (CTRLThreadCountAdd(+1, pThCtx->pThCfg->hThShb) < 0) {
-		ErrorPush();
-		SysLogMessage(LOG_LEV_ERROR, "%s (CTRL thread count)\n",
-			      ErrGetErrorString(ErrorFetch()));
-		CTRLSendCmdResult(hBSock, ErrorFetch(), ErrGetErrorString(), STD_CTRL_TIMEOUT);
-		BSckDetach(hBSock, 1);
-		SysFree(pThCtx);
-		return ErrorPop();
-	}
-	/* Get client socket information */
-	SYS_INET_ADDR PeerInfo;
-
-	if (SysGetPeerInfo(pThCtx->SockFD, PeerInfo) < 0) {
-		ErrorPush();
-		SysLogMessage(LOG_LEV_ERROR, "%s\n", ErrGetErrorString());
-		CTRLThreadCountAdd(-1, pThCtx->pThCfg->hThShb);
-		BSckDetach(hBSock, 1);
-		SysFree(pThCtx);
-		return ErrorPop();
-	}
-
-	char szIP[128] = "???.???.???.???";
-
-	SysLogMessage(LOG_LEV_MESSAGE, "CTRL client connection from [%s]\n",
-		      SysInetNToA(PeerInfo, szIP, sizeof(szIP)));
-
-	/* Handle client session */
-	CTRLHandleSession(pThCtx->pThCfg, hBSock, PeerInfo);
-
-	SysLogMessage(LOG_LEV_MESSAGE, "CTRL client exit [%s]\n",
-		      SysInetNToA(PeerInfo, szIP, sizeof(szIP)));
-
-	/* Decrease threads count */
-	CTRLThreadCountAdd(-1, pThCtx->pThCfg->hThShb);
-
-	/* Unlink socket from the bufferer and close it */
-	BSckDetach(hBSock, 1);
-	SysFree(pThCtx);
-
-	return 0;
+static int CTRLSendCmdResult(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock, int iErrorCode,
+			     char const *pszMessage)
+{
+	return CTRLSendCmdResult(hBSock, iErrorCode, pszMessage, pCTRLCfg->iTimeout);
 }
 
 static int CTRLSendCmdResult(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock, int iErrorCode)
@@ -389,12 +204,6 @@ static int CTRLSendCmdResult(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock, int iErr
 	return (CTRLSendCmdResult(pCTRLCfg, hBSock, iErrorCode,
 				  (iErrorCode >= 0) ? "OK": ErrGetErrorString(iErrorCode)));
 
-}
-
-static int CTRLSendCmdResult(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock, int iErrorCode,
-			     char const *pszMessage)
-{
-	return CTRLSendCmdResult(hBSock, iErrorCode, pszMessage, pCTRLCfg->iTimeout);
 }
 
 static int CTRLVSendCmdResult(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock, int iErrorCode,
@@ -410,21 +219,6 @@ static int CTRLVSendCmdResult(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock, int iEr
 	int iSendResult = CTRLSendCmdResult(hBSock, iErrorCode, pszMessage, pCTRLCfg->iTimeout);
 
 	SysFree(pszMessage);
-
-	return iSendResult;
-}
-
-static int CTRLSendCmdResult(BSOCK_HANDLE hBSock, int iErrorCode, char const *pszMessage,
-			     int iTimeout)
-{
-	int iSendResult;
-
-	if (iErrorCode >= 0)
-		iSendResult = BSckVSendString(hBSock, iTimeout, "+%05d %s", iErrorCode,
-					      pszMessage);
-	else
-		iSendResult = BSckVSendString(hBSock, iTimeout, "-%05d %s", -iErrorCode,
-					      pszMessage);
 
 	return iSendResult;
 }
@@ -606,182 +400,6 @@ static int CTRLLogin(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
 	CTRLSendCmdResult(pCTRLCfg, hBSock, 0);
 
 	return 0;
-}
-
-static int CTRLHandleSession(ThreadConfig const *pThCfg, BSOCK_HANDLE hBSock,
-			     SYS_INET_ADDR const &PeerInfo)
-{
-	CTRLConfig *pCTRLCfg = CTRLGetConfigCopy(pThCfg->hThShb);
-
-	if (pCTRLCfg == NULL)
-		return ErrGetErrorCode();
-
-	int iSessionTimeout = pCTRLCfg->iSessionTimeout, iTimeout = pCTRLCfg->iTimeout;
-
-	/* Build TimeStamp string */
-	SYS_INET_ADDR SockInfo;
-	char szTimeStamp[256] = "";
-
-	SysGetSockInfo(BSckGetAttachedSocket(hBSock), SockInfo);
-
-	char szIP[128] = "???.???.???.???";
-
-	sprintf(szTimeStamp, "<%lu.%lu@%s>",
-		(unsigned long) time(NULL), SysGetCurrentThreadId(),
-		SysInetNToA(SockInfo, szIP, sizeof(szIP)));
-
-	/* Welcome */
-	char szTime[256] = "";
-
-	MscGetTimeStr(szTime, sizeof(szTime) - 1);
-
-	CTRLVSendCmdResult(pCTRLCfg, hBSock, 0, "%s %s CTRL Server; %s",
-			   szTimeStamp, APP_NAME_VERSION_STR, szTime);
-
-	/* User login */
-	if (CTRLLogin(pCTRLCfg, hBSock, szTimeStamp, PeerInfo) < 0) {
-		ErrorPush();
-		SysFree(pCTRLCfg);
-		return ErrorPop();
-	}
-
-	/* Command loop */
-	char szCommand[CTRL_MAX_LINE_SIZE] = "";
-
-	while (!SvrInShutdown() &&
-	       BSckGetString(hBSock, szCommand, sizeof(szCommand) - 1, iSessionTimeout) != NULL &&
-	       MscCmdStringCheck(szCommand) == 0) {
-		if (pThCfg->ulFlags & THCF_SHUTDOWN)
-			break;
-
-		/* Process client command */
-		if (CTRLProcessCommand(pCTRLCfg, hBSock, szCommand) == CTRL_QUIT_CMD_EXIT)
-			break;
-	}
-	SysFree(pCTRLCfg);
-
-	return 0;
-}
-
-static int CTRLProcessCommand(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock, char const *pszCommand)
-{
-	char **ppszTokens = StrGetTabLineStrings(pszCommand);
-
-	if (ppszTokens == NULL) {
-		CTRLSendCmdResult(pCTRLCfg, hBSock, ERR_BAD_CTRL_COMMAND);
-		ErrSetErrorCode(ERR_BAD_CTRL_COMMAND);
-		return ERR_BAD_CTRL_COMMAND;
-	}
-
-	int iTokensCount = StrStringsCount(ppszTokens);
-
-	if (iTokensCount < 1) {
-		StrFreeStrings(ppszTokens);
-
-		CTRLSendCmdResult(pCTRLCfg, hBSock, ERR_BAD_CTRL_COMMAND);
-		ErrSetErrorCode(ERR_BAD_CTRL_COMMAND);
-		return ERR_BAD_CTRL_COMMAND;
-	}
-
-	int iCmdResult = -1;
-
-	if (stricmp(ppszTokens[0], "useradd") == 0)
-		iCmdResult = CTRLDo_useradd(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "userdel") == 0)
-		iCmdResult = CTRLDo_userdel(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "userpasswd") == 0)
-		iCmdResult = CTRLDo_userpasswd(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "uservars") == 0)
-		iCmdResult = CTRLDo_uservars(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "uservarsset") == 0)
-		iCmdResult = CTRLDo_uservarsset(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "userlist") == 0)
-		iCmdResult = CTRLDo_userlist(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "usergetmproc") == 0)
-		iCmdResult = CTRLDo_usergetmproc(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "usersetmproc") == 0)
-		iCmdResult = CTRLDo_usersetmproc(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "userauth") == 0)
-		iCmdResult = CTRLDo_userauth(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "userstat") == 0)
-		iCmdResult = CTRLDo_userstat(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "aliasadd") == 0)
-		iCmdResult = CTRLDo_aliasadd(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "aliasdel") == 0)
-		iCmdResult = CTRLDo_aliasdel(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "aliaslist") == 0)
-		iCmdResult = CTRLDo_aliaslist(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "exaliasadd") == 0)
-		iCmdResult = CTRLDo_exaliasadd(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "exaliasdel") == 0)
-		iCmdResult = CTRLDo_exaliasdel(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "exaliaslist") == 0)
-		iCmdResult = CTRLDo_exaliaslist(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "mluseradd") == 0)
-		iCmdResult = CTRLDo_mluseradd(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "mluserdel") == 0)
-		iCmdResult = CTRLDo_mluserdel(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "mluserlist") == 0)
-		iCmdResult = CTRLDo_mluserlist(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "domainadd") == 0)
-		iCmdResult = CTRLDo_domainadd(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "domaindel") == 0)
-		iCmdResult = CTRLDo_domaindel(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "domainlist") == 0)
-		iCmdResult = CTRLDo_domainlist(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "custdomget") == 0)
-		iCmdResult = CTRLDo_custdomget(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "custdomset") == 0)
-		iCmdResult = CTRLDo_custdomset(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "custdomlist") == 0)
-		iCmdResult = CTRLDo_custdomlist(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "poplnkadd") == 0)
-		iCmdResult = CTRLDo_poplnkadd(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "poplnkdel") == 0)
-		iCmdResult = CTRLDo_poplnkdel(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "poplnklist") == 0)
-		iCmdResult = CTRLDo_poplnklist(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "poplnkenable") == 0)
-		iCmdResult = CTRLDo_poplnkenable(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "filelist") == 0)
-		iCmdResult = CTRLDo_filelist(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "cfgfileget") == 0)
-		iCmdResult = CTRLDo_cfgfileget(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "cfgfileset") == 0)
-		iCmdResult = CTRLDo_cfgfileset(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "frozlist") == 0)
-		iCmdResult = CTRLDo_frozlist(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "frozsubmit") == 0)
-		iCmdResult = CTRLDo_frozsubmit(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "frozdel") == 0)
-		iCmdResult = CTRLDo_frozdel(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "frozgetlog") == 0)
-		iCmdResult = CTRLDo_frozgetlog(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "frozgetmsg") == 0)
-		iCmdResult = CTRLDo_frozgetmsg(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "aliasdomainadd") == 0)
-		iCmdResult = CTRLDo_aliasdomainadd(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "aliasdomaindel") == 0)
-		iCmdResult = CTRLDo_aliasdomaindel(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "aliasdomainlist") == 0)
-		iCmdResult = CTRLDo_aliasdomainlist(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "etrn") == 0)
-		iCmdResult = CTRLDo_etrn(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "noop") == 0)
-		iCmdResult = CTRLDo_noop(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else if (stricmp(ppszTokens[0], "quit") == 0)
-		iCmdResult = CTRLDo_quit(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
-	else {
-		StrFreeStrings(ppszTokens);
-
-		CTRLSendCmdResult(pCTRLCfg, hBSock, ERR_BAD_CTRL_COMMAND);
-		ErrSetErrorCode(ERR_BAD_CTRL_COMMAND);
-		return ERR_BAD_CTRL_COMMAND;
-	}
-
-	StrFreeStrings(ppszTokens);
-
-	return iCmdResult;
 }
 
 static int CTRLDo_useradd(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
@@ -1417,7 +1035,7 @@ static int CTRLDo_usergetmproc(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
 	/* Exist user custom message processing ? */
 	char szMPFile[SYS_MAX_PATH] = "";
 
-	SysGetTmpFile(szMPFile);
+	UsrGetTmpFile(NULL, szMPFile, sizeof(szMPFile));
 	if (UsrGetMailProcessFile(pUI, szMPFile, ulGMPFlags) < 0) {
 		ErrorPush();
 		UsrFreeUserInfo(pUI);
@@ -1475,7 +1093,7 @@ static int CTRLDo_usersetmproc(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
 	/* Read user data in file */
 	char szMPFile[SYS_MAX_PATH] = "";
 
-	SysGetTmpFile(szMPFile);
+	UsrGetTmpFile(NULL, szMPFile, sizeof(szMPFile));
 
 	if (MscRecvTextFile(szMPFile, hBSock, pCTRLCfg->iTimeout) < 0) {
 		ErrorPush();
@@ -1588,7 +1206,7 @@ static int CTRLDo_userstat(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
 
 	if (BSckVSendString(hBSock, pCTRLCfg->iTimeout, "\"RealAddress\"\t\"%s\"",
 			    szRealAddress) < 0 ||
-	    BSckVSendString(hBSock, pCTRLCfg->iTimeout, "\"MailboxSize\"\t\"" SYS_OFFT_FMT "u\"",
+	    BSckVSendString(hBSock, pCTRLCfg->iTimeout, "\"MailboxSize\"\t\"" SYS_OFFT_FMT "\"",
 			    llMBSize) < 0 ||
 	    BSckVSendString(hBSock, pCTRLCfg->iTimeout, "\"MailboxMessages\"\t\"%lu\"",
 			    ulNumMessages) < 0 ||
@@ -1895,7 +1513,7 @@ static int CTRLDo_custdomget(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
 	/* Try to get custom domain file ( if exist ) */
 	char szCustDomainFile[SYS_MAX_PATH] = "";
 
-	SysGetTmpFile(szCustDomainFile);
+	UsrGetTmpFile(NULL, szCustDomainFile, sizeof(szCustDomainFile));
 
 	if (USmlGetCustomDomainFile(ppszTokens[1], szCustDomainFile) < 0) {
 		ErrorPush();
@@ -1938,7 +1556,7 @@ static int CTRLDo_custdomset(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
 	/* Read user data in file */
 	char szCustDomainFile[SYS_MAX_PATH] = "";
 
-	SysGetTmpFile(szCustDomainFile);
+	UsrGetTmpFile(NULL, szCustDomainFile, sizeof(szCustDomainFile));
 
 	if (MscRecvTextFile(szCustDomainFile, hBSock, pCTRLCfg->iTimeout) < 0) {
 		ErrorPush();
@@ -2249,7 +1867,7 @@ static int CTRLDo_filelist(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
 				    szFullPath, SYS_SLASH_STR, szFileName);
 			if (SysGetFileInfo(szFilePath, FI) == 0) {
 				if (BSckVSendString(hBSock, pCTRLCfg->iTimeout,
-						    "\"%s\"\t\"" SYS_OFFT_FMT "u\"",
+						    "\"%s\"\t\"" SYS_OFFT_FMT "\"",
 						    szFileName, FI.llSize) < 0) {
 					ErrorPush();
 					MscCloseFindFile(hFileScan);
@@ -2303,7 +1921,7 @@ static int CTRLDo_cfgfileget(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
 	/* Get a file snapshot */
 	char szRequestedFile[SYS_MAX_PATH] = "";
 
-	SysGetTmpFile(szRequestedFile);
+	UsrGetTmpFile(NULL, szRequestedFile, sizeof(szRequestedFile));
 
 	if (MscCopyFile(szRequestedFile, szFullPath) < 0) {
 		ErrorPush();
@@ -2358,7 +1976,7 @@ static int CTRLDo_cfgfileset(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
 	/* Read user data in file */
 	char szClientFile[SYS_MAX_PATH] = "";
 
-	SysGetTmpFile(szClientFile);
+	UsrGetTmpFile(NULL, szClientFile, sizeof(szClientFile));
 
 	if (MscRecvTextFile(szClientFile, hBSock, pCTRLCfg->iTimeout) < 0) {
 		ErrorPush();
@@ -2418,7 +2036,7 @@ static int CTRLDo_frozlist(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
 	/* Build frozen list file */
 	char szListFile[SYS_MAX_PATH] = "";
 
-	SysGetTmpFile(szListFile);
+	UsrGetTmpFile(NULL, szListFile, sizeof(szListFile));
 
 	if (QueUtGetFrozenList(hSpoolQueue, szListFile) < 0) {
 		ErrorPush();
@@ -2511,7 +2129,7 @@ static int CTRLDo_frozgetlog(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
 	/* Get log file snapshot */
 	char szFileSS[SYS_MAX_PATH] = "";
 
-	SysGetTmpFile(szFileSS);
+	UsrGetTmpFile(NULL, szFileSS, sizeof(szFileSS));
 
 	if (QueUtGetFrozenLogFile(hSpoolQueue, iLevel1, iLevel2, szMessageFile, szFileSS) < 0) {
 		ErrorPush();
@@ -2552,7 +2170,7 @@ static int CTRLDo_frozgetmsg(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
 	/* Get log file snapshot */
 	char szFileSS[SYS_MAX_PATH] = "";
 
-	SysGetTmpFile(szFileSS);
+	UsrGetTmpFile(NULL, szFileSS, sizeof(szFileSS));
 
 	if (QueUtGetFrozenMsgFile(hSpoolQueue, iLevel1, iLevel2, szMessageFile, szFileSS) < 0) {
 		ErrorPush();
@@ -2700,6 +2318,282 @@ static int CTRLDo_aliasdomainlist(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock,
 	ADomCloseDB(hADomainDB);
 
 	BSckSendString(hBSock, ".", pCTRLCfg->iTimeout);
+
+	return 0;
+}
+
+static int CTRLProcessCommand(CTRLConfig *pCTRLCfg, BSOCK_HANDLE hBSock, char const *pszCommand)
+{
+	char **ppszTokens = StrGetTabLineStrings(pszCommand);
+
+	if (ppszTokens == NULL) {
+		CTRLSendCmdResult(pCTRLCfg, hBSock, ERR_BAD_CTRL_COMMAND);
+		ErrSetErrorCode(ERR_BAD_CTRL_COMMAND);
+		return ERR_BAD_CTRL_COMMAND;
+	}
+
+	int iTokensCount = StrStringsCount(ppszTokens);
+
+	if (iTokensCount < 1) {
+		StrFreeStrings(ppszTokens);
+
+		CTRLSendCmdResult(pCTRLCfg, hBSock, ERR_BAD_CTRL_COMMAND);
+		ErrSetErrorCode(ERR_BAD_CTRL_COMMAND);
+		return ERR_BAD_CTRL_COMMAND;
+	}
+
+	int iCmdResult = -1;
+
+	if (stricmp(ppszTokens[0], "useradd") == 0)
+		iCmdResult = CTRLDo_useradd(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "userdel") == 0)
+		iCmdResult = CTRLDo_userdel(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "userpasswd") == 0)
+		iCmdResult = CTRLDo_userpasswd(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "uservars") == 0)
+		iCmdResult = CTRLDo_uservars(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "uservarsset") == 0)
+		iCmdResult = CTRLDo_uservarsset(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "userlist") == 0)
+		iCmdResult = CTRLDo_userlist(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "usergetmproc") == 0)
+		iCmdResult = CTRLDo_usergetmproc(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "usersetmproc") == 0)
+		iCmdResult = CTRLDo_usersetmproc(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "userauth") == 0)
+		iCmdResult = CTRLDo_userauth(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "userstat") == 0)
+		iCmdResult = CTRLDo_userstat(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "aliasadd") == 0)
+		iCmdResult = CTRLDo_aliasadd(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "aliasdel") == 0)
+		iCmdResult = CTRLDo_aliasdel(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "aliaslist") == 0)
+		iCmdResult = CTRLDo_aliaslist(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "exaliasadd") == 0)
+		iCmdResult = CTRLDo_exaliasadd(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "exaliasdel") == 0)
+		iCmdResult = CTRLDo_exaliasdel(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "exaliaslist") == 0)
+		iCmdResult = CTRLDo_exaliaslist(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "mluseradd") == 0)
+		iCmdResult = CTRLDo_mluseradd(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "mluserdel") == 0)
+		iCmdResult = CTRLDo_mluserdel(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "mluserlist") == 0)
+		iCmdResult = CTRLDo_mluserlist(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "domainadd") == 0)
+		iCmdResult = CTRLDo_domainadd(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "domaindel") == 0)
+		iCmdResult = CTRLDo_domaindel(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "domainlist") == 0)
+		iCmdResult = CTRLDo_domainlist(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "custdomget") == 0)
+		iCmdResult = CTRLDo_custdomget(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "custdomset") == 0)
+		iCmdResult = CTRLDo_custdomset(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "custdomlist") == 0)
+		iCmdResult = CTRLDo_custdomlist(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "poplnkadd") == 0)
+		iCmdResult = CTRLDo_poplnkadd(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "poplnkdel") == 0)
+		iCmdResult = CTRLDo_poplnkdel(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "poplnklist") == 0)
+		iCmdResult = CTRLDo_poplnklist(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "poplnkenable") == 0)
+		iCmdResult = CTRLDo_poplnkenable(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "filelist") == 0)
+		iCmdResult = CTRLDo_filelist(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "cfgfileget") == 0)
+		iCmdResult = CTRLDo_cfgfileget(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "cfgfileset") == 0)
+		iCmdResult = CTRLDo_cfgfileset(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "frozlist") == 0)
+		iCmdResult = CTRLDo_frozlist(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "frozsubmit") == 0)
+		iCmdResult = CTRLDo_frozsubmit(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "frozdel") == 0)
+		iCmdResult = CTRLDo_frozdel(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "frozgetlog") == 0)
+		iCmdResult = CTRLDo_frozgetlog(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "frozgetmsg") == 0)
+		iCmdResult = CTRLDo_frozgetmsg(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "aliasdomainadd") == 0)
+		iCmdResult = CTRLDo_aliasdomainadd(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "aliasdomaindel") == 0)
+		iCmdResult = CTRLDo_aliasdomaindel(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "aliasdomainlist") == 0)
+		iCmdResult = CTRLDo_aliasdomainlist(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "etrn") == 0)
+		iCmdResult = CTRLDo_etrn(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "noop") == 0)
+		iCmdResult = CTRLDo_noop(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else if (stricmp(ppszTokens[0], "quit") == 0)
+		iCmdResult = CTRLDo_quit(pCTRLCfg, hBSock, ppszTokens, iTokensCount);
+	else {
+		StrFreeStrings(ppszTokens);
+
+		CTRLSendCmdResult(pCTRLCfg, hBSock, ERR_BAD_CTRL_COMMAND);
+		ErrSetErrorCode(ERR_BAD_CTRL_COMMAND);
+		return ERR_BAD_CTRL_COMMAND;
+	}
+
+	StrFreeStrings(ppszTokens);
+
+	return iCmdResult;
+}
+
+static int CTRLHandleSession(ThreadConfig const *pThCfg, BSOCK_HANDLE hBSock,
+			     SYS_INET_ADDR const &PeerInfo)
+{
+	CTRLConfig *pCTRLCfg = CTRLGetConfigCopy(pThCfg->hThShb);
+
+	if (pCTRLCfg == NULL)
+		return ErrGetErrorCode();
+
+	int iSessionTimeout = pCTRLCfg->iSessionTimeout;
+
+	/* Build TimeStamp string */
+	SYS_INET_ADDR SockInfo;
+	char szTimeStamp[256] = "";
+
+	SysGetSockInfo(BSckGetAttachedSocket(hBSock), SockInfo);
+
+	char szIP[128] = "???.???.???.???";
+
+	sprintf(szTimeStamp, "<%lu.%lu@%s>",
+		(unsigned long) time(NULL), SysGetCurrentThreadId(),
+		SysInetNToA(SockInfo, szIP, sizeof(szIP)));
+
+	/* Welcome */
+	char szTime[256] = "";
+
+	MscGetTimeStr(szTime, sizeof(szTime) - 1);
+
+	CTRLVSendCmdResult(pCTRLCfg, hBSock, 0, "%s %s CTRL Server; %s",
+			   szTimeStamp, APP_NAME_VERSION_STR, szTime);
+
+	/* User login */
+	if (CTRLLogin(pCTRLCfg, hBSock, szTimeStamp, PeerInfo) < 0) {
+		ErrorPush();
+		SysFree(pCTRLCfg);
+		return ErrorPop();
+	}
+
+	/* Command loop */
+	char szCommand[CTRL_MAX_LINE_SIZE] = "";
+
+	while (!SvrInShutdown() &&
+	       BSckGetString(hBSock, szCommand, sizeof(szCommand) - 1,
+			     iSessionTimeout) != NULL &&
+	       MscCmdStringCheck(szCommand) == 0) {
+		if (pThCfg->ulFlags & THCF_SHUTDOWN)
+			break;
+
+		/* Process client command */
+		if (CTRLProcessCommand(pCTRLCfg, hBSock, szCommand) == CTRL_QUIT_CMD_EXIT)
+			break;
+	}
+	SysFree(pCTRLCfg);
+
+	return 0;
+}
+
+unsigned int CTRLClientThread(void *pThreadData)
+{
+	ThreadCreateCtx *pThCtx = (ThreadCreateCtx *) pThreadData;
+
+	/* Link socket to the bufferer */
+	BSOCK_HANDLE hBSock = BSckAttach(pThCtx->SockFD);
+
+	if (hBSock == INVALID_BSOCK_HANDLE) {
+		ErrorPush();
+		SysCloseSocket(pThCtx->SockFD);
+		SysFree(pThCtx);
+		return ErrorPop();
+	}
+
+	/*
+	 * Do we need to switch to TLS?
+	 */
+	if (pThCtx->pThCfg->ulFlags & THCF_USE_SSL) {
+		int iError;
+		SslServerBind SSLB;
+		SslBindEnv SslE;
+
+		if (CSslBindSetup(&SSLB) < 0) {
+			ErrorPush();
+			SysCloseSocket(pThCtx->SockFD);
+			SysFree(pThCtx);
+			return ErrorPop();
+		}
+		ZeroData(SslE);
+
+		iError = BSslBindServer(hBSock, &SSLB, MscSslEnvCB, &SslE);
+
+		CSslBindCleanup(&SSLB);
+		if (iError < 0) {
+			ErrorPush();
+			SysCloseSocket(pThCtx->SockFD);
+			SysFree(pThCtx);
+			return ErrorPop();
+		}
+		/*
+		 * We may want to add verify code here ...
+		 */
+
+		SysFree(SslE.pszIssuer);
+		SysFree(SslE.pszSubject);
+	}
+	/* Check IP permission */
+	if (CTRLCheckPeerIP(pThCtx->SockFD) < 0) {
+		ErrorPush();
+		SysLogMessage(LOG_LEV_ERROR, "%s (CTRL check peer IP)\n",
+			      ErrGetErrorString(ErrorFetch()));
+		CTRLSendCmdResult(hBSock, ErrorFetch(), ErrGetErrorString(), STD_CTRL_TIMEOUT);
+		BSckDetach(hBSock, 1);
+		SysFree(pThCtx);
+		return ErrorPop();
+	}
+	/* Increase threads count */
+	if (CTRLThreadCountAdd(+1, pThCtx->pThCfg->hThShb) < 0) {
+		ErrorPush();
+		SysLogMessage(LOG_LEV_ERROR, "%s (CTRL thread count)\n",
+			      ErrGetErrorString(ErrorFetch()));
+		CTRLSendCmdResult(hBSock, ErrorFetch(), ErrGetErrorString(), STD_CTRL_TIMEOUT);
+		BSckDetach(hBSock, 1);
+		SysFree(pThCtx);
+		return ErrorPop();
+	}
+	/* Get client socket information */
+	SYS_INET_ADDR PeerInfo;
+
+	if (SysGetPeerInfo(pThCtx->SockFD, PeerInfo) < 0) {
+		ErrorPush();
+		SysLogMessage(LOG_LEV_ERROR, "%s\n", ErrGetErrorString());
+		CTRLThreadCountAdd(-1, pThCtx->pThCfg->hThShb);
+		BSckDetach(hBSock, 1);
+		SysFree(pThCtx);
+		return ErrorPop();
+	}
+
+	char szIP[128] = "???.???.???.???";
+
+	SysLogMessage(LOG_LEV_MESSAGE, "CTRL client connection from [%s]\n",
+		      SysInetNToA(PeerInfo, szIP, sizeof(szIP)));
+
+	/* Handle client session */
+	CTRLHandleSession(pThCtx->pThCfg, hBSock, PeerInfo);
+
+	SysLogMessage(LOG_LEV_MESSAGE, "CTRL client exit [%s]\n",
+		      SysInetNToA(PeerInfo, szIP, sizeof(szIP)));
+
+	/* Decrease threads count */
+	CTRLThreadCountAdd(-1, pThCtx->pThCfg->hThShb);
+
+	/* Unlink socket from the bufferer and close it */
+	BSckDetach(hBSock, 1);
+	SysFree(pThCtx);
 
 	return 0;
 }

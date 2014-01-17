@@ -25,11 +25,11 @@
 
 :end css
 
-:run pod2html Readme.pod --css=./xmail.css --title="XMail mail server v 1.26" --outfile=Readme.html
+:run pod2html Readme.pod --css=./xmail.css --title="XMail mail server v 1.27" --outfile=Readme.html
 
 :run pod2text -l Readme.pod Readme.txt
 
-:run pod2html ChangeLog.pod --css=./xmail.css --title="XMail Change Log v 1.26" --outfile=ChangeLog.html
+:run pod2html ChangeLog.pod --css=./xmail.css --title="XMail Change Log v 1.27" --outfile=ChangeLog.html
 
 :run pod2text -l ChangeLog.pod ChangeLog.txt
 

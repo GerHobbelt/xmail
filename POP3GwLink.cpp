@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -57,16 +57,6 @@ struct GwLkDBScanData {
 	char szTmpDBFile[SYS_MAX_PATH];
 	FILE *pDBFile;
 };
-
-static char *GwLkGetTableFilePath(char *pszLnkFilePath, int iMaxPath);
-static char *GwLkEnableDir(char *pszEnableDir, int iMaxPath);
-static char *GwLkGetLocksDir(char *pszLocksDir, int iMaxPath);
-static char *GwLkGetMsgSyncDbDir(char *pszMsgSyncDir, int iMaxPath);
-static POP3Link *GwLkGetLinkFromStrings(char **ppszStrings);
-static int GwLkWriteLink(FILE *pLnkFile, POP3Link *pPopLnk);
-static char *GwLkSanitizeFileName(char const *pszInName, char *pszOutName, int iOutSize);
-static char *GwLkGetLockFileName(POP3Link const *pPopLnk, char *pszLockFile);
-static int GwLkGetDisableFilePath(POP3Link const *pPopLnk, char *pszEnableFile);
 
 static char *GwLkGetTableFilePath(char *pszLnkFilePath, int iMaxPath)
 {
@@ -292,6 +282,36 @@ int GwLkAddLink(POP3Link *pPopLnk)
 	return 0;
 }
 
+static int GwLkGetDisableFilePath(POP3Link const *pPopLnk, char *pszEnableFile)
+{
+	if (GwLkLocalDomain(pPopLnk)) {
+		UserInfo *pUI = UsrGetUserByName(pPopLnk->pszDomain, pPopLnk->pszName);
+
+		if (pUI == NULL)
+			return ErrGetErrorCode();
+
+		char szUserPath[SYS_MAX_PATH] = "";
+
+		if (UsrGetUserPath(pUI, szUserPath, sizeof(szUserPath), 1) == NULL) {
+			ErrorPush();
+			UsrFreeUserInfo(pUI);
+			return ErrorPop();
+		}
+		UsrFreeUserInfo(pUI);
+		SysSNPrintf(pszEnableFile, SYS_MAX_PATH - 1, "%s%s@%s.disabled", szUserPath,
+			    pPopLnk->pszRmtName, pPopLnk->pszRmtDomain);
+	} else {
+		char szEnableDir[SYS_MAX_PATH] = "";
+
+		GwLkEnableDir(szEnableDir, sizeof(szEnableDir));
+
+		SysSNPrintf(pszEnableFile, SYS_MAX_PATH - 1, "%s%s%s@%s.disabled", szEnableDir,
+			    SYS_SLASH_STR, pPopLnk->pszRmtName, pPopLnk->pszRmtDomain);
+	}
+
+	return 0;
+}
+
 int GwLkRemoveLink(POP3Link *pPopLnk)
 {
 	char szLnkFilePath[SYS_MAX_PATH] = "";
@@ -300,7 +320,7 @@ int GwLkRemoveLink(POP3Link *pPopLnk)
 
 	char szTmpFile[SYS_MAX_PATH] = "";
 
-	SysGetTmpFile(szTmpFile);
+	UsrGetTmpFile(NULL, szTmpFile, sizeof(szTmpFile));
 
 	char szResLock[SYS_MAX_PATH] = "";
 	RLCK_HANDLE hResLock = RLckLockEX(CfgGetBasedPath(szLnkFilePath, szResLock,
@@ -398,7 +418,7 @@ int GwLkRemoveUserLinks(const char *pszDomain, const char *pszName)
 
 	char szTmpFile[SYS_MAX_PATH] = "";
 
-	SysGetTmpFile(szTmpFile);
+	UsrGetTmpFile(NULL, szTmpFile, sizeof(szTmpFile));
 
 	char szResLock[SYS_MAX_PATH] = "";
 	RLCK_HANDLE hResLock = RLckLockEX(CfgGetBasedPath(szLnkFilePath, szResLock,
@@ -478,7 +498,7 @@ int GwLkRemoveDomainLinks(const char *pszDomain)
 
 	char szTmpFile[SYS_MAX_PATH] = "";
 
-	SysGetTmpFile(szTmpFile);
+	UsrGetTmpFile(NULL, szTmpFile, sizeof(szTmpFile));
 
 	char szResLock[SYS_MAX_PATH] = "";
 	RLCK_HANDLE hResLock = RLckLockEX(CfgGetBasedPath(szLnkFilePath, szResLock,
@@ -583,7 +603,7 @@ GWLKF_HANDLE GwLkOpenDB(void)
 	if (pGLSD == NULL)
 		return INVALID_GWLKF_HANDLE;
 
-	SysGetTmpFile(pGLSD->szTmpDBFile);
+	UsrGetTmpFile(NULL, pGLSD->szTmpDBFile, sizeof(pGLSD->szTmpDBFile));
 	if (GwLkGetDBFileSnapShot(pGLSD->szTmpDBFile) < 0) {
 		SysFree(pGLSD);
 		return INVALID_GWLKF_HANDLE;
@@ -758,36 +778,6 @@ int GwLkMasqueradeDomain(POP3Link const *pPopLnk)
 {
 	return ((pPopLnk != NULL &&
 		 (pPopLnk->pszDomain[0] == '?' || pPopLnk->pszDomain[0] == '&')) ? 1: 0);
-}
-
-static int GwLkGetDisableFilePath(POP3Link const *pPopLnk, char *pszEnableFile)
-{
-	if (GwLkLocalDomain(pPopLnk)) {
-		UserInfo *pUI = UsrGetUserByName(pPopLnk->pszDomain, pPopLnk->pszName);
-
-		if (pUI == NULL)
-			return ErrGetErrorCode();
-
-		char szUserPath[SYS_MAX_PATH] = "";
-
-		if (UsrGetUserPath(pUI, szUserPath, sizeof(szUserPath), 1) == NULL) {
-			ErrorPush();
-			UsrFreeUserInfo(pUI);
-			return ErrorPop();
-		}
-		UsrFreeUserInfo(pUI);
-		SysSNPrintf(pszEnableFile, SYS_MAX_PATH - 1, "%s%s@%s.disabled", szUserPath,
-			    pPopLnk->pszRmtName, pPopLnk->pszRmtDomain);
-	} else {
-		char szEnableDir[SYS_MAX_PATH] = "";
-
-		GwLkEnableDir(szEnableDir, sizeof(szEnableDir));
-
-		SysSNPrintf(pszEnableFile, SYS_MAX_PATH - 1, "%s%s%s@%s.disabled", szEnableDir,
-			    SYS_SLASH_STR, pPopLnk->pszRmtName, pPopLnk->pszRmtDomain);
-	}
-
-	return 0;
 }
 
 int GwLkCheckEnabled(POP3Link const *pPopLnk)

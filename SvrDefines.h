@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -33,7 +33,7 @@
 #define MAX_MESSAGE_ID              SYS_MAX_PATH
 #define MAX_ACCEPT_ADDRESSES        32
 #define LOG_ROTATE_HOURS            24
-#define STD_SERVER_TIMEOUT          90
+#define STD_SERVER_TIMEOUT          90000
 #define LOCAL_ADDRESS               "127.0.0.1"
 #define LOCAL_ADDRESS_SQB           "[" LOCAL_ADDRESS "]"
 

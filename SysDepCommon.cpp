@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -268,12 +268,6 @@ void const *SysInetAddrData(SYS_INET_ADDR const &AddrInfo, int *piSize)
 
 	ErrSetErrorCode(ERR_INVALID_INET_ADDR);
 	return NULL;
-}
-
-int SysSameAddress(SYS_INET_ADDR const &NetAddr1, SYS_INET_ADDR const &NetAddr2)
-{
-	return NetAddr1.iSize == NetAddr2.iSize &&
-		memcmp(NetAddr1.Addr, NetAddr2.Addr, NetAddr1.iSize) == 0;
 }
 
 int SysInetIPV6CompatIPV4(SYS_INET_ADDR const &Addr)

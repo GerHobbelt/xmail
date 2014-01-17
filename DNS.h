@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -88,6 +88,10 @@ struct DNSRecord {
 	SYS_UINT32 Class;
 	union {
 		struct {
+			char szName[MAX_HOST_NAME];
+		} NAME;
+		struct {
+			char szName[MAX_HOST_NAME];
 			SYS_UINT16 Pref;
 		} MX;
 		struct {
@@ -97,6 +101,7 @@ struct DNSRecord {
 			SYS_UINT8 IAddr6[16];
 		} AAAA;
 		struct {
+			char szName[MAX_HOST_NAME];
 			char szAddr[MAX_ADDR_NAME];
 			SYS_UINT32 Serial;
 			SYS_UINT32 Refresh;
@@ -112,10 +117,11 @@ struct DNSAnswer {
 	int iANCount;
 	int iNSCount;
 	int iARCount;
+	int iAuth;
 	struct SysListHead RecsLst[QTYPE_ANSWER_MAX];
 };
 
-int DNS_InitAnswer(DNSAnswer *pAns);
+void DNS_InitAnswer(DNSAnswer *pAns);
 void DNS_FreeRecList(SysListHead *pHead);
 void DNS_FreeAnswer(DNSAnswer *pAns);
 int DNS_FatalError(int iError);

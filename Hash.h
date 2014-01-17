@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -30,10 +30,20 @@
 typedef struct HASH_HANDLE_struct {
 } *HASH_HANDLE;
 
+union HashDatum {
+	void *pData;
+	unsigned long ulData;
+};
+
+struct HashOps {
+	void *pPrivate;
+	unsigned long (*pGetHashVal)(void *, HashDatum const *);
+	int (*pCompare)(void *, HashDatum const *, HashDatum const *);
+};
+
 struct HashNode {
-	SysListHead LLnk;
-	SysListHead HLnk;
-	Datum Key;
+	SysListHead Lnk;
+	HashDatum Key;
 };
 
 struct HashEnum {
@@ -42,19 +52,19 @@ struct HashEnum {
 };
 
 
-HASH_HANDLE HashCreate(unsigned long ulSize);
-void HashFree(HASH_HANDLE hHash, void (*pfFree)(void *, HashNode *),
+HASH_HANDLE HashCreate(HashOps const *pOps, unsigned long ulSize);
+void HashFree(HASH_HANDLE hHash, void (*pFree)(void *, HashNode *),
 	      void *pPrivate);
+unsigned long HashGetCount(HASH_HANDLE hHash);
 void HashInitNode(HashNode *pHNode);
 int HashAdd(HASH_HANDLE hHash, HashNode *pHNode);
 void HashDel(HASH_HANDLE hHash, HashNode *pHNode);
-int HashGetFirst(HASH_HANDLE hHash, Datum const *Key,
+int HashGetFirst(HASH_HANDLE hHash, HashDatum const *pKey,
 		 HashEnum *pHEnum, HashNode **ppHNode);
-int HashGetNext(HASH_HANDLE hHash, Datum const *Key,
+int HashGetNext(HASH_HANDLE hHash, HashDatum const *pKey,
 		HashEnum *pHEnum, HashNode **ppHNode);
-int HashFirst(HASH_HANDLE hHash, SysListHead **ppPos, HashNode **ppHNode);
-int HashNext(HASH_HANDLE hHash, SysListHead **ppPos, HashNode **ppHNode);
-
+int HashFirst(HASH_HANDLE hHash, HashEnum *pHEnum, HashNode **ppHNode);
+int HashNext(HASH_HANDLE hHash, HashEnum *pHEnum, HashNode **ppHNode);
 
 #endif
 

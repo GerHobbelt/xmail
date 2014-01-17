@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #define _SYSMACROS_H
 
 #define SRand()                 srand((unsigned int) (SysMsTime() * SysGetCurrentThreadId()))
+#define MaxSignedType(t)        (((t) -1) & ~(((t) 1) << (CHAR_BIT * sizeof(t) - 1)))
 #define NbrCeil(n, a)           ((((n) + (a) - 1) / (a)) * (a))
 #define NbrFloor(n, a)          (((n) / (a)) * (a))
 #define Sign(v)                 (((v) < 0) ? -1: +1)
@@ -62,17 +63,19 @@
 #define IsEmailAddress(a)       (strchr((a), '@') != NULL)
 #define MemMatch(s, n, m, l)    ((n) == (l) && memcmp(s, m, n) == 0)
 #define EquivDatum(a, b)        ((a)->lSize == (b)->lSize && memcmp((a)->pData, (b)->pData, (a)->lSize) == 0)
-#define ArrayInit(a, v)         do { unsigned int __i; for (__i = 0; __i < CountOf(a); __i++) (a)[__i] = (v); } while (0)
+#define ArrayInit(a, v)         do {			\
+		unsigned int __i;			\
+		for (__i = 0; __i < CountOf(a); __i++)	\
+			(a)[__i] = (v);			\
+	} while (0)
 #define StrVSprint(r, l, f) do {					\
-		int             iCurrSize = 256;			\
-		int             iPSize;					\
-		va_list         Args;					\
+		int iPSize, iCurrSize = 256;				\
+		va_list Args;						\
 		for (;;) {						\
-			r = (char *) SysAlloc(iCurrSize);		\
-			if (r == NULL)					\
+			if ((r = (char *) SysAlloc(iCurrSize)) == NULL)	\
 				break;					\
 			va_start(Args, l);				\
-			if (((iPSize = SysVSNPrintf(r, iCurrSize - 1, f, Args)) >= 0) && \
+			if ((iPSize = SysVSNPrintf(r, iCurrSize - 1, f, Args)) >= 0 && \
 			    iPSize < iCurrSize) {			\
 				va_end(Args);				\
 				break;					\
@@ -86,7 +89,7 @@
 		}							\
 	} while (0)
 
-/* Inline functions */
+
 
 inline char *StrNCat(char *pszDest, char const *pszSrc, int iMaxSize)
 {
@@ -138,22 +141,23 @@ inline char *DelFinalSlash(char *pszPath)
 
 inline int ToUpper(int iChar)
 {
-	return ((iChar >= 'a') && (iChar <= 'z')) ? ('A' + (iChar - 'a')) : iChar;
+	return (iChar >= 'a' && iChar <= 'z') ? 'A' + (iChar - 'a'): iChar;
 }
 
 inline int ToLower(int iChar)
 {
-	return ((iChar >= 'A') && (iChar <= 'Z')) ? ('a' + (iChar - 'A')) : iChar;
+	return (iChar >= 'A' && iChar <= 'Z') ? 'a' + (iChar - 'A'): iChar;
 }
 
-inline int IsPrimeNumber(int iNumber)
+inline int IsPrimeNumber(long lNumber)
 {
-	if (iNumber > 3) {
-		if (iNumber & 1) {
-			int iHalfNumber = iNumber / 2;
+	if (lNumber > 3) {
+		if (lNumber & 1) {
+			long i, lHalfNumber;
 
-			for (int ii = 3; ii < iHalfNumber; ii += 2)
-				if ((iNumber % ii) == 0)
+			for (i = 3, lHalfNumber = lNumber / 2; i < lHalfNumber;
+			     i += 2)
+				if ((lNumber % i) == 0)
 					return 0;
 		} else
 			return 0;

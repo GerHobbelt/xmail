@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -35,9 +35,6 @@ struct ErrorEnv {
 	char *pszInfo[1];
 };
 
-static void ErrFreeEnv(void *pData);
-static void ErrOnceSetup(void);
-static ErrorEnv *ErrSetupEnv(void);
 
 static SYS_THREAD_ONCE OnceSetup = SYS_THREAD_ONCE_INIT;
 static SYS_TLSKEY ErrTlsKey;
@@ -218,8 +215,8 @@ static ErrorStrings Errors[] = {
 	{ ERR_SET_THREAD_PRIORITY, "Error setting thread priority" },
 	{ ERR_NULL_SENDER, "Empty message sender" },
 	{ ERR_RCPTTO_UNKNOWN, "Mail tag \"To:\" missing" },
-	{ ERR_LOADMODULE, "Error moading dynamic module" },
-	{ ERR_LOADMODULESYMBOL, "Error moading dynamic module symbol" },
+	{ ERR_LOADMODULE, "Error loading dynamic module" },
+	{ ERR_LOADMODULESYMBOL, "Error loading dynamic module symbol" },
 	{ ERR_NOMORE_TLSKEYS, "No more TLS keys are available" },
 	{ ERR_INVALID_TLSKEY, "Invalid TLS key" },
 	{ ERR_ERRORINIT_FAILED, "Error initialization failed" },
@@ -306,6 +303,9 @@ static ErrorStrings Errors[] = {
 	{ ERR_SOCKET_SHUTDOWN, "Connection shutdown error" },
 	{ ERR_SSL_SHUTDOWN, "SSL connection shutdown error" },
 	{ ERR_TOO_MANY_ELEMENTS, "Too many elements" },
+	{ ERR_GET_RAND_BYTES, "Failed to retrieve entropy bytes" },
+	{ ERR_WAIT, "Failed to wait for event" },
+	{ ERR_EVENTFD, "Failed to create for eventfd" },
 
 };
 
@@ -319,7 +319,7 @@ static void ErrFreeEnv(void *pData)
 	if (pEV != NULL) {
 		char **ppszInfo = pEV->pszInfo;
 
-		for (int i = 0; i < CountOf(Errors); i++, ppszInfo++)
+		for (int i = 0; i < (int) CountOf(Errors); i++, ppszInfo++)
 			if (*ppszInfo != NULL)
 				SysFree(*ppszInfo), *ppszInfo = NULL;
 		SysFree(pEV);
@@ -331,7 +331,7 @@ static void ErrOnceSetup(void)
 	int i, iIdx;
 
 	SysCreateTlsKey(ErrTlsKey, ErrFreeEnv);
-	for (i = 0; i < CountOf(Errors); i++) {
+	for (i = 0; i < (int) CountOf(Errors); i++) {
 		iIdx = -Errors[i].iErrorCode;
 		if (iIdx >= 0 && iIdx < ERROR_COUNT)
 			pszErrors[iIdx] = Errors[i].pszError;
