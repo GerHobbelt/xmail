@@ -87,7 +87,7 @@
 				 SMTPF_SNDRCHECK_BYPASS | SMTPF_BLOCKED_IP | SMTPF_IPMAPPED_IP)
 #define SMTPF_AUTH_MASK         (SMTPF_RELAY_ENABLED | SMTPF_MAIL_UNLOCKED | SMTPF_AUTHENTICATED | \
 				 SMTPF_VRFY_ENABLED | SMTPF_ETRN_ENABLED | SMTPF_EASE_TLS)
-#define SMTPF_RESET_MASK        (SMTPF_AUTH_MASK | SMTPF_STATIC_MASK | SMTPF_NOEMIT_AUTH)
+#define SMTPF_RESET_MASK        (SMTPF_AUTH_MASK | SMTPF_STATIC_MASK)
 
 #define SMTP_FILTER_FL_BREAK    (1 << 4)
 #define SMTP_FILTER_FL_MASK     SMTP_FILTER_FL_BREAK
@@ -251,6 +251,26 @@ static int SMTPHandleCmd_HELP(const char *pszCommand, BSOCK_HANDLE hBSock, SMTPS
 static int SMTPHandleCmd_QUIT(const char *pszCommand, BSOCK_HANDLE hBSock, SMTPSession &SMTPS);
 static int SMTPHandleCmd_VRFY(const char *pszCommand, BSOCK_HANDLE hBSock, SMTPSession &SMTPS);
 static int SMTPHandleCmd_ETRN(const char *pszCommand, BSOCK_HANDLE hBSock, SMTPSession &SMTPS);
+
+
+static char const *SMTPGetFilterExtname(char const *pszFiltID)
+{
+	static struct Filter_ID_Name {
+		char const *pszFiltID;
+		char const *pszName;
+	} const FiltIdNames[] = {
+		{ SMTP_POST_RCPT_FILTER, "RCPT" },
+		{ SMTP_PRE_DATA_FILTER, "PREDATA" },
+		{ SMTP_POST_DATA_FILTER, "POSTDATA" },
+	};
+	int i;
+
+	for (i = 0; i < CountOf(FiltIdNames); i++)
+		if (strcmp(FiltIdNames[i].pszFiltID, pszFiltID) == 0)
+			return FiltIdNames[i].pszName;
+
+	return "UNKNOWN";
+}
 
 static SMTPConfig *SMTPGetConfigCopy(SHB_HANDLE hShbSMTP)
 {
@@ -693,7 +713,7 @@ static int SMTPInitSession(ThreadConfig const *pThCfg, BSOCK_HANDLE hBSock,
 
 	/* Check if the emission of "X-Auth-User:" is diabled */
 	if (SvrGetConfigInt("DisableEmitAuthUser", 0, SMTPS.hSvrConfig))
-		SMTPS.ulFlags |= SMTPF_NOEMIT_AUTH;
+		SMTPS.ulSetupFlags |= SMTPF_NOEMIT_AUTH;
 
 	/* Try to load specific configuration */
 	char szConfigName[128] = "";
@@ -999,7 +1019,6 @@ static void SMTPResetSession(SMTPSession &SMTPS)
 
 	SMTPS.iSMTPState = (SMTPS.ulFlags & SMTPF_AUTHENTICATED) ? stateAuthenticated:
 		Min(SMTPS.iSMTPState, stateHelo);
-
 }
 
 static void SMTPFullResetSession(SMTPSession &SMTPS)
@@ -1570,8 +1589,6 @@ static int SMTPCheckForwardPath(char **ppszFwdDomains, SMTPSession &SMTPS,
 	pszSMTPError = NULL;
 	if (SMTPFilterMessage(SMTPS, SMTP_POST_RCPT_FILTER, pszSMTPError) < 0) {
 		ErrorPush();
-		if (SMTPLogEnabled(SMTPS.pThCfg->hThShb, SMTPS.pSMTPCfg))
-			SMTPLogSession(SMTPS, SMTPS.pszFrom, ppszFwdDomains[0], "RCPT=EFILTER", 0);
 		if (pszSMTPError == NULL)
 			pszSMTPError = SysStrDup("550 Recipient rejected");
 		return ErrorPop();
@@ -1698,7 +1715,6 @@ static char *SMTPMacroLkupProc(void *pPrivate, char const *pszName, int iSize)
 
 static int SMTPFilterMacroSubstitutes(char **ppszCmdTokens, SMTPSession &SMTPS)
 {
-
 	return MscReplaceTokens(ppszCmdTokens, SMTPMacroLkupProc, &SMTPS);
 }
 
@@ -1838,9 +1854,14 @@ static int SMTPRunFilters(SMTPSession &SMTPS, char const *pszFilterPath, char co
 				fclose(pFiltFile);
 				RLckUnlockSH(hResLock);
 
+				char szLogLine[128];
+
+				SysSNPrintf(szLogLine, sizeof(szLogLine) - 1,
+					    "%s=EFILTER", SMTPGetFilterExtname(pszType));
+
 				if (SMTPLogEnabled(SMTPS.pThCfg->hThShb, SMTPS.pSMTPCfg))
 					SMTPLogSession(SMTPS, SMTPS.pszFrom, SMTPS.pszRcpt,
-						       "DATA=EFILTER", 0);
+						       szLogLine, 0);
 
 				pszError = SMTPGetFilterRejMessage(SMTPS.szMsgFile);
 
@@ -1890,6 +1911,12 @@ static int SMTPFilterMessage(SMTPSession &SMTPS, const char *pszFiltID, char *&p
 	if (iReOpen) {
 		if ((SMTPS.pMsgFile = fopen(SMTPS.szMsgFile, "r+b")) == NULL) {
 			ErrSetErrorCode(ERR_FILE_OPEN, SMTPS.szMsgFile);
+
+			/*
+			 * We failed to re-open our own file. Cannot proceed w/out
+			 * a session reset!
+			 */
+			SMTPResetSession(SMTPS);
 			return ERR_FILE_OPEN;
 		}
 		fseek(SMTPS.pMsgFile, 0, SEEK_END);
@@ -2015,11 +2042,13 @@ static int SMTPHandleCmd_DATA(const char *pszCommand, BSOCK_HANDLE hBSock, SMTPS
 		}
 
 		/* Transfer spool file */
-		if (SMTPSubmitPackedFile(SMTPS, SMTPS.szMsgFile) < 0)
+		if ((iError = SMTPSubmitPackedFile(SMTPS, SMTPS.szMsgFile)) < 0) {
+			SMTPResetSession(SMTPS);
+
 			SMTPSendError(hBSock, SMTPS,
 				      "451 Requested action aborted: (%d) local error in processing",
 				      ErrGetErrorCode());
-		else {
+		} else {
 			/* Log the message receive */
 			if (SMTPLogEnabled(SMTPS.pThCfg->hThShb, SMTPS.pSMTPCfg))
 				SMTPLogSession(SMTPS, SMTPS.pszFrom, SMTPS.pszRcpt, "RECV=OK",
@@ -2028,8 +2057,12 @@ static int SMTPHandleCmd_DATA(const char *pszCommand, BSOCK_HANDLE hBSock, SMTPS
 			/* Send the ack only when everything is OK */
 			BSckVSendString(hBSock, SMTPS.pSMTPCfg->iTimeout, "250 OK <%s>",
 					SMTPS.szMessageID);
+
+			SMTPResetSession(SMTPS);
 		}
 	} else {
+		SMTPResetSession(SMTPS);
+
 		/* Notify the client the error condition */
 		if (pszSmtpError == NULL)
 			SMTPSendError(hBSock, SMTPS,
@@ -2037,9 +2070,7 @@ static int SMTPHandleCmd_DATA(const char *pszCommand, BSOCK_HANDLE hBSock, SMTPS
 				      ErrGetErrorCode());
 		else
 			SMTPSendError(hBSock, SMTPS, "%s", pszSmtpError);
-
 	}
-	SMTPResetSession(SMTPS);
 
 	return iError;
 }

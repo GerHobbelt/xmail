@@ -7,9 +7,24 @@ XMail Change Log as of Version 1.26
 
 =head1 CHANGE LOG
 
-=head2 Jan 4, 2008 v 1.26
+=head2 Jun 27, 2009 v 1.26
 
 =over 4
+
+=item *
+
+Fixed a bug where STARTTLS was resetting the session too much, by canceling
+certain flags/options read inside the SERVER.TAB.
+
+=item *
+
+Fixed a bug that happened if a message filter mistakenly remove the message file
+from under XMail control.
+
+=item *
+
+Fixed a bug that make XMail to wrongly report virtual memory sizes on 32 bit
+systems with larger than 4GB VM space.
 
 =item *
 

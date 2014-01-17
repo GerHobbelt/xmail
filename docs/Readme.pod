@@ -78,7 +78,7 @@ Gnu Public License L<http://www.gnu.org>
 
 =head2 release date
 
-Jan 4, 2008
+Jun 27, 2009
 
 =head2 project by
 
