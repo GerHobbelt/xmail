@@ -205,7 +205,8 @@ static int QueLoadMessageStat(MessageQueue *pMQ, QueueMessage *pQM)
 
 	if (pLogFile != NULL) {
 		int iNumTries = 0;
-		unsigned long ulLastTime = 0, ulPeekTime;
+		unsigned long ulLastTime = 0;
+		unsigned long ulPeekTime;
 		char szLogLine[1024];
 
 		while (MscFGets(szLogLine, sizeof(szLogLine) - 1, pLogFile) != NULL)

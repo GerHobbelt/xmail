@@ -120,7 +120,7 @@ static int CTRLCheckPeerIP(SYS_SOCKET SockFD)
 		SYS_INET_ADDR PeerInfo;
 
 		ZeroData(PeerInfo); /* [i_a] */
-	
+
 		if (SysGetPeerInfo(SockFD, PeerInfo) < 0)
 			return ErrGetErrorCode();
 
@@ -2467,7 +2467,7 @@ static int CTRLHandleSession(ThreadConfig const *pThCfg, BSOCK_HANDLE hBSock,
 	char szTimeStamp[256] = "";
 
 	ZeroData(SockInfo); /* [i_a] */
-	
+
 	SysGetSockInfo(BSckGetAttachedSocket(hBSock), SockInfo);
 
 	char szIP[128] = "???.???.???.???";

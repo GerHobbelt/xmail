@@ -234,7 +234,7 @@ int TbixCreateIndex(char const *pszTabFilePath, int const *piFieldsIdx, bool bCa
 		SysRemove(szIdxFile);
 		TbixFreeHash(pHash, iHashSize);
 
-		ErrSetErrorCode(ERR_FILE_WRITE, szIndexFile); /* [i_a] */
+		ErrSetErrorCode(ERR_FILE_WRITE, szIdxFile); /* [i_a] */
 		return ERR_FILE_WRITE;
 	}
 	/* Dump main table */
@@ -252,7 +252,7 @@ int TbixCreateIndex(char const *pszTabFilePath, int const *piFieldsIdx, bool bCa
 			SysRemove(szIdxFile);
 			TbixFreeHash(pHash, iHashSize);
 
-			ErrSetErrorCode(ERR_FILE_WRITE, szIndexFile); /* [i_a] */
+			ErrSetErrorCode(ERR_FILE_WRITE, szIdxFile); /* [i_a] */
 			return ERR_FILE_WRITE;
 		}
 	}
@@ -269,7 +269,7 @@ int TbixCreateIndex(char const *pszTabFilePath, int const *piFieldsIdx, bool bCa
 				SysRemove(szIdxFile);
 				TbixFreeHash(pHash, iHashSize);
 
-				ErrSetErrorCode(ERR_FILE_WRITE, szIndexFile); /* [i_a] */
+				ErrSetErrorCode(ERR_FILE_WRITE, szIdxFile); /* [i_a] */
 				return ERR_FILE_WRITE;
 			}
 			pHead = &pHash[i].NodeList;
@@ -284,7 +284,7 @@ int TbixCreateIndex(char const *pszTabFilePath, int const *piFieldsIdx, bool bCa
 					SysRemove(szIdxFile);
 					TbixFreeHash(pHash, iHashSize);
 
-					ErrSetErrorCode(ERR_FILE_WRITE, szIndexFile); /* [i_a] */
+					ErrSetErrorCode(ERR_FILE_WRITE, szIdxFile); /* [i_a] */
 					return ERR_FILE_WRITE;
 				}
 			}
@@ -356,6 +356,7 @@ static int TbixOpenIndex(char const *pszIdxFile, TabHashIndex &THI)
 	}
 	/* Read header and check signature */
 	ZeroData(THI);
+
 	if (!fread(&THI.HFH, sizeof(THI.HFH), 1, pIdxFile)) {
 		fclose(pIdxFile);
 
@@ -422,8 +423,8 @@ static TabIdxUINT *TbixReadTable(TabHashIndex &THI, /* TabIdxUINT */ unsigned lo
 		ErrSetErrorCode(ERR_FILE_READ, pszTabFilePath);
 		return NULL;
 	}
-	if ((pOffTbl = (TabIdxUINT *)
-	     SysAlloc((uTableSize + 1) * sizeof(TabIdxUINT))) == NULL)
+	pOffTbl = (TabIdxUINT *)SysAlloc((uTableSize + 1) * sizeof(TabIdxUINT));
+	if (pOffTbl == NULL)
 		return NULL;
 	pOffTbl[0] = uTableSize;
 	if (!fread(&pOffTbl[1], uTableSize * sizeof(TabIdxUINT), 1,
@@ -520,7 +521,7 @@ char **TbixLookup(char const *pszTabFilePath, int const *piFieldsIdx, bool bCase
 	fclose(pTabFile);
 	SysFree(pHashTable);
 
-	ErrSetErrorCode(ERR_RECORD_NOT_FOUND, pszTabFilePath);
+	ErrSetErrorCode(ERR_RECORD_NOT_FOUND);
 
 	return NULL;
 }

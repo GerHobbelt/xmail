@@ -1408,7 +1408,7 @@ void SysFree(void *pData)
 	free(pData);
 }
 
-void *SysRealloc(void *pData, size_t uSize)
+void *SysRealloc(void *pData, unsigned int uSize)
 {
 	void *pNewData = realloc(pData, uSize);
 

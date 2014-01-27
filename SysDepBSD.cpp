@@ -94,6 +94,7 @@ int SysSetThreadPriority(SYS_THREAD ThreadID, int iPriority)
 	iMinPriority = SysGetPriorityMin(iPolicy);
 	iMaxPriority = SysGetPriorityMax(iPolicy);
 #endif
+
 	iStdPriority = (iMinPriority + iMaxPriority) / 2;
 
 	switch (iPriority) {
@@ -216,6 +217,7 @@ int SysMemoryInfo(SYS_INT64 *pRamTotal, SYS_INT64 *pRamFree,
 		ErrSetErrorCode(ERR_GET_MEMORY_INFO);
 		return ERR_GET_MEMORY_INFO;
 	}
+
 	*pRamTotal = iHwPhisMem;
 	*pRamFree = (SYS_INT64) iHwPageSize *(SYS_INT64) VmMeter.t_free;
 	*pVirtTotal = (SYS_INT64) iHwPageSize *(SYS_INT64) VmMeter.t_vm;

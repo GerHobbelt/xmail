@@ -114,6 +114,7 @@ static void SysInitTlsKeys(void)
 static void SysCleanupTlsKeys(void)
 {
 	EnterCriticalSection(&csTLS);
+
 	for (int i = 0; i < MAX_TLS_KEYS; i++) {
 		if (TlsKeyEntries[i].pFreeProc != UNUSED_TLS_KEY_PROC &&
 		    TlsKeyEntries[i].pFreeProc != NULL)
@@ -121,6 +122,7 @@ static void SysCleanupTlsKeys(void)
 
 		TlsKeys[i].pData = NULL;
 	}
+
 	LeaveCriticalSection(&csTLS);
 }
 
@@ -175,6 +177,7 @@ static int SysCrtReportHook(int iType, char *pszMsg, int *piRetVal)
 	default:
 		return FALSE;
 	}
+
 	SysLogMessage(iLogLevel, "%s: %s\n", pszType, pszMsg);
 
 	return iRetCode;
@@ -1153,10 +1156,10 @@ unsigned long SysGetCurrentThreadId(void)
 int SysExec(char const *pszCommand, char const *const *pszArgs, int iWaitTimeout,
 	    int iPriority, int *piExitStatus)
 {
-	int i, iCommandLength = (int)strlen(pszCommand) + 4;
+	int i, iCommandLength = strlen(pszCommand) + 4;
 
 	for (i = 1; pszArgs[i] != NULL; i++)
-		iCommandLength += (int)strlen(pszArgs[i]) + 4;
+		iCommandLength += strlen(pszArgs[i]) + 4;
 
 	char *pszCmdLine = (char *) SysAlloc(iCommandLength + 1);
 
@@ -1203,8 +1206,9 @@ int SysExec(char const *pszCommand, char const *const *pszArgs, int iWaitTimeout
 			else
 				*piExitStatus = (int) dwExitCode;
 		}
-	} else if (piExitStatus != NULL)
+	} else if (piExitStatus != NULL) {
 		*piExitStatus = -1;
+	}
 	CloseHandle(PI.hThread);
 	CloseHandle(PI.hProcess);
 
@@ -1243,6 +1247,7 @@ unsigned long SysGetCurrentProcessId(void)
 int SysCreateTlsKey(SYS_TLSKEY &TlsKey, void (*pFreeProc) (void *))
 {
 	EnterCriticalSection(&csTLS);
+
 	for (int i = 0; i < MAX_TLS_KEYS; i++) {
 		if (TlsKeyEntries[i].pFreeProc == UNUSED_TLS_KEY_PROC) {
 			TlsKeyEntries[i].pFreeProc = pFreeProc;
@@ -1252,6 +1257,7 @@ int SysCreateTlsKey(SYS_TLSKEY &TlsKey, void (*pFreeProc) (void *))
 			return 0;
 		}
 	}
+
 	LeaveCriticalSection(&csTLS);
 
 	ErrSetErrorCode(ERR_NOMORE_TLSKEYS);
@@ -1694,7 +1700,8 @@ char *SysGetEnv(char const *pszVarName)
 	if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, szRKeyPath, 0, KEY_QUERY_VALUE,
 			 &hKey) == ERROR_SUCCESS) {
 		char szKeyValue[2048] = "";
-		DWORD dwKeyType, dwSize = sizeof(szKeyValue);
+		DWORD dwSize = sizeof(szKeyValue);
+		DWORD dwKeyType;
 
 		if (RegQueryValueEx(hKey, pszVarName, NULL, &dwKeyType,
 				    (u_char *) szKeyValue,
@@ -1879,7 +1886,8 @@ SYS_MMAP SysCreateMMap(char const *pszFileName, unsigned long ulFlags)
 		return SYS_INVALID_MMAP;
 	}
 
-	DWORD dwFileSizeHi = 0, dwFileSizeLo = GetFileSize(hFile, &dwFileSizeHi);
+	DWORD dwFileSizeHi = 0;
+	DWORD dwFileSizeLo = GetFileSize(hFile, &dwFileSizeHi);
 	HANDLE hFileMap = CreateFileMapping(hFile, NULL, (ulFlags & SYS_MMAP_WRITE) ?
 					    PAGE_READWRITE: PAGE_READONLY,
 					    dwFileSizeHi, dwFileSizeLo, NULL);

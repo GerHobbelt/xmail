@@ -286,6 +286,7 @@ static int RLckDoUnlockSH(ResLocator const *pRL, char const *pszResourceName)
 		ErrSetErrorCode(ERR_RESOURCE_NOT_LOCKED);
 		return ERR_RESOURCE_NOT_LOCKED;
 	}
+
 	if (--pRLE->iShLocks == 0) {
 		/* Remove entry from list and delete entry heap memory */
 		if (RLckRemoveEntry(pRL, pRLE) < 0)
@@ -320,6 +321,7 @@ static RLCK_HANDLE RLckLock(char const *pszResourceName,
 			SYS_SEMAPHORE SemID = RLGates[RL.iWaitGate].hSemaphore;
 
 			++RLGates[RL.iWaitGate].iWaitingProcesses;
+
 			SysUnlockMutex(hRLMutex);
 
 			if (SysWaitSemaphore(SemID, SYS_INFINITE_TIMEOUT) < 0)

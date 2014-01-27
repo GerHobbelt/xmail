@@ -216,6 +216,7 @@ char **StrTokenize(const char *pszString, const char *pszTokenizer)
 
 	while (pszToken != NULL) {
 		++iTokenCount;
+
 		pszToken = SysStrTok(NULL, pszTokenizer, &pszSavePtr);
 	}
 
@@ -233,6 +234,7 @@ char **StrTokenize(const char *pszString, const char *pszTokenizer)
 
 	while (pszToken != NULL) {
 		ppszTokens[iTokenCount++] = SysStrDup(pszToken);
+
 		pszToken = SysStrTok(NULL, pszTokenizer, &pszSavePtr);
 	}
 	ppszTokens[iTokenCount] = NULL;
@@ -359,8 +361,8 @@ char *StrQuote(const char *pszString, int iChar)
 
 char **StrGetTabLineStrings(const char *pszUsrLine)
 {
-	/* 
-	   [i_a] if a line is empty or whitespace only, ignore it! 
+	/*
+	   [i_a] if a line is empty or whitespace only, ignore it!
 	 */
 	if (!pszUsrLine || !*pszUsrLine)
 		return NULL;
@@ -492,8 +494,10 @@ char *StrLoadFile(FILE *pFile)
 
 	fseek(pFile, 0, SEEK_SET);
 
-	fread(pszData, uFileSize, 1, pFile);
-	pszData[uFileSize] = '\0';
+	int sr = (int)fread(pszData, uFileSize, 1, pFile);
+	if (sr < 0)
+		sr = 0;
+	pszData[sr] = '\0';
 
 	return pszData;
 }

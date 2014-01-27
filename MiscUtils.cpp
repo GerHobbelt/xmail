@@ -119,14 +119,16 @@ int MscUniqueFile(char const *pszDir, char *pszFilePath, int iMaxPath)
 	 * Get thread ID and host name. We do not use atomic inc on ulUniqSeq, since
 	 * collision is prevented by the thread and process IDs.
 	 */
-	static unsigned long ulUniqSeq;
+	static unsigned long ulUniqSeq = 0;
+	unsigned long ulThreadID = SysGetCurrentThreadId();
+	unsigned long ulProcessID = SysGetCurrentProcessId();
+	SYS_INT64 iMsTime = SysMsTime();
 	char szHostName[MAX_HOST_NAME] = "";
 
 	gethostname(szHostName, sizeof(szHostName) - 1);
 	SysSNPrintf(pszFilePath, iMaxPath,
 		    "%s" SYS_SLASH_STR SYS_LLU_FMT ".%lx.%lx.%lx.%s",
-		    pszDir, SysMsTime(), SysGetCurrentThreadId(),
-		    SysGetCurrentProcessId(), ulUniqSeq++, szHostName);
+		    pszDir, iMsTime, ulThreadID, ulProcessID, ulUniqSeq++, szHostName);
 
 	return 0;
 }
@@ -167,7 +169,7 @@ int MscRecvTextFile(char const *pszFileName, BSOCK_HANDLE hBSock, int iTimeout,
 		    int (*pStopProc) (void *), void *pParam)
 {
 	FILE *pFile = fopen(pszFileName, "wt");
-	char szBuffer[2048] = "";
+	char szBuffer[2048];
 
 	if (pFile == NULL) {
 		ErrSetErrorCode(ERR_FILE_CREATE, pszFileName);
@@ -195,7 +197,7 @@ int MscSendTextFile(char const *pszFileName, BSOCK_HANDLE hBSock, int iTimeout,
 		    int (*pStopProc) (void *), void *pParam)
 {
 	FILE *pFile = fopen(pszFileName, "rt");
-	char szBuffer[2048] = "";
+	char szBuffer[2048];
 
 	if (pFile == NULL) {
 		ErrSetErrorCode(ERR_FILE_OPEN, pszFileName);
@@ -273,7 +275,7 @@ char *MscTranslatePath(char *pszPath)
 	return pszPath;
 }
 
-void *MscLoadFile(char const *pszFilePath, unsigned long *pulFileSize)
+void *MscLoadFile(char const *pszFilePath, size_t *pulFileSize)
 {
 	size_t FileSize, RdBytes;
 	SYS_OFF_T llFileSize;
@@ -350,6 +352,7 @@ int MscGetTime(struct tm &tmLocal, int &iDiffHours, int &iDiffMins, time_t tCurr
 
 	if (tCurr == 0)
 		time(&tCurr);
+
 	SysLocalTime(&tCurr, &tmLocal);
 	tmTimeLOC = tmLocal;
 	SysGMTime(&tCurr, &tmTimeGM);
@@ -400,6 +403,7 @@ int MscGetTimeStr(char *pszTimeStr, int iStringSize, time_t tCurr)
 		sprintf(szDiffTime, " +%02d%02d", iDiffHours, iDiffMins);
 	else
 		sprintf(szDiffTime, " -%02d%02d", -iDiffHours, iDiffMins);
+
 	MscStrftime(&tmTime, pszTimeStr, iStringSize - (int)strlen(szDiffTime) - 1);
 	strcat(pszTimeStr, szDiffTime);
 
@@ -450,7 +454,8 @@ FSCAN_HANDLE MscFirstFile(char const *pszPath, int iListDirs, char *pszFileName,
 	FileScan *pFS;
 	LstDatum *pLDm;
 
-	if ((pFS = (FileScan *) SysAlloc(sizeof(FileScan))) == NULL)
+	pFS = (FileScan *) SysAlloc(sizeof(FileScan));
+	if (pFS == NULL)
 		return INVALID_FSCAN_HANDLE;
 
 	SYS_INIT_LIST_HEAD(&pFS->FList);
@@ -463,6 +468,7 @@ FSCAN_HANDLE MscFirstFile(char const *pszPath, int iListDirs, char *pszFileName,
 		SysFree(pFS);
 		return INVALID_FSCAN_HANDLE;
 	}
+
 	pLDm = SYS_LIST_ENTRY(pFS->pPos, LstDatum, LLnk);
 
 	pFS->pPos = SYS_LIST_NEXT(pFS->pPos, &pFS->FList);
@@ -478,6 +484,7 @@ int MscNextFile(FSCAN_HANDLE hFileScan, char *pszFileName, int iSize)
 
 	if (pFS->pPos == NULL)
 		return 0;
+
 	pLDm = SYS_LIST_ENTRY(pFS->pPos, LstDatum, LLnk);
 
 	pFS->pPos = SYS_LIST_NEXT(pFS->pPos, &pFS->FList);
@@ -519,7 +526,7 @@ int MscCreateEmptyFile(char const *pszFileName)
 	FILE *pFile = fopen(pszFileName, "wb");
 
 	if (pFile == NULL) {
-		ErrSetErrorCode(ERR_FILE_CREATE, pszFileName); /* [i_a] */
+		ErrSetErrorCode(ERR_FILE_CREATE, pszFileName);
 		return ERR_FILE_CREATE;
 	}
 	fclose(pFile);
@@ -533,9 +540,11 @@ int MscClearDirectory(char const *pszPath, int iRecurseSubs)
 	SysListHead *pPos;
 	SysListHead FList;
 	char szFileName[SYS_MAX_PATH];
+	SYS_HANDLE hFind;
 
-	if ((hFind = SysFirstFile(pszPath, szFileName,
-				  sizeof(szFileName))) == SYS_INVALID_HANDLE)
+	hFind = SysFirstFile(pszPath, szFileName, sizeof(szFileName));
+
+	if (hFind == SYS_INVALID_HANDLE)
 		return 0;
 	SYS_INIT_LIST_HEAD(&FList);
 	do {
@@ -587,12 +596,12 @@ static int MscCopyFileLL(char const *pszCopyTo, char const *pszCopyFrom,
 	char szBuffer[2048];
 
 	if ((pFileIn = fopen(pszCopyFrom, "rb")) == NULL) {
-		ErrSetErrorCode(ERR_FILE_OPEN, pszCopyFrom); /* [i_a] */
+		ErrSetErrorCode(ERR_FILE_OPEN, pszCopyFrom);
 		return ERR_FILE_OPEN;
 	}
 	if ((pFileOut = fopen(pszCopyTo, pszMode)) == NULL) {
 		fclose(pFileIn);
-		ErrSetErrorCode(ERR_FILE_CREATE, pszCopyTo); /* [i_a] */
+		ErrSetErrorCode(ERR_FILE_CREATE, pszCopyTo);
 		return ERR_FILE_CREATE;
 	}
 	do {
@@ -602,7 +611,7 @@ static int MscCopyFileLL(char const *pszCopyTo, char const *pszCopyFrom,
 				fclose(pFileIn);
 				SysRemove(pszCopyTo);
 
-				ErrSetErrorCode(ERR_FILE_WRITE, pszCopyTo); /* [i_a] */
+				ErrSetErrorCode(ERR_FILE_WRITE, pszCopyTo);
 				return ERR_FILE_WRITE;
 			}
 		}
@@ -689,7 +698,7 @@ int MscMoveFile(char const *pszOldName, char const *pszNewName)
 
 char *MscGetString(FILE *pFile, char *pszBuffer, int iMaxChars, int *piGotNL)
 {
-	int iLength;
+	size_t iLength;
 
 	ASSERT(pFile);
 	ASSERT(pszBuffer);
@@ -698,6 +707,7 @@ char *MscGetString(FILE *pFile, char *pszBuffer, int iMaxChars, int *piGotNL)
 	if (fgets(pszBuffer, iMaxChars, pFile) == NULL)
 		return NULL;
 	iLength = strlen(pszBuffer);
+	// TODO: remove the loop: N^2 search through text; needless.
 	if (piGotNL != NULL)
 		*piGotNL = (iLength > 0 &&
 			    strchr("\r\n", pszBuffer[iLength - 1]) != NULL);
@@ -822,10 +832,14 @@ int MscFileLog(char const *pszLogFile, char const *pszFormat, ...)
 	char szLogFilePath[SYS_MAX_PATH];
 
 	MscLogFilePath(pszLogFile, szLogFilePath);
-	if ((pLogFile = fopen(szLogFilePath, "a+t")) == NULL) {
+
+	pLogFile = fopen(szLogFilePath, "a+t");
+
+	if (pLogFile == NULL) {
 		ErrSetErrorCode(ERR_FILE_OPEN, szLogFilePath); /* [i_a] */
 		return ERR_FILE_OPEN;
 	}
+
 	va_start(Args, pszFormat);
 	vfprintf(pLogFile, pszFormat, Args);
 	va_end(Args);
@@ -854,7 +868,9 @@ int MscSplitPath(char const *pszFilePath, char *pszDir, int iDSize,
 		if (pszDir != NULL)
 			SetEmptyString(pszDir);
 	}
-	if ((pszDot = strrchr(pszFile, '.')) != NULL) {
+
+	pszDot = strrchr(pszFile, '.');
+	if (pszDot != NULL) {
 		if (pszFName != NULL) {
 			int iNameLength = (int) (pszDot - pszFile);
 
@@ -1182,10 +1198,12 @@ char **MscGetHNProperties(char const *pszFileName, char const *pszHostName)
 	FILE *pFile;
 	char szLine[IPPROP_LINE_MAX];
 
-	if ((pFile = fopen(pszFileName, "rt")) == NULL) {
+	pFile = fopen(pszFileName, "rt");
+	if (pFile == NULL) {
 		ErrSetErrorCode(ERR_FILE_OPEN, pszFileName); /* [i_a] */
 		return NULL;
 	}
+
 	while (MscGetConfigLine(szLine, sizeof(szLine) - 1, pFile) != NULL) {
 		char **ppszTokens = StrGetTabLineStrings(szLine);
 
@@ -1211,7 +1229,8 @@ int MscMD5Authenticate(char const *pszPassword, char const *pszTimeStamp, char c
 	char *pszHash;
 	char szMD5[128];
 
-	if ((pszHash = StrSprint("%s%s", pszTimeStamp, pszPassword)) == NULL)
+	pszHash = StrSprint("%s%s", pszTimeStamp, pszPassword);
+	if (pszHash == NULL)
 		return ErrGetErrorCode();
 	do_md5_string(pszHash, (int)strlen(pszHash), szMD5);
 	SysFree(pszHash);
@@ -1231,7 +1250,9 @@ char *MscExtractServerTimeStamp(char const *pszResponse, char *pszTimeStamp, int
 	if ((pszStartTS = strchr(pszResponse, '<')) == NULL ||
 	    (pszEndTS = strchr(pszStartTS + 1, '>')) == NULL)
 		return NULL;
+
 	iLengthTS = (int) (pszEndTS - pszStartTS) + 1;
+
 	iLengthTS = Min(iLengthTS, iMaxTimeStamp - 1);
 	Cpy2Sz(pszTimeStamp, pszStartTS, iLengthTS);
 
@@ -1249,7 +1270,8 @@ int MscCramMD5(char const *pszSecret, char const *pszChallenge, char *pszDigest)
 {
 	int iLenght = (int) strlen(pszSecret);
 	md5_ctx_t ctx;
-	unsigned char isecret[64], osecret[64];
+	unsigned char isecret[64];
+	unsigned char osecret[64];
 	unsigned char md5secret[MD5_DIGEST_LEN];
 
 	if (iLenght > 64) {
@@ -1294,7 +1316,7 @@ int MscCramMD5(char const *pszSecret, char const *pszChallenge, char *pszDigest)
  *       If this function gets changed in any way, the TAB_INDEX_CURR_VERSION
  *       value in TabIndex.cpp must be bumped to reflect a different file format.
  */
-unsigned long MscHashString(char const *pszBuffer, int iLength, unsigned long ulHashInit)
+unsigned long MscHashString(char const *pszBuffer, size_t iLength, unsigned long ulHashInit)
 {
 	unsigned long ulHashVal = ulHashInit;
 
@@ -1414,6 +1436,7 @@ int MscGetSectionSize(FileSection const *pFS, SYS_OFF_T *pllSize)
 
 		if (SysGetFileInfo(pFS->szFilePath, FI) < 0)
 			return ErrGetErrorCode();
+
 		*pllSize = FI.llSize - pFS->llStartOffset;
 	} else
 		*pllSize = pFS->llEndOffset - pFS->llStartOffset;

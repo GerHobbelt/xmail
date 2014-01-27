@@ -25,7 +25,10 @@
 #include "SvrDefines.h"
 #include "Hash.h"
 
+
+
 #define HMASK_TOP_BIT (1UL << (sizeof(long) * 8 - 1))
+
 
 struct Hash {
 	HashOps Ops;

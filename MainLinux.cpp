@@ -41,6 +41,8 @@
 
 static int MnEventLog(char const *pszFormat, ...)
 {
+	openlog(APP_NAME_STR, LOG_PID, LOG_DAEMON);
+
 	va_list Args;
 	char szBuffer[2048];
 
@@ -104,6 +106,7 @@ static void MnSetupStdHandles(void)
 		MnEventLog("Cannot open file %s : %s", DEVNULL, strerror(errno));
 		exit(errno);
 	}
+
 	if (dup2(iFD, 0) == -1 || dup2(iFD, 1) == -1 || dup2(iFD, 2) == -1) {
 		MnEventLog("File descriptor duplication error : %s", strerror(errno));
 		exit(errno);

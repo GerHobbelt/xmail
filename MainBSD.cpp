@@ -107,7 +107,8 @@ static int MnRemovePID(char const *pszPidFile)
 
 static void MnSIGCLD(int iSignal)
 {
-	int iExitStatus, iDeadPID;
+	int iExitStatus;
+	int iDeadPID;
 
 	while ((iDeadPID = wait3(&iExitStatus, WNOHANG,
 				 (struct rusage *) NULL)) > 0);
@@ -122,6 +123,7 @@ static void MnSetupStdHandles(void)
 		MnEventLog("Cannot open file %s : %s", DEVNULL, strerror(errno));
 		exit(errno);
 	}
+
 	if (dup2(iFD, 0) == -1 || dup2(iFD, 1) == -1 || dup2(iFD, 2) == -1) {
 		MnEventLog("File descriptor duplication error : %s", strerror(errno));
 		exit(errno);
@@ -154,9 +156,9 @@ static int MnDaemonBootStrap(void)
 		MnEventLog("Cannot fork : %s", strerror(errno));
 
 		exit(errno);
-	} else if (iChildPID > 0)
+	} else if (iChildPID > 0) {
 		exit(0);
-
+	}
 	/*
 	 * Disassociate from controlling terminal and process group.
 	 * Ensure the process can't reacquire a new controlling terminal.

@@ -247,6 +247,7 @@ static void SvrCleanupCTRL(void)
 		SysCloseThread(hCTRLThread, 1);
 	}
 	ShbCloseBlock(hShbCTRL);
+
 	for (; ThCfgCTRL.iNumSockFDs > 0; ThCfgCTRL.iNumSockFDs--)
 		SysCloseSocket(ThCfgCTRL.SockFDs[ThCfgCTRL.iNumSockFDs - 1]);
 }
@@ -436,6 +437,7 @@ static void SvrCleanupCTRLS(void)
 		SysWaitThread(hCTRLSThread, SVR_EXIT_WAIT);
 		SysCloseThread(hCTRLSThread, 1);
 	}
+
 	for (; ThCfgCTRLS.iNumSockFDs > 0; ThCfgCTRLS.iNumSockFDs--)
 		SysCloseSocket(ThCfgCTRLS.SockFDs[ThCfgCTRLS.iNumSockFDs - 1]);
 }
@@ -1008,6 +1010,7 @@ static void SvrCleanupSMTPS(void)
 		SysWaitThread(hSMTPSThread, SVR_EXIT_WAIT);
 		SysCloseThread(hSMTPSThread, 1);
 	}
+
 	for (; ThCfgSMTPS.iNumSockFDs > 0; ThCfgSMTPS.iNumSockFDs--)
 		SysCloseSocket(ThCfgSMTPS.SockFDs[ThCfgSMTPS.iNumSockFDs - 1]);
 }
@@ -1096,6 +1099,7 @@ static int SvrSetupSMAIL(int iArgCount, char *pszArgs[])
 	char szSpoolDir[SYS_MAX_PATH];
 
 	SvrGetSpoolDir(szSpoolDir, sizeof(szSpoolDir));
+
 	if ((hSpoolQueue = QueOpen(szSpoolDir, iMaxRetry, iRetryTimeout, iRetryIncrRatio,
 				   iQueueSplitLevel)) == INVALID_QUEUE_HANDLE) {
 		ErrorPush();
@@ -1234,6 +1238,7 @@ static void SvrCleanupPSYNC(void)
 		SysWaitThread(hPSYNCThread, SVR_EXIT_WAIT);
 		SysCloseThread(hPSYNCThread, 1);
 	}
+
 	ShbCloseBlock(hShbPSYNC);
 	SysCloseSemaphore(hSyncSem);
 }
@@ -1318,6 +1323,7 @@ static void SvrCleanupLMAIL(void)
 		SysWaitThread(hLMAILThreads[i], SVR_EXIT_WAIT);
 	for (i = 0; i < iNumLMAILThreads; i++)
 		SysCloseThread(hLMAILThreads[i], 1);
+
 	ShbCloseBlock(hShbLMAIL);
 }
 
@@ -1326,19 +1332,22 @@ static int SvrSetup(int iArgCount, char *pszArgs[])
 	char *pszValue;
 
 	StrSNCpy(szMailPath, SYS_BASE_FS_STR);
-	if ((pszValue = SysGetEnv( /* ENV_MAIN_PATH */ ENV_MAIL_ROOT /* [i_a] */ )) != NULL) {
+	pszValue = SysGetEnv( /* ENV_MAIN_PATH */ ENV_MAIL_ROOT /* [i_a] */ );
+	if (pszValue != NULL) {
 		if (strncmp(szMailPath, pszValue, strlen(szMailPath)) == 0)
 			StrSNCpy(szMailPath, pszValue);
 		else
 			StrSNCat(szMailPath, pszValue);
 		DelFinalSlash(szMailPath);
+
 		SysFree(pszValue);
 	}
 
 	iNumShCtxs = 0;
 	bServerDebug = false;
 
-	int iSndBufSize = -1, iRcvBufSize = -1;
+	int iSndBufSize = -1;
+	int iRcvBufSize = -1;
 	int iDnsCacheDirs = DNS_HASH_NUM_DIRS;
 
 	for (int i = 0; i < iArgCount; i++) {
@@ -1472,25 +1481,37 @@ static void SvrBreakHandler(void)
 
 static char **SvrMergeArgs(int iArgs, char *pszArgs[], int &iArgsCount)
 {
-	int i, j, iCmdArgs = 0;
-	char **ppszCmdArgs = NULL, **ppszMergeArgs;
+	int i, j;
+	int iCmdArgs = 0;
+	char **ppszCmdArgs = NULL;
+	char **ppszMergeArgs;
 	char *pszCmdLine = SysGetEnv(ENV_CMD_LINE);
 
 	if (pszCmdLine != NULL) {
 		ppszCmdArgs = StrGetArgs(pszCmdLine, iCmdArgs);
+
 		SysFree(pszCmdLine);
 	}
-	if ((ppszMergeArgs = (char **) SysAlloc((iCmdArgs + iArgs + 1) *
-						sizeof(char *))) == NULL) {
-		StrFreeStrings(ppszCmdArgs);
+	ppszMergeArgs = (char **) SysAlloc((iCmdArgs + iArgs + 1) * sizeof(char *));
+	if (ppszMergeArgs == NULL) {
+		if (ppszCmdArgs != NULL)
+			StrFreeStrings(ppszCmdArgs);
+
 		return NULL;
 	}
-	for (i = iArgsCount = 0; i < iArgs; i++, iArgsCount++)
+
+	iArgsCount = 0;
+
+	for (i = 0; i < iArgs; i++, iArgsCount++)
 		ppszMergeArgs[iArgsCount] = SysStrDup(pszArgs[i]);
+
 	for (j = 0; j < iCmdArgs; j++, iArgsCount++)
 		ppszMergeArgs[iArgsCount] = SysStrDup(ppszCmdArgs[j]);
+
 	ppszMergeArgs[iArgsCount] = NULL;
-	StrFreeStrings(ppszCmdArgs);
+
+	if (ppszCmdArgs != NULL)
+		StrFreeStrings(ppszCmdArgs);
 
 	return ppszMergeArgs;
 }
@@ -1519,6 +1540,7 @@ int SvrMain(int iArgCount, char *pszArgs[])
 		SysCleanupLibrary();
 		return ErrorPop();
 	}
+
 	if (SvrSetup(iMergeArgsCount, ppszMergeArgs) < 0) {
 		ErrorPush();
 		char *pszError = ErrGetErrorStringInfo(ErrGetErrorCode()); /* [i_a] */

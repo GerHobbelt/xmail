@@ -36,13 +36,19 @@ struct BSockLineBuffer {
 	int iSize;
 };
 
+typedef union
+{
+	void *ptr;
+	SYS_SOCKET handle;
+} PrivateDataRef;
+
 struct BufSockIOOps {
-	void *pPrivate;
-	char const *(*pName)(void *);
-	int (*pFree)(void *);
-	int (*pRead)(void *, void *, int, int);
-	int (*pWrite)(void *, void const *, int, int);
-	int (*pSendFile)(void *, char const *, SYS_OFF_T, SYS_OFF_T, int);
+	PrivateDataRef pPrivate;
+	char const *(*pName)(PrivateDataRef);
+	int (*pFree)(PrivateDataRef);
+	int (*pRead)(PrivateDataRef, void *, int, int);
+	int (*pWrite)(PrivateDataRef, void const *, int, int);
+	int (*pSendFile)(PrivateDataRef, char const *, SYS_OFF_T, SYS_OFF_T, int);
 };
 
 BSOCK_HANDLE BSckAttach(SYS_SOCKET SockFD, int iBufferSize = STD_SOCK_BUFFER_SIZE);

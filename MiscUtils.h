@@ -72,7 +72,7 @@ int MscSendTextFile(char const *pszFileName, BSOCK_HANDLE hBSock, int iTimeout,
 		    int (*pStopProc) (void *) = NULL, void *pParam = NULL);
 int MscSendFileCRLF(char const *pszFilePath, BSOCK_HANDLE hBSock, int iTimeout);
 char *MscTranslatePath(char *pszPath);
-void *MscLoadFile(char const *pszFilePath, unsigned long *pulFileSize);
+void *MscLoadFile(char const *pszFilePath, size_t *pulFileSize);
 int MscLockFile(char const *pszFileName, int iMaxWait, int iWaitStep = LOCK_FILE_WAITSTEP);
 int MscGetTimeNbrString(char *pszTimeStr, int iStringSize, time_t tTime = 0);
 int MscGetTime(struct tm &tmLocal, int &iDiffHours, int &iDiffMins, time_t tCurr = 0);
@@ -125,7 +125,7 @@ int MscMD5Authenticate(char const *pszPassword, char const *pszTimeStamp, char c
 char *MscExtractServerTimeStamp(char const *pszResponse, char *pszTimeStamp, int iMaxTimeStamp);
 int MscRootedName(char const *pszHostName);
 int MscCramMD5(char const *pszSecret, char const *pszChallenge, char *pszDigest);
-unsigned long MscHashString(char const *pszBuffer, int iLength,
+unsigned long MscHashString(char const *pszBuffer, size_t iLength,
 			    unsigned long ulHashInit = HASH_INIT_VALUE);
 int MscSplitAddressPort(char const *pszConnSpec, char *pszAddress, int &iPortNo, int iDefPortNo);
 SYS_UINT16 MscReadUint16(void const *pData);

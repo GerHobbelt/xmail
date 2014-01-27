@@ -102,7 +102,7 @@ static char *GwLkGetMsgSyncDbDir(char *pszMsgSyncDir, int iMaxPath)
 	return pszMsgSyncDir;
 }
 
-static POP3Link *GwLkGetLinkFromStrings(char **ppszStrings, const char *pszLine)
+static POP3Link *GwLkGetLinkFromStrings(char **ppszStrings, char const *pszLine)
 {
 	int iFieldsCount = StrStringsCount(ppszStrings);
 

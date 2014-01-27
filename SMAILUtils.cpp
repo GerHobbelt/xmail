@@ -116,7 +116,8 @@ int USmlLoadSpoolFileHeader(char const *pszSpoolFile, SpoolFileHeader &SFH)
 	if (MscGetString(pSpoolFile, szSpoolLine, sizeof(szSpoolLine) - 1) == NULL ||
 	    (SFH.ppszInfo = StrTokenize(szSpoolLine, ";")) == NULL ||
 	    StrStringsCount(SFH.ppszInfo) < smiMax) {
-		StrFreeStrings(SFH.ppszInfo);
+		if (SFH.ppszInfo != NULL)
+			StrFreeStrings(SFH.ppszInfo);
 		fclose(pSpoolFile);
 		ZeroData(SFH);
 
@@ -171,9 +172,12 @@ int USmlLoadSpoolFileHeader(char const *pszSpoolFile, SpoolFileHeader &SFH)
 
 void USmlCleanupSpoolFileHeader(SpoolFileHeader &SFH)
 {
-	StrFreeStrings(SFH.ppszInfo);
-	StrFreeStrings(SFH.ppszRcpt);
-	StrFreeStrings(SFH.ppszFrom);
+	if (SFH.ppszInfo != NULL)
+		StrFreeStrings(SFH.ppszInfo);
+	if (SFH.ppszRcpt != NULL)
+		StrFreeStrings(SFH.ppszRcpt);
+	if (SFH.ppszFrom != NULL)
+		StrFreeStrings(SFH.ppszFrom);
 	ZeroData(SFH);
 }
 
@@ -211,6 +215,7 @@ static MessageTagData *USmlFindTag(HSLIST &hTagList, char const *pszTagName,
 			return pMTD;
 		}
 	}
+
 	TagPosition = (TAG_POSITION) INVALID_SLIST_PTR;
 
 	return NULL;
@@ -320,7 +325,7 @@ static int USmlLoadTags(FILE *pSpoolFile, HSLIST &hTagList)
 			}
 
 			int iNameLength = Min((int) (pszEndTag - szSpoolLine),
-					      (int) sizeof(szTagName) - 1);
+					      sizeof(szTagName) - 1);
 			char *pszTagValue = pszEndTag + 1;
 
 			strncpy(szTagName, szSpoolLine, iNameLength);
@@ -357,11 +362,19 @@ static int USmlDumpHeaders(FILE *pMsgFile, HSLIST &hTagList, char const *pszLF)
 static void USmlFreeData(SpoolFileData *pSFD)
 {
 	USmlFreeTagsList(pSFD->hTagList);
-	StrFreeStrings(pSFD->ppszInfo);
-	StrFreeStrings(pSFD->ppszFrom);
+
+	if (pSFD->ppszInfo != NULL)
+		StrFreeStrings(pSFD->ppszInfo);
+
+	if (pSFD->ppszFrom != NULL)
+		StrFreeStrings(pSFD->ppszFrom);
+
 	SysFree(pSFD->pszMailFrom);
 	SysFree(pSFD->pszSendMailFrom);
-	StrFreeStrings(pSFD->ppszRcpt);
+
+	if (pSFD->ppszRcpt != NULL)
+		StrFreeStrings(pSFD->ppszRcpt);
+
 	SysFree(pSFD->pszRcptTo);
 	SysFree(pSFD->pszSendRcptTo);
 	SysFree(pSFD->pszRelayDomain);
@@ -369,10 +382,11 @@ static void USmlFreeData(SpoolFileData *pSFD)
 
 char *USmlAddrConcat(char const *const *ppszStrings)
 {
-	int i, iSumLength;
+	int i;
 	int iStrCount = StrStringsCount(ppszStrings);
+	int iSumLength = 0;
 
-	for (i = iSumLength = 0; i < iStrCount; i++)
+	for (i = 0; i < iStrCount; i++)
 		iSumLength += (int)strlen(ppszStrings[i]) + 1;
 
 	char *pszConcat = (char *) SysAlloc(iSumLength + 1);
@@ -2613,7 +2627,8 @@ static char **USmlBuildTargetRcptList(char const *pszRcptTo, HSLIST &hTagList,
 	} else
 		ppszRcptList = StrBuildList(pszRcptTo, NULL);
 
-	StrFreeStrings(ppszAddrTags);
+	if (ppszAddrTags != NULL)
+		StrFreeStrings(ppszAddrTags);
 
 	return ppszRcptList;
 }
@@ -2699,6 +2714,7 @@ int USmlDeliverFetchedMsg(char const *pszSyncAddr, char const *pszFetchHdrTags,
 
 		++iDeliverCount;
 	}
+
 	StrFreeStrings(ppszRcptList);
 	fclose(pMailFile);
 

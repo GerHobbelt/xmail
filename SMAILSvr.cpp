@@ -76,7 +76,7 @@ static SMAILConfig *SMAILGetConfigCopy(SHB_HANDLE hShbSMAIL)
 	return pNewLMAILCfg;
 }
 
-static int SMAILThreadCountAdd(long lCount, SHB_HANDLE hShbSMAIL, SMAILConfig *pSMAILCfg)
+static int SMAILThreadCountAdd(long lCount, SHB_HANDLE hShbSMAIL, SMAILConfig *pSMAILCfg = NULL)
 {
 	int iDoUnlock = 0;
 
@@ -92,7 +92,7 @@ static int SMAILThreadCountAdd(long lCount, SHB_HANDLE hShbSMAIL, SMAILConfig *p
 	return 0;
 }
 
-static int SMAILLogEnabled(SHB_HANDLE hShbSMAIL, SMAILConfig *pSMAILCfg)
+static int SMAILLogEnabled(SHB_HANDLE hShbSMAIL, SMAILConfig *pSMAILCfg = NULL)
 {
 	int iDoUnlock = 0;
 
@@ -735,7 +735,7 @@ static int SMAILCmd_external(SVRCFG_HANDLE hSvrConfig, SHB_HANDLE hShbSMAIL,
 			     SPLF_HANDLE hFSpool, QUEUE_HANDLE hQueue, QMSG_HANDLE hMessage)
 {
 	/* Apply filters ... */
-	if (FilFilterMessage(hFSpool, hQueue, hMessage, FILTER_MODE_INBOUND) < 0)
+	if (FilFilterMessage(hFSpool, hQueue, hMessage, FILTER_MODE_INBOUND, NULL) < 0)
 		return ErrGetErrorCode();
 
 	if (iNumTokens < 5) {
@@ -898,7 +898,7 @@ static int SMAILCmd_smtprelay(SVRCFG_HANDLE hSvrConfig, SHB_HANDLE hShbSMAIL,
 			      SPLF_HANDLE hFSpool, QUEUE_HANDLE hQueue, QMSG_HANDLE hMessage)
 {
 	/* Apply filters ... */
-	if (FilFilterMessage(hFSpool, hQueue, hMessage, FILTER_MODE_OUTBOUND) < 0)
+	if (FilFilterMessage(hFSpool, hQueue, hMessage, FILTER_MODE_OUTBOUND, NULL) < 0)
 		return ErrGetErrorCode();
 
 	if (iNumTokens < 2) {
@@ -1320,7 +1320,7 @@ static int SMAILProcessFile(SVRCFG_HANDLE hSvrConfig, SHB_HANDLE hShbSMAIL,
 	/*
 	 * Resolve alias domain alias domain. This needs to be used when
 	 * looking for cmdalias handling, in order to avoid replicating
-	 * then over aliased domains.
+	 * them over aliased domains.
 	 */
 	char const *pszRealDomain = szDestDomain;
 	char szADomain[MAX_HOST_NAME];
@@ -1360,7 +1360,7 @@ static int SMAILProcessFile(SVRCFG_HANDLE hSvrConfig, SHB_HANDLE hShbSMAIL,
 			} else {
 				/* Apply filters ... */
 				if (FilFilterMessage(hFSpool, hQueue, hMessage,
-						     FILTER_MODE_INBOUND) < 0) {
+						     FILTER_MODE_INBOUND, pUI) < 0) {
 					ErrorPush();
 					UsrFreeUserInfo(pUI);
 					return ErrorPop();

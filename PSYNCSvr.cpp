@@ -252,6 +252,7 @@ unsigned int PSYNCThreadSyncProc(void *pThreadData)
 				if (PSYNCLogEnabled(pPSYNCCfg))
 					PSYNCLogSession(pPopLnk, &SRep, "SYNC=OK");
 			}
+
 			UsrFreeUserInfo(pUI);
 		} else {
 			SysLogMessage(LOG_LEV_MESSAGE,
@@ -333,10 +334,12 @@ static SYS_THREAD PSYNCCreateSyncThread(SHB_HANDLE hShbPSYNC, POP3Link *pPopLnk)
 
 	if (pSTD == NULL)
 		return SYS_INVALID_THREAD;
+
 	if ((pSTD->pPSYNCCfg = PSYNCGetConfigCopy(hShbPSYNC)) == NULL) {
 		SysFree(pSTD);
 		return SYS_INVALID_THREAD;
 	}
+
 	pSTD->pPopLnk = pPopLnk;
 
 	SYS_THREAD hThread = SysCreateThread(PSYNCThreadSyncProc, pSTD);
@@ -368,6 +371,7 @@ static int PSYNCStartTransfer(SHB_HANDLE hShbPSYNC, PSYNCConfig *pPSYNCCfg)
 			GwLkFreePOP3Link(pPopLnk);
 			continue;
 		}
+
 		if (SysWaitSemaphore(hSyncSem, SYS_INFINITE_TIMEOUT) < 0 ||
 		    PSYNCTimeToStop(hShbPSYNC)) {
 			GwLkFreePOP3Link(pPopLnk);
@@ -383,6 +387,7 @@ static int PSYNCStartTransfer(SHB_HANDLE hShbPSYNC, PSYNCConfig *pPSYNCCfg)
 			GwLkCloseDB(hLinksDB);
 			return ErrorPop();
 		}
+
 		SysCloseThread(hClientThread, 0);
 	}
 
@@ -390,6 +395,8 @@ static int PSYNCStartTransfer(SHB_HANDLE hShbPSYNC, PSYNCConfig *pPSYNCCfg)
 
 	return 0;
 }
+
+
 
 unsigned int PSYNCThreadProc(void *pThreadData)
 {
@@ -406,6 +413,7 @@ unsigned int PSYNCThreadProc(void *pThreadData)
 
 		if (pPSYNCCfg == NULL)
 			break;
+
 		if (pPSYNCCfg->ulFlags & PSYNCF_STOP_SERVER) {
 			SysFree(pPSYNCCfg);
 			break;
@@ -416,6 +424,7 @@ unsigned int PSYNCThreadProc(void *pThreadData)
 			SysFree(pPSYNCCfg);
 			continue;
 		}
+
 		iElapsedTime = 0;
 
 		PSYNCStartTransfer(hShbPSYNC, pPSYNCCfg);

@@ -57,6 +57,7 @@ struct ExAlDBScanData {
 static int iIdxExAlias_RmtDomain_RmtName[] = {
 	ealRmtDomain,
 	ealRmtName,
+
 	INDEX_SEQUENCE_TERMINATOR
 };
 
@@ -92,13 +93,13 @@ static int ExAlRebuildAliasIndexes(char const *pszAliasFilePath)
 	return 0;
 }
 
-static ExtAlias *ExAlGetAliasFromStrings(char **ppszStrings, const char *pszLine)
+static ExtAlias *ExAlGetAliasFromStrings(char **ppszStrings, char const *pszLine)
 {
 	int iFieldsCount = StrStringsCount(ppszStrings);
 
 	if (iFieldsCount < ealMax) {
 		/* [i_a] added config file/line sanity check report here */
-		SysLogMessage(LOG_LEV_DEBUG, "EXTALIAS config error: invalid config line found & skipped: '%s' (error: field count = %d, but should be >= %d\n", 
+		SysLogMessage(LOG_LEV_DEBUG, "EXTALIAS config error: invalid config line found & skipped: '%s' (error: field count = %d, but should be >= %d\n",
 					pszLine, iFieldsCount, (int)ealMax);
 		return NULL;
 	}
@@ -218,7 +219,7 @@ int ExAlAddAlias(ExtAlias * pExtAlias)
 		int iFieldsCount = StrStringsCount(ppszStrings);
 		if (iFieldsCount < ealMax) {
 			/* [i_a] added config file/line sanity check report here */
-			SysLogMessage(LOG_LEV_DEBUG, "EXTALIAS config error: invalid config line found & skipped: '%s' (error: field count = %d, but should be >= %d\n", 
+			SysLogMessage(LOG_LEV_DEBUG, "EXTALIAS config error: invalid config line found & skipped: '%s' (error: field count = %d, but should be >= %d\n",
 						ppszStrings, iFieldsCount, (int)ealMax);
 		}
 

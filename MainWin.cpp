@@ -33,9 +33,25 @@
 #include "AppDefines.h"
 #include "MailSvr.h"
 
+/* Comment this statement if You want a normal startup ( not as a service ) */
+#ifndef NO_SERVICE /* [i_a] */
+#define SERVICE
+#endif
+
 #define NULFILE         "nul"
 
+#ifndef SERVICE
+/* Normal startup */
+
+int main(int iArgCount, char *pszArgs[])
+{
+	return SvrMain(iArgCount, pszArgs);
+}
+
+#else				// #ifndef SERVICE
+
 /* Service startup */
+
 #define SZDEPENDENCIES              _T("Tcpip\0")
 #define SERVER_START_WAIT           8000
 #define SERVER_STOP_WAIT            4000
@@ -387,6 +403,7 @@ static LPTSTR GetLastErrorText(LPTSTR lpszBuf, DWORD dwSize)
 		lpszTemp[lstrlen(lpszTemp) - 2] = TCHAR('\0');
 		_stprintf(lpszBuf, _T("%s (0x%x)"), lpszTemp, dwError);
 	}
+
 	if (lpszTemp != NULL)
 		LocalFree((HLOCAL) lpszTemp);
 
@@ -410,3 +427,4 @@ static int GetServiceNameFromModule(LPCTSTR pszModule, LPTSTR pszName, int iSize
 	return 0;
 }
 
+#endif				// #ifndef SERVICE

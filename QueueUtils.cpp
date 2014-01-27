@@ -488,7 +488,7 @@ static int QueUtBuildErrorResponse(char const *pszSMTPDomain, SPLF_HANDLE hFSpoo
 		char szServer[MAX_HOST_NAME] = "";
 
 		ZeroData(SvrAddr);
-	
+
 		if (MscGetServerAddress(pszServer, SvrAddr) == 0 &&
 		    SysGetHostByAddr(SvrAddr, szServer, sizeof(szServer)) == 0) {
 			pszServer = szServer;
@@ -570,6 +570,7 @@ static int QueUtBuildErrorResponse(char const *pszSMTPDomain, SPLF_HANDLE hFSpoo
 			ErrSetErrorCode(ERR_MAIL_ERROR_LOOP);
 			return ERR_MAIL_ERROR_LOOP;
 		}
+
 		if (bInHeaders && IsEmptyString(szBuffer))
 			bInHeaders = false;
 
@@ -678,7 +679,7 @@ static int QueUtTXErrorNotifySender(SPLF_HANDLE hFSpool, char const *pszAdminAdd
 			return ErrorPop();
 		}
 
-		char szQueueFilePath[SYS_MAX_PATH] = ""; /* [i_a] */
+		char szQueueFilePath[SYS_MAX_PATH]; /* [i_a] */
 
 		QueGetFilePath(hSpoolQueue, hMessage, szQueueFilePath);
 

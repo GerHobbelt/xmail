@@ -136,6 +136,7 @@ static int SvrReadConfig(HASH_HANDLE hHash, const char *pszFilePath)
 
 		if (ppszStrings == NULL)
 			continue;
+
 		if (StrStringsCount(ppszStrings) >= 2) {
 			ServerInfoVar *pSIV = SvrAllocVar(ppszStrings[0], ppszStrings[1]);
 
@@ -291,12 +292,15 @@ int SysFlushConfig(SVRCFG_HANDLE hSvrConfig)
 		ErrSetErrorCode(ERR_SVR_PRFILE_NOT_LOCKED);
 		return ERR_SVR_PRFILE_NOT_LOCKED;
 	}
+
 	SvrGetProfileFilePath(szProfilePath, sizeof(szProfilePath));
 	if ((pFile = fopen(szProfilePath, "wt")) == NULL) {
 		ErrSetErrorCode(ERR_FILE_CREATE, szProfilePath); /* [i_a] */
 		return ERR_FILE_CREATE;
 	}
+
 	iError = SvrWriteConfig(pSCD->hHash, pFile);
+
 	fclose(pFile);
 
 	return iError;

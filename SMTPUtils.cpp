@@ -287,7 +287,7 @@ SMTPGateway **USmtpGetFwdGateways(SVRCFG_HANDLE hSvrConfig, char const *pszDomai
 		int iFieldsCount = StrStringsCount(ppszStrings);
 		if (iFieldsCount < fwdOptions) {
 			/* [i_a] added config file/line sanity check report here */
-			SysLogMessage(LOG_LEV_DEBUG, "FWDGATEWAYS config error: invalid config line found & skipped: '%s' (error: field count = %d, but should be >= %d\n", 
+			SysLogMessage(LOG_LEV_DEBUG, "FWDGATEWAYS config error: invalid config line found & skipped: '%s' (error: field count = %d, but should be >= %d\n",
 						szFwdLine, iFieldsCount, (int)fwdOptions);
 		}
 
@@ -658,7 +658,6 @@ int USmtpSplitEmailAddr(char const *pszAddr, char *pszUser, char *pszDomain)
 		}
 	}
 
-
 	if (pszAT == NULL) {
 		ErrSetErrorCode(ERR_BAD_EMAIL_ADDR);
 		return ERR_BAD_EMAIL_ADDR;
@@ -890,8 +889,10 @@ static int USmtpGetServerAuthFile(char const *pszServer, char *pszAuthFilePath)
 			sprintf(pszAuthFilePath, "%s%stab", szAuthPath, pszDot);
 		else
 			sprintf(pszAuthFilePath, "%s%s.tab", szAuthPath, pszDot);
+
 		if (SysExistFile(pszAuthFilePath))
 			return 0;
+
 		if ((pszDot = strchr(pszDot, '.')) != NULL)
 			++pszDot;
 	}
@@ -1247,7 +1248,7 @@ SMTPCH_HANDLE USmtpCreateChannel(SMTPGateway const *pGw, char const *pszDomain, 
 	SYS_INET_ADDR SvrAddr;
 
 	ZeroData(SvrAddr);
-	
+
 	if (MscGetServerAddress(szAddress, SvrAddr, iPortNo) < 0)
 		return INVALID_SMTPCH_HANDLE;
 
@@ -1263,7 +1264,7 @@ SMTPCH_HANDLE USmtpCreateChannel(SMTPGateway const *pGw, char const *pszDomain, 
 		SYS_INET_ADDR BndAddr;
 
 		ZeroData(BndAddr);
-	
+
 		if (MscGetServerAddress(pGw->pszIFace, BndAddr, 0) < 0 ||
 		    SysBindSocket(SockFD, &BndAddr) < 0) {
 			SysCloseSocket(SockFD);
@@ -1285,7 +1286,7 @@ SMTPCH_HANDLE USmtpCreateChannel(SMTPGateway const *pGw, char const *pszDomain, 
 			char szIP[128] = "???.???.???.???";
 
 			ZeroData(SockInfo);
-	
+
 			if (SysGetSockInfo(SockFD, SockInfo) < 0) {
 				SysCloseSocket(SockFD);
 				return INVALID_SMTPCH_HANDLE;
@@ -1715,7 +1716,7 @@ int USmtpCheckMailDomain(SVRCFG_HANDLE hSvrConfig, char const *pszDomain)
 	SYS_INET_ADDR Addr;
 
 	ZeroData(Addr);
-	
+
 	if (USmtpGetDomainMX(hSvrConfig, pszDomain, pszMXDomains) < 0) {
 		if (SysGetHostByName(pszDomain, -1, Addr) < 0) {
 			ErrSetErrorCode(ERR_INVALID_MAIL_DOMAIN);
@@ -1841,7 +1842,7 @@ int USmtpDnsMapsContained(SYS_INET_ADDR const &PeerInfo, char const *pszMapsServ
 
 	ZeroData(I4Addr);
 	ZeroData(Addr);
-	
+
 	/*
 	 * Use the IPV4 reverse lookup syntax, if the address is a remapped
 	 * IPV4 address.

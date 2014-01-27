@@ -145,7 +145,7 @@ static int POP3CheckPeerIP(SYS_SOCKET SockFD)
 		SYS_INET_ADDR PeerInfo;
 
 		ZeroData(PeerInfo); /* [i_a] */
-	
+
 		if (SysGetPeerInfo(SockFD, PeerInfo) < 0 ||
 		    MscCheckAllowedIP(szIPMapFile, PeerInfo, true) < 0)
 			return ErrGetErrorCode();
@@ -297,7 +297,8 @@ static int POP3HandleCmd_USER(char const *pszCommand, BSOCK_HANDLE hBSock,
 	char **ppszTokens = StrTokenize(pszCommand, " ");
 
 	if (ppszTokens == NULL || StrStringsCount(ppszTokens) != 2) {
-		StrFreeStrings(ppszTokens);
+		if (ppszTokens != NULL)
+			StrFreeStrings(ppszTokens);
 
 		POP3S.iPOP3State = stateInit;
 
@@ -366,7 +367,8 @@ static int POP3HandleCmd_PASS(char const *pszCommand, BSOCK_HANDLE hBSock,
 	char **ppszTokens = StrTokenize(pszCommand, " ");
 
 	if (ppszTokens == NULL || StrStringsCount(ppszTokens) != 2) {
-		StrFreeStrings(ppszTokens);
+		if (ppszTokens != NULL)
+			StrFreeStrings(ppszTokens);
 
 		POP3S.iPOP3State = stateInit;
 
@@ -438,7 +440,8 @@ static int POP3HandleCmd_APOP(char const *pszCommand, BSOCK_HANDLE hBSock,
 	char **ppszTokens = StrTokenize(pszCommand, " ");
 
 	if (ppszTokens == NULL || StrStringsCount(ppszTokens) != 3) {
-		StrFreeStrings(ppszTokens);
+		if (ppszTokens != NULL)
+			StrFreeStrings(ppszTokens);
 		POP3S.iPOP3State = stateInit;
 
 		BSckSendString(hBSock, "-ERR Invalid syntax", POP3S.pPOP3Cfg->iTimeout);
@@ -700,9 +703,10 @@ static int POP3HandleCmd_UIDL(char const *pszCommand, BSOCK_HANDLE hBSock,
 
 		for (int i = 0; i < iMsgTotal; i++) {
 			if (UPopGetMessageUIDL(POP3S.hPOPSession, i + 1, szMessageUIDL,
-					       sizeof(szMessageUIDL)) == 0)
+					       sizeof(szMessageUIDL)) == 0) {
 				BSckVSendString(hBSock, POP3S.pPOP3Cfg->iTimeout,
 						"%d %s", i + 1, szMessageUIDL);
+			}
 		}
 		BSckSendString(hBSock, ".", POP3S.pPOP3Cfg->iTimeout);
 	} else {
@@ -758,7 +762,8 @@ static int POP3HandleCmd_TOP(char const *pszCommand, BSOCK_HANDLE hBSock,
 		return -1;
 	}
 
-	int iMsgIndex = -1, iNumLines = 0;
+	int iMsgIndex = -1;
+	int iNumLines = 0;
 
 	if (sscanf(pszCommand, "%*s %d %d", &iMsgIndex, &iNumLines) < 2) {
 		BSckSendString(hBSock, "-ERR Invalid syntax",
@@ -919,6 +924,7 @@ static int POP3HandleSession(ThreadConfig const *pThCfg, BSOCK_HANDLE hBSock)
 	char szTime[256] = "";
 
 	MscGetTimeStr(szTime, sizeof(szTime) - 1);
+
 	if (BSckVSendString(hBSock, POP3S.pPOP3Cfg->iTimeout,
 			    "+OK %s %s service ready; %s", POP3S.szTimeStamp,
 			    POP3_SERVER_NAME, szTime) < 0) {

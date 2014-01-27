@@ -37,9 +37,9 @@
 #define STD_CTRL_TIMEOUT            90000
 #define CTRL_LISTFOLLOW_RESULT      100
 #define CTRL_WAITDATA_RESULT        101
-#define CCLN_ERROR_BASE             (-10000)   /* [i_a] */
-#define CCLN_ERR_BAD_USAGE          (-10000)   /* [i_a] */
-#define CCLN_ERR_SSL_KEYCERT        (-10001)   /* [i_a] */
+#define CCLN_ERROR_BASE             (-10000)
+#define CCLN_ERR_BAD_USAGE          (-10000)
+#define CCLN_ERR_SSL_KEYCERT        (-10001)
 
 #define CCLN_CHF_USEMD5 (1 << 0)
 #define CCLN_CHF_SSLSWITCH (1 << 1)
@@ -485,7 +485,8 @@ int CClnExec(int iArgCount, char *pszArgs[])
 		return CCLN_ERR_SSL_KEYCERT;
 	}
 
-	int iFirstParam = i, iCmdLength = 0;
+	int iFirstParam = i;
+	int iCmdLength = 0;
 
 	for (; i < iArgCount; i++)
 		iCmdLength += (int)strlen(pszArgs[i]) + 4;

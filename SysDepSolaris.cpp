@@ -25,8 +25,13 @@
 #include "SysDepUnix.h"
 #include "AppDefines.h"
 
+
 #define MAX_THREAD_CONCURRENCY      512
 #define MAX_SWAP_NAME_SIZE          256
+
+
+static int SysGetSwapInfo(SYS_INT64 *pSwapTotal, SYS_INT64 *pSwapFree);
+
 
 int SysDepInitLibrary(void)
 {
@@ -54,6 +59,7 @@ int SysSetThreadPriority(SYS_THREAD ThreadID, int iPriority)
 	iMinPriority = sched_get_priority_min(iPolicy);
 	iMaxPriority = sched_get_priority_max(iPolicy);
 	iStdPriority = (iMinPriority + iMaxPriority) / 2;
+
 	switch (iPriority) {
 	case SYS_PRIORITY_NORMAL:
 		SchParam.sched_priority = iStdPriority;
@@ -67,6 +73,7 @@ int SysSetThreadPriority(SYS_THREAD ThreadID, int iPriority)
 		SchParam.sched_priority = iStdPriority + (iStdPriority - iMinPriority) / 3;
 		break;
 	}
+
 	if (pthread_setschedparam(pTD->ThreadId, iPolicy, &SchParam) != 0) {
 		ErrSetErrorCode(ERR_SET_THREAD_PRIORITY);
 		return ERR_SET_THREAD_PRIORITY;

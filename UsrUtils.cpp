@@ -109,12 +109,14 @@ static int UsrAliasLookupNameLK(char const *pszAlsFilePath, char const *pszDomai
 static int iIdxUser_Domain_Name[] = {
 	usrDomain,
 	usrName,
+
 	INDEX_SEQUENCE_TERMINATOR
 };
 
 static int iIdxAlias_Domain_Alias[] = {
 	alsDomain,
 	alsAlias,
+
 	INDEX_SEQUENCE_TERMINATOR
 };
 
@@ -145,6 +147,8 @@ static char *UsrGetTableFilePath(char *pszUsrFilePath, int iMaxPath)
 	CfgGetRootPath(pszUsrFilePath, iMaxPath);
 	StrNCat(pszUsrFilePath, SVR_TABLE_FILE, iMaxPath);
 
+	SysLogMessage(LOG_LEV_DEBUG, "Going to look at config file: '%s'\n", pszUsrFilePath);
+
 	return pszUsrFilePath;
 }
 
@@ -165,6 +169,8 @@ static char *UsrGetAliasFilePath(char *pszAlsFilePath, int iMaxPath)
 {
 	CfgGetRootPath(pszAlsFilePath, iMaxPath);
 	StrNCat(pszAlsFilePath, SVR_ALIAS_FILE, iMaxPath);
+
+	SysLogMessage(LOG_LEV_DEBUG, "Going to look at config file: '%s'\n", pszAlsFilePath);
 
 	return pszAlsFilePath;
 }
@@ -281,13 +287,13 @@ static int UsrLoadUserInfo(HSLIST &InfoList, unsigned int uUserID, char const *p
 
 	if (pProfileFile == NULL) {
 		RLckUnlockSH(hResLock);
-		ErrSetErrorCode(ERR_NO_USER_PRFILE);
+		ErrSetErrorCode(ERR_NO_USER_PRFILE, pszFilePath); /* [i_a] */
 		return ERR_NO_USER_PRFILE;
 	}
 
 	char szProfileLine[USR_TABLE_LINE_MAX];
 
-	while (MscFGets(szProfileLine, sizeof(szProfileLine) - 1, pProfileFile) != NULL) {
+	while (MscGetConfigLine(szProfileLine, sizeof(szProfileLine) - 1, pProfileFile) != NULL) {  /* [i_a] */
 		if (szProfileLine[0] == TAB_COMMENT_CHAR)
 			continue;
 
@@ -307,6 +313,7 @@ static int UsrLoadUserInfo(HSLIST &InfoList, unsigned int uUserID, char const *p
 
 		StrFreeStrings(ppszStrings);
 	}
+
 	fclose(pProfileFile);
 	RLckUnlockSH(hResLock);
 
@@ -423,7 +430,9 @@ int UsrSetUserInfoVar(UserInfo *pUI, char const *pszName, char const *pszValue)
 		SysFree(pUIV->pszValue);
 		pUIV->pszValue = SysStrDup(pszValue);
 	} else {
-		if ((pUIV = UsrAllocVar(pszName, pszValue)) == NULL)
+		pUIV = UsrAllocVar(pszName, pszValue);
+
+		if (pUIV == NULL)
 			return ErrGetErrorCode();
 
 		ListAddTail(pUI->InfoList, (PLISTLINK) pUIV);
@@ -498,6 +507,8 @@ static int UsrGetDefaultInfoFile(char const *pszDomain, char *pszInfoFile, int i
 	CfgGetRootPath(pszInfoFile, iMaxPath);
 
 	StrNCat(pszInfoFile, DEFAULT_USER_PROFILE_FILE, iMaxPath);
+
+	SysLogMessage(LOG_LEV_DEBUG, "Going to look at config file: '%s'\n", pszInfoFile);
 
 	if (!SysExistFile(pszInfoFile)) {
 		ErrSetErrorCode(ERR_NO_USER_DEFAULT_PRFILE);
@@ -803,7 +814,7 @@ int UsrRemoveAlias(char const *pszDomain, char const *pszAlias)
 	int iAliasFound = 0;
 	char szAlsLine[USR_ALIAS_LINE_MAX];
 
-	while (MscFGets(szAlsLine, sizeof(szAlsLine) - 1, pAlsFile) != NULL) {
+	while (MscGetConfigLine(szAlsLine, sizeof(szAlsLine) - 1, pAlsFile) != NULL) {  /* [i_a] */
 		if (szAlsLine[0] == TAB_COMMENT_CHAR) {
 			fprintf(pTmpFile, "%s\n", szAlsLine);
 			continue;
@@ -898,7 +909,7 @@ int UsrRemoveDomainAliases(char const *pszDomain)
 	int iAliasFound = 0;
 	char szAlsLine[USR_ALIAS_LINE_MAX];
 
-	while (MscFGets(szAlsLine, sizeof(szAlsLine) - 1, pAlsFile) != NULL) {
+	while (MscGetConfigLine(szAlsLine, sizeof(szAlsLine) - 1, pAlsFile) != NULL) {  /* [i_a] */
 		if (szAlsLine[0] == TAB_COMMENT_CHAR) {
 			fprintf(pTmpFile, "%s\n", szAlsLine);
 			continue;
@@ -990,7 +1001,7 @@ static int UsrRemoveUserAlias(char const *pszDomain, char const *pszName)
 	int iAliasFound = 0;
 	char szAlsLine[USR_ALIAS_LINE_MAX];
 
-	while (MscFGets(szAlsLine, sizeof(szAlsLine) - 1, pAlsFile) != NULL) {
+	while (MscGetConfigLine(szAlsLine, sizeof(szAlsLine) - 1, pAlsFile) != NULL) {  /* [i_a] */
 		if (szAlsLine[0] == TAB_COMMENT_CHAR) {
 			fprintf(pTmpFile, "%s\n", szAlsLine);
 			continue;
@@ -1273,7 +1284,7 @@ int UsrRemoveUser(char const *pszDomain, char const *pszName, unsigned int uUser
 	UserInfo *pUI = NULL;
 	char szUsrLine[USR_TABLE_LINE_MAX];
 
-	while (MscFGets(szUsrLine, sizeof(szUsrLine) - 1, pUsrFile) != NULL) {
+	while (MscGetConfigLine(szUsrLine, sizeof(szUsrLine) - 1, pUsrFile) != NULL) {  /* [i_a] */
 		if (szUsrLine[0] == TAB_COMMENT_CHAR) {
 			fprintf(pTmpFile, "%s\n", szUsrLine);
 			continue;
@@ -1383,7 +1394,7 @@ int UsrModifyUser(UserInfo *pUI)
 	UserInfo *pFoundUI = NULL;
 	char szUsrLine[USR_TABLE_LINE_MAX];
 
-	while (MscFGets(szUsrLine, sizeof(szUsrLine) - 1, pUsrFile) != NULL) {
+	while (MscGetConfigLine(szUsrLine, sizeof(szUsrLine) - 1, pUsrFile) != NULL) {  /* [i_a] */
 		if (szUsrLine[0] == TAB_COMMENT_CHAR) {
 			fprintf(pTmpFile, "%s\n", szUsrLine);
 			continue;
@@ -1493,7 +1504,7 @@ int UsrRemoveDomainUsers(char const *pszDomain)
 	int iUsersFound = 0;
 	char szUsrLine[USR_TABLE_LINE_MAX];
 
-	while (MscFGets(szUsrLine, sizeof(szUsrLine) - 1, pUsrFile) != NULL) {
+	while (MscGetConfigLine(szUsrLine, sizeof(szUsrLine) - 1, pUsrFile) != NULL) {  /* [i_a] */
 		if (szUsrLine[0] == TAB_COMMENT_CHAR) {
 			fprintf(pTmpFile, "%s\n", szUsrLine);
 			continue;
@@ -1608,7 +1619,7 @@ static int UsrPrepareUserEnv(UserInfo *pUI)
 		MscClearDirectory(szUsrUserPath);
 		SysRemoveDir(szUsrUserPath);
 
-		ErrSetErrorCode(ERR_FILE_CREATE);
+		ErrSetErrorCode(ERR_FILE_CREATE, szUsrProfileFilePath); /* [i_a] */
 		return ERR_FILE_CREATE;
 	}
 

@@ -684,6 +684,7 @@ static void SMTPClearSession(SMTPSession &SMTPS)
 {
 	if (SMTPS.pMsgFile != NULL)
 		fclose(SMTPS.pMsgFile), SMTPS.pMsgFile = NULL;
+
 	SysRemove(SMTPS.szMsgFile);
 
 	if (SMTPS.hSvrConfig != INVALID_SVRCFG_HANDLE)
@@ -708,6 +709,7 @@ static void SMTPResetSession(SMTPSession &SMTPS)
 
 	if (SMTPS.pMsgFile != NULL)
 		fclose(SMTPS.pMsgFile), SMTPS.pMsgFile = NULL;
+
 	SysRemove(SMTPS.szMsgFile);
 
 	SetEmptyString(SMTPS.szDestDomain);
@@ -954,17 +956,13 @@ static int SMTPCheckReturnPath(char const *pszCommand, char **ppszRetDomains,
 	/* Check SMTP after POP3 authentication */
 	if (SvrTestConfigFlag("EnableAuthSMTP-POP3", true, SMTPS.hSvrConfig))
 	{
-		if (SMTPTryPopAuthIpCheck(SMTPS, szMailerUser, szMailerDomain))
+		if (SMTPTryPopAuthIpCheck(SMTPS, szMailerUser, szMailerDomain)) /* [i_a] */
 		{
-#if 01
 			pszSMTPError = SysStrDup("504 You did not authenticate properly using SMTP-after-POP3");
-#endif
 
 			SysLogMessage(LOG_LEV_DEBUG, "mail user '%s@%s' did not authenticate properly using SMTP-after-POP3: %d: %s\n",
 				szMailerUser, szMailerDomain, ErrGetErrorCode(), ErrGetErrorString());
-#if 01
 			return ErrGetErrorCode();
-#endif
 		}
 	}
 
@@ -1027,7 +1025,7 @@ static int SMTPHandleCmd_MAIL(char const *pszCommand, BSOCK_HANDLE hBSock, SMTPS
 		SMTPResetSession(SMTPS);
 
 		ASSERT(pszSMTPError != NULL);
-		if (pszSMTPError != NULL) {
+		if (pszSMTPError != NULL) { /* [i_a] */
 			SMTPSendError(hBSock, SMTPS, "%s", pszSMTPError);
 			SysFree(pszSMTPError);
 		}
@@ -1170,6 +1168,8 @@ static int SMTPGetFilterFile(char const *pszFiltID, char *pszFileName, int iMaxN
 
 	CfgGetRootPath(szMailRoot, sizeof(szMailRoot));
 	SysSNPrintf(pszFileName, iMaxName - 1, "%sfilters.%s.tab", szMailRoot, pszFiltID);
+
+	SysLogMessage(LOG_LEV_DEBUG, "Going to look at config file: '%s'\n", pszFileName);
 
 	return SysExistFile(pszFileName);
 }
@@ -1631,8 +1631,6 @@ static int SMTPCheckForwardPath(char **ppszFwdDomains, SMTPSession &SMTPS,
 	pszSMTPError = NULL;
 	if (SMTPFilterMessage(SMTPS, SMTP_POST_RCPT_FILTER, pszSMTPError) < 0) {
 		ErrorPush();
-		if (SMTPLogEnabled(SMTPS.pThCfg->hThShb, SMTPS.pSMTPCfg)) /* [i_a] ??? */
-			SMTPLogSession(SMTPS, SMTPS.pszFrom, ppszFwdDomains[0], "RCPT=EFILTER", 0);
 		if (pszSMTPError == NULL)
 			pszSMTPError = SysStrDup("550 Recipient rejected");
 		return ErrorPop();
@@ -1705,7 +1703,7 @@ static int SMTPHandleCmd_RCPT(char const *pszCommand, BSOCK_HANDLE hBSock, SMTPS
 		StrFreeStrings(ppszFwdDomains);
 
 		ASSERT(pszSMTPError);
-		if (pszSMTPError != NULL) {
+		if (pszSMTPError != NULL) { /* [i_a] */
 			SMTPSendError(hBSock, SMTPS, "%s", pszSMTPError);
 			SysFree(pszSMTPError);
 		}
@@ -1767,7 +1765,7 @@ static int SMTPSubmitPackedFile(SMTPSession &SMTPS, char const *pszPkgFile)
 	FILE *pPkgFile = fopen(pszPkgFile, "rb");
 
 	if (pPkgFile == NULL) {
-		ErrSetErrorCode(ERR_FILE_OPEN);
+		ErrSetErrorCode(ERR_FILE_OPEN, pszPkgFile); /* [i_a] */
 		return ERR_FILE_OPEN;
 	}
 
@@ -1858,7 +1856,7 @@ static int SMTPSubmitPackedFile(SMTPSession &SMTPS, char const *pszPkgFile)
 			QueCloseMessage(hSpoolQueue, hMessage);
 			StrFreeStrings(ppszMsgInfo);
 			fclose(pPkgFile);
-			ErrSetErrorCode(ERR_FILE_CREATE);
+			ErrSetErrorCode(ERR_FILE_CREATE, szQueueFilePath); /* [i_a] */
 			return ERR_FILE_CREATE;
 		}
 		/* Write info line */
@@ -2150,6 +2148,8 @@ static char *SMTPGetAuthFilePath(char *pszFilePath, int iMaxPath)
 
 	StrNCat(pszFilePath, SVR_SMTP_AUTH_FILE, iMaxPath);
 
+	SysLogMessage(LOG_LEV_DEBUG, "Going to look at config file: '%s'\n", pszFilePath);
+
 	return pszFilePath;
 }
 
@@ -2158,6 +2158,8 @@ static char *SMTPGetExtAuthFilePath(char *pszFilePath, int iMaxPath)
 	CfgGetRootPath(pszFilePath, iMaxPath);
 
 	StrNCat(pszFilePath, SVR_SMTP_EXTAUTH_FILE, iMaxPath);
+
+	SysLogMessage(LOG_LEV_DEBUG, "Going to look at config file: '%s'\n", pszFilePath);
 
 	return pszFilePath;
 }
@@ -2197,7 +2199,7 @@ static int SMTPListAuths(DynString *pDS, SMTPSession &SMTPS, int iLinkSSL)
 	 * his external source. For example, the CRAM-MD5 authentication method
 	 * requires the password to be known to the external authentication binary,
 	 * and many authentication APIs do not support the clear text password to
-	 * be exported. So in those case the user must not advertise CRAM-MD5.
+	 * be exported. So in those cases the user must not advertise CRAM-MD5.
 	 * If no externally handled authentications are declared, we advertise the
 	 * internally handled ones.
 	 */
@@ -2236,7 +2238,7 @@ static int SMTPSendMultilineResponse(BSOCK_HANDLE hBSock, int iTimeout, char con
 		pszPtr[3] = '-';
 	pszPrev[3] = ' ';
 
-	iError = BSckSendData(hBSock, pszDResp, strlen(pszDResp), iTimeout);
+	iError = BSckSendData(hBSock, pszDResp, (int)strlen(pszDResp), iTimeout);
 
 	SysFree(pszDResp);
 
@@ -2498,7 +2500,7 @@ static int SMTPExternalAuthenticate(BSOCK_HANDLE hBSock, SMTPSession &SMTPS,
 	/*
 	 * Load externally supplied credentials ...
 	 */
-	unsigned long ulFileSize;
+	size_t ulFileSize;
 	void *pRData = MscLoadFile(szRespFile, &ulFileSize);
 
 	if (pRData != NULL) {
@@ -2654,14 +2656,13 @@ static int SMTPTryApplyUsrPwdAuth(SMTPSession &SMTPS, char const *pszUsername,
 
 static int SMTPDoAuthPlain(BSOCK_HANDLE hBSock, SMTPSession &SMTPS, char const *pszAuthParam)
 {
-	/* Parameter validation */
 	if (pszAuthParam == NULL || IsEmptyString(pszAuthParam)) {
 		SMTPSendError(hBSock, SMTPS, "501 Syntax error in parameters or arguments");
 
 		ErrSetErrorCode(ERR_BAD_SMTP_CMD_SYNTAX);
 		return ERR_BAD_SMTP_CMD_SYNTAX;
 	}
-	/* Decode ( base64 ) auth parameter */
+
 	int iDec64Length;
 	char szClientAuth[PLAIN_AUTH_PARAM_SIZE] = "";
 
@@ -3253,6 +3254,8 @@ static int SMTPHandleSession(ThreadConfig const *pThCfg, BSOCK_HANDLE hBSock)
 	       MscCmdStringCheck(szCommand) == 0) {
 		if (pThCfg->ulFlags & THCF_SHUTDOWN)
 			break;
+
+		SysLogMessage(LOG_LEV_DEBUG, "SMTP client command line: [%s]\n", szCommand);
 
 		/* Handle command */
 		SMTPHandleCommand(szCommand, hBSock, SMTPS);

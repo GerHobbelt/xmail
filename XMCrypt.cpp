@@ -1,5 +1,5 @@
 /*
- *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  XMCrypt by Davide Libenzi ( XMail password crypter )
  *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
