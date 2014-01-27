@@ -1,13 +1,25 @@
+# Compiled Object files
+*.slo
+*.lo
+*.o
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+
+# ...
 *.7z
 *.bak
 *.bz2
 *.exe
 *.gz
-*.la
-*.lo
 *.lzma
 *.ncb
-*.o
 *.obj
 *.pdb
 *.rar
