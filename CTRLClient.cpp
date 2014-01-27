@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@
 
 #define CCLN_TLS_INIT_STR           "#!TLS"
 #define STD_CTRL_PORT               6017
-#define STD_CTRL_TIMEOUT            90
+#define STD_CTRL_TIMEOUT            90000
 #define CTRL_LISTFOLLOW_RESULT      100
 #define CTRL_WAITDATA_RESULT        101
 #define CCLN_ERROR_BASE             (-10000)   /* [i_a] */
@@ -188,7 +188,6 @@ static int CClnSslEnvCB(void *pPrivate, int iID, void const *pData)
 {
 	SslBindEnv *pSslE = (SslBindEnv *) pPrivate;
 
-
 	return 0;
 }
 
@@ -325,7 +324,6 @@ BSOCK_HANDLE CClnConnectServer(char const *pszServer, int iPortNo,
 
 int CClnQuitConnection(BSOCK_HANDLE hBSock, int iTimeout)
 {
-
 	CClnSubmitCommand(hBSock, "\"quit\"", NULL, 0, NULL, iTimeout);
 	BSckDetach(hBSock, 1);
 
@@ -417,7 +415,7 @@ int CClnExec(int iArgCount, char *pszArgs[])
 
 		case ('t'):
 			if (++i < iArgCount)
-				iTimeout = atoi(pszArgs[i]);
+				iTimeout = atoi(pszArgs[i]) * 1000;
 			break;
 
 		case ('f'):
@@ -487,8 +485,7 @@ int CClnExec(int iArgCount, char *pszArgs[])
 		return CCLN_ERR_SSL_KEYCERT;
 	}
 
-	int iFirstParam = i;
-	int iCmdLength = 0;
+	int iFirstParam = i, iCmdLength = 0;
 
 	for (; i < iArgCount; i++)
 		iCmdLength += (int)strlen(pszArgs[i]) + 4;
@@ -547,6 +544,7 @@ int main(int iArgCount, char *pszArgs[])
 		SysCleanupLibrary();
 		return 2;
 	}
+
 	int iExecResult = CClnExec(iArgCount, pszArgs);
 
 	if (iExecResult == CCLN_ERR_BAD_USAGE) {

@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -43,31 +43,19 @@
 #define XMAIL_DEBUG_OPTION          "-Md"
 #define XMAIL_PIDDIR_ENV            "XMAIL_PID_DIR"
 
-static int MnEventLog(char const *pszFormat, ...);
-static char const *MnGetPIDDir(void);
-static int MnSavePID(char const *pszPidFile);
-static int MnRemovePID(char const *pszPidFile);
-static void MnSIGCLD(int iSignal);
-static int MnDaemonBootStrap(void);
-static int MnIsDebugStartup(int iArgCount, char *pszArgs[]);
-static int MnDaemonStartup(int iArgCount, char *pszArgs[]);
 
 static int MnEventLog(char const *pszFormat, ...)
 {
-	openlog(APP_NAME_STR, LOG_PID, LOG_DAEMON);
-
 	va_list Args;
+	char szBuffer[2048];
 
 	va_start(Args, pszFormat);
-
-	char szBuffer[2048] = "";
+	openlog(APP_NAME_STR, LOG_PID, LOG_DAEMON);
 
 	vsnprintf(szBuffer, sizeof(szBuffer) - 1, pszFormat, Args);
 
 	syslog(LOG_ERR, "%s", szBuffer);
-
 	va_end(Args);
-
 	closelog();
 
 	return 0;
@@ -77,14 +65,15 @@ static char const *MnGetPIDDir(void)
 {
 	char const *pszPIDDir = getenv(XMAIL_PIDDIR_ENV);
 
-	return (pszPIDDir != NULL) ? pszPIDDir: RUNNING_PIDS_DIR;
+	return pszPIDDir != NULL ? pszPIDDir: RUNNING_PIDS_DIR;
 }
 
 static int MnSavePID(char const *pszPidFile)
 {
-	char szPidFile[SYS_MAX_PATH] = "";
+	char szPidFile[SYS_MAX_PATH];
 
-	snprintf(szPidFile, sizeof(szPidFile) - 1, "%s/%s.pid", MnGetPIDDir(), pszPidFile);
+	snprintf(szPidFile, sizeof(szPidFile) - 1, "%s/%s.pid", MnGetPIDDir(),
+		 pszPidFile);
 
 	FILE *pFile = fopen(szPidFile, "w");
 
@@ -92,9 +81,7 @@ static int MnSavePID(char const *pszPidFile)
 		perror(szPidFile);
 		return -errno;
 	}
-
 	fprintf(pFile, "%u", (unsigned int) getpid());
-
 	fclose(pFile);
 
 	return 0;
@@ -102,10 +89,10 @@ static int MnSavePID(char const *pszPidFile)
 
 static int MnRemovePID(char const *pszPidFile)
 {
-	char szPidFile[SYS_MAX_PATH] = "";
+	char szPidFile[SYS_MAX_PATH];
 
-	snprintf(szPidFile, sizeof(szPidFile) - 1, "%s/%s.pid", MnGetPIDDir(), pszPidFile);
-
+	snprintf(szPidFile, sizeof(szPidFile) - 1, "%s/%s.pid", MnGetPIDDir(),
+		 pszPidFile);
 	if (unlink(szPidFile) != 0) {
 		perror(szPidFile);
 		return -errno;
@@ -116,16 +103,13 @@ static int MnRemovePID(char const *pszPidFile)
 
 static void MnSIGCLD(int iSignal)
 {
-	/* For BSD */
 #ifdef __BSD__
-
 	int iDeadPID;
 	union wait ExitStatus;
 
-	while ((iDeadPID = wait3(&ExitStatus, WNOHANG, (struct rusage *) NULL)) > 0);
-
+	while ((iDeadPID = wait3(&ExitStatus, WNOHANG,
+				 (struct rusage *) NULL)) > 0);
 #endif
-
 }
 
 static void MnSetupStdHandles(void)
@@ -136,21 +120,21 @@ static void MnSetupStdHandles(void)
 		MnEventLog("Cannot open file %s : %s", DEVNULL, strerror(errno));
 		exit(errno);
 	}
-
-	if ((dup2(iFD, 0) == -1) || (dup2(iFD, 1) == -1) || (dup2(iFD, 2) == -1)) {
+	if (dup2(iFD, 0) == -1 || dup2(iFD, 1) == -1 || dup2(iFD, 2) == -1) {
 		MnEventLog("File descriptor duplication error : %s", strerror(errno));
 		exit(errno);
 	}
-
-	close(iFD);
-
+	if (iFD > 2)
+		close(iFD);
 }
 
 static int MnDaemonBootStrap(void)
 {
-	/* This code is inspired from the code of the great Richard Stevens books. */
-	/* May You RIP in programmers paradise great Richard. */
-	/* I suggest You to buy all his collection, soon ! */
+	/*
+	 * This code is inspired from the code of the great Richard Stevens books.
+	 * May You RIP in programmers paradise great Richard.
+	 * I suggest You to buy all his collection, soon!
+	 */
 
 	/* For BSD */
 #ifdef SIGTTOU
@@ -209,7 +193,6 @@ static int MnDaemonBootStrap(void)
 		exit(errno);
 	} else if (iChildPID > 0)
 		exit(0);
-
 #endif
 
 	/* Close open file descriptors */
@@ -234,11 +217,9 @@ static int MnDaemonBootStrap(void)
 #ifdef __BSD__
 	/* BSD */
 	signal(SIGCLD, MnSIGCLD);
-
 #else
 	/* System V */
 	signal(SIGCLD, SIG_IGN);
-
 #endif
 
 	return 0;
@@ -246,8 +227,8 @@ static int MnDaemonBootStrap(void)
 
 static int MnIsDebugStartup(int iArgCount, char *pszArgs[])
 {
-	for (int ii = 0; ii < iArgCount; ii++)
-		if (strcmp(pszArgs[ii], XMAIL_DEBUG_OPTION) == 0)
+	for (int i = 0; i < iArgCount; i++)
+		if (strcmp(pszArgs[i], XMAIL_DEBUG_OPTION) == 0)
 			return 1;
 
 	return 0;
@@ -279,3 +260,4 @@ int main(int iArgCount, char *pszArgs[])
 {
 	return MnDaemonStartup(iArgCount, pszArgs);
 }
+

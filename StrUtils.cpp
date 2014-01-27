@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -216,7 +216,6 @@ char **StrTokenize(const char *pszString, const char *pszTokenizer)
 
 	while (pszToken != NULL) {
 		++iTokenCount;
-
 		pszToken = SysStrTok(NULL, pszTokenizer, &pszSavePtr);
 	}
 
@@ -234,7 +233,6 @@ char **StrTokenize(const char *pszString, const char *pszTokenizer)
 
 	while (pszToken != NULL) {
 		ppszTokens[iTokenCount++] = SysStrDup(pszToken);
-
 		pszToken = SysStrTok(NULL, pszTokenizer, &pszSavePtr);
 	}
 	ppszTokens[iTokenCount] = NULL;

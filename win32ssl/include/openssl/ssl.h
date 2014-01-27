@@ -1198,7 +1198,6 @@ size_t SSL_get_peer_finished(const SSL *s, void *buf, size_t count);
 #define SSL_ERROR_ZERO_RETURN		6
 #define SSL_ERROR_WANT_CONNECT		7
 #define SSL_ERROR_WANT_ACCEPT		8
-#define SSL_ERROR_WANT_SHUTDOWN		9
 
 #define SSL_CTRL_NEED_TMP_RSA			1
 #define SSL_CTRL_SET_TMP_RSA			2
@@ -1953,6 +1952,7 @@ void ERR_load_SSL_strings(void);
 #define SSL_R_NO_PRIVATE_KEY_ASSIGNED			 190
 #define SSL_R_NO_PROTOCOLS_AVAILABLE			 191
 #define SSL_R_NO_PUBLICKEY				 192
+#define SSL_R_NO_RENEGOTIATION				 318
 #define SSL_R_NO_SHARED_CIPHER				 193
 #define SSL_R_NO_VERIFY_CALLBACK			 194
 #define SSL_R_NULL_SSL_CTX				 195

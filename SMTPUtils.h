@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -81,15 +81,15 @@ enum SpoolMsgInfo {
 SMTPGateway **USmtpMakeGateways(char const * const *ppszGwHosts, char const **ppszOptions);
 void USmtpFreeGateways(SMTPGateway **ppGws);
 SMTPGateway **USmtpGetCfgGateways(SVRCFG_HANDLE hSvrConfig,  char const * const *ppszGwHosts,
-				  const char *pszOptions);
-SMTPGateway **USmtpGetFwdGateways(SVRCFG_HANDLE hSvrConfig, const char *pszDomain);
-int USmtpGetGateway(SVRCFG_HANDLE hSvrConfig, const char *pszDomain, char *pszGateway,
+				  char const *pszOptions);
+SMTPGateway **USmtpGetFwdGateways(SVRCFG_HANDLE hSvrConfig, char const *pszDomain);
+int USmtpGetGateway(SVRCFG_HANDLE hSvrConfig, char const *pszDomain, char *pszGateway,
 		    int iSize);
-int USmtpAddGateway(const char *pszDomain, const char *pszGateway);
-int USmtpRemoveGateway(const char *pszDomain);
+int USmtpAddGateway(char const *pszDomain, char const *pszGateway);
+int USmtpRemoveGateway(char const *pszDomain);
 int USmtpIsAllowedRelay(const SYS_INET_ADDR & PeerInfo, SVRCFG_HANDLE hSvrConfig);
-char **USmtpGetPathStrings(const char *pszMailCmd);
-int USmtpSplitEmailAddr(const char *pszAddr, char *pszUser, char *pszDomain);
+char **USmtpGetPathStrings(char const *pszMailCmd);
+int USmtpSplitEmailAddr(char const *pszAddr, char *pszUser, char *pszDomain);
 int USmtpCheckAddressPart(char const *pszName);
 int USmtpCheckDomainPart(char const *pszName);
 int USmtpCheckAddress(char const *pszAddress);
@@ -102,21 +102,21 @@ int USmtpCleanupError(SMTPError *pSMTPE);
 char *USmtpGetSMTPError(SMTPError *pSMTPE, char *pszError, int iMaxError);
 char *USmtpGetSMTPRmtMsgID(char const *pszAckDATA, char *pszRmtMsgID, int iMaxMsg);
 char const *USmtpGetErrorServer(SMTPError const *pSMTPE);
-SMTPCH_HANDLE USmtpCreateChannel(SMTPGateway const *pGw, const char *pszDomain,
+SMTPCH_HANDLE USmtpCreateChannel(SMTPGateway const *pGw, char const *pszDomain,
 				 SMTPError *pSMTPE = NULL);
 int USmtpCloseChannel(SMTPCH_HANDLE hSmtpCh, int iHardClose = 0, SMTPError *pSMTPE = NULL);
 int USmtpChannelReset(SMTPCH_HANDLE hSmtpCh, SMTPError *pSMTPE = NULL);
-int USmtpSendMail(SMTPCH_HANDLE hSmtpCh, const char *pszFrom, const char *pszRcpt,
+int USmtpSendMail(SMTPCH_HANDLE hSmtpCh, char const *pszFrom, char const *pszRcpt,
 		  FileSection const *pFS, SMTPError *pSMTPE = NULL);
-int USmtpSendMail(SMTPGateway const *pGw, const char *pszDomain, const char *pszFrom,
-		  const char *pszRcpt, FileSection const *pFS, SMTPError *pSMTPE = NULL);
-int USmtpMailRmtDeliver(SVRCFG_HANDLE hSvrConfig, const char *pszServer, const char *pszDomain,
-			const char *pszFrom, const char *pszRcpt, FileSection const *pFS,
+int USmtpSendMail(SMTPGateway const *pGw, char const *pszDomain, char const *pszFrom,
+		  char const *pszRcpt, FileSection const *pFS, SMTPError *pSMTPE = NULL);
+int USmtpMailRmtDeliver(SVRCFG_HANDLE hSvrConfig, char const *pszServer, char const *pszDomain,
+			char const *pszFrom, char const *pszRcpt, FileSection const *pFS,
 			SMTPError *pSMTPE = NULL);
 char *USmtpBuildRcptPath(char const *const *ppszRcptTo, SVRCFG_HANDLE hSvrConfig);
-SMTPGateway **USmtpGetMailExchangers(SVRCFG_HANDLE hSvrConfig, const char *pszDomain);
+SMTPGateway **USmtpGetMailExchangers(SVRCFG_HANDLE hSvrConfig, char const *pszDomain);
 int USmtpCheckMailDomain(SVRCFG_HANDLE hSvrConfig, char const *pszDomain);
-MXS_HANDLE USmtpGetMXFirst(SVRCFG_HANDLE hSvrConfig, const char *pszDomain, char *pszMXHost);
+MXS_HANDLE USmtpGetMXFirst(SVRCFG_HANDLE hSvrConfig, char const *pszDomain, char *pszMXHost);
 int USmtpGetMXNext(MXS_HANDLE hMXSHandle, char *pszMXHost);
 void USmtpMXSClose(MXS_HANDLE hMXSHandle);
 int USmtpDnsMapsContained(SYS_INET_ADDR const &PeerInfo, char const *pszMapsServer);

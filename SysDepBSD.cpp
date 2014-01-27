@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -24,13 +24,6 @@
 #include "SysDep.h"
 #include "SysDepUnix.h"
 #include "AppDefines.h"
-
-
-#if defined(__OPENBSD__) || defined(__NETBSD__)
-static int SysGetPriorityMin(int iPolicy);
-static int SysGetPriorityMax(int iPolicy);
-#endif
-
 
 int SysDepInitLibrary(void)
 {
@@ -87,7 +80,7 @@ static int SysGetPriorityMax(int iPolicy)
 int SysSetThreadPriority(SYS_THREAD ThreadID, int iPriority)
 {
 	ThrData *pTD = (ThrData *) ThreadID;
-	int iPolicy;
+	int iPolicy, iMinPriority, iMaxPriority, iStdPriority;
 	struct sched_param SchParam;
 
 	if (pthread_getschedparam(pTD->ThreadId, &iPolicy, &SchParam) != 0) {
@@ -95,14 +88,13 @@ int SysSetThreadPriority(SYS_THREAD ThreadID, int iPriority)
 		return ERR_SET_THREAD_PRIORITY;
 	}
 #if defined(__FREEBSD__) || defined (__DARWIN__)
-	int iMinPriority = sched_get_priority_min(iPolicy);
-	int iMaxPriority = sched_get_priority_max(iPolicy);
+	iMinPriority = sched_get_priority_min(iPolicy);
+	iMaxPriority = sched_get_priority_max(iPolicy);
 #else
-	int iMinPriority = SysGetPriorityMin(iPolicy);
-	int iMaxPriority = SysGetPriorityMax(iPolicy);
+	iMinPriority = SysGetPriorityMin(iPolicy);
+	iMaxPriority = SysGetPriorityMax(iPolicy);
 #endif
-
-	int iStdPriority = (iMinPriority + iMaxPriority) / 2;
+	iStdPriority = (iMinPriority + iMaxPriority) / 2;
 
 	switch (iPriority) {
 	case SYS_PRIORITY_NORMAL:
@@ -158,44 +150,42 @@ int SysMemoryInfo(SYS_INT64 *pRamTotal, SYS_INT64 *pRamFree,
 		  SYS_INT64 *pVirtTotal, SYS_INT64 *pVirtFree)
 {
 #if defined(__FREEBSD__)
-	int iValue;
+	int i, iValue, iSwaps;
 	size_t DataLen;
+	SYS_INT64 PageSize;
+	kvm_t *pKD;
+	struct kvm_swap KSwap[8];
+	char szErrBuffer[_POSIX2_LINE_MAX] = "";
 
 	DataLen = sizeof(iValue);
 	if (sysctlbyname("vm.stats.vm.v_page_size", &iValue, &DataLen, NULL, 0) != 0) {
 		ErrSetErrorCode(ERR_GET_MEMORY_INFO);
 		return ERR_GET_MEMORY_INFO;
 	}
-
-	SYS_INT64 PageSize = (SYS_INT64) iValue;
+	PageSize = iValue;
 
 	DataLen = sizeof(iValue);
 	if (sysctlbyname("vm.stats.vm.v_page_count", &iValue, &DataLen, NULL, 0) != 0) {
 		ErrSetErrorCode(ERR_GET_MEMORY_INFO);
 		return ERR_GET_MEMORY_INFO;
 	}
-	*pVirtTotal = *pRamTotal = (SYS_INT64) iValue *PageSize;
+	*pVirtTotal = *pRamTotal = (SYS_INT64) iValue * PageSize;
 
 	DataLen = sizeof(iValue);
 	if (sysctlbyname("vm.stats.vm.v_free_count", &iValue, &DataLen, NULL, 0) != 0) {
 		ErrSetErrorCode(ERR_GET_MEMORY_INFO);
 		return ERR_GET_MEMORY_INFO;
 	}
-	*pVirtFree = *pRamFree = (SYS_INT64) iValue *PageSize;
+	*pVirtFree = *pRamFree = (SYS_INT64) iValue * PageSize;
 
 	/* Get swap infos through the kvm interface */
-	char szErrBuffer[_POSIX2_LINE_MAX] = "";
-	kvm_t *pKD = kvm_openfiles(NULL, NULL, NULL, O_RDONLY, szErrBuffer);
-
-	if (pKD == NULL) {
+	if ((pKD = kvm_openfiles(NULL, NULL, NULL, O_RDONLY, szErrBuffer)) == NULL) {
 		ErrSetErrorCode(ERR_GET_MEMORY_INFO);
 		return ERR_GET_MEMORY_INFO;
 	}
 
-	struct kvm_swap KSwap[8];
-	int iSwaps = kvm_getswapinfo(pKD, KSwap, CountOf(KSwap), SWIF_DEV_PREFIX);
-
-	for (int i; i < iSwaps; i++) {
+	iSwaps = kvm_getswapinfo(pKD, KSwap, CountOf(KSwap), SWIF_DEV_PREFIX);
+	for (i = 0; i < iSwaps; i++) {
 		*pVirtFree += (SYS_INT64) (KSwap[i].ksw_total - KSwap[i].ksw_used) * PageSize;
 		*pVirtTotal += (SYS_INT64) KSwap[i].ksw_total * PageSize;
 	}
@@ -226,7 +216,6 @@ int SysMemoryInfo(SYS_INT64 *pRamTotal, SYS_INT64 *pRamFree,
 		ErrSetErrorCode(ERR_GET_MEMORY_INFO);
 		return ERR_GET_MEMORY_INFO;
 	}
-
 	*pRamTotal = iHwPhisMem;
 	*pRamFree = (SYS_INT64) iHwPageSize *(SYS_INT64) VmMeter.t_free;
 	*pVirtTotal = (SYS_INT64) iHwPageSize *(SYS_INT64) VmMeter.t_vm;

@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@ static int MkMachIsLE(void)
 	} MWB;
 
 	MWB.w = 1;
+
 	return MWB.b[0] != 0;
 }
 
@@ -43,6 +44,7 @@ static int MkMachIsLEBF(void)
 	} MWB;
 
 	MWB.w = 1;
+
 	return MWB.BF.b != 0;
 }
 
@@ -58,7 +60,9 @@ static int MkMachGenType(int iBits, char const *pszBase)
 
 int main(int argc, char *argv[])
 {
-	fprintf(stdout, "#ifndef _MACHDEFS_H\n" "#define _MACHDEFS_H\n\n\n");
+	fprintf(stdout,
+		"#ifndef _MACHDEFS_H\n"
+		"#define _MACHDEFS_H\n\n\n");
 
 	if (!MkMachIsLE())
 		fprintf(stdout, "#define MACH_BIG_ENDIAN_WORDS\n\n");
@@ -69,18 +73,9 @@ int main(int argc, char *argv[])
 	else
 		fprintf(stdout, "#undef MACH_BIG_ENDIAN_BITFIELD\n\n");
 
-	if (sizeof(char) == 1)
-		MkMachGenType(8, "char");
-	else if (sizeof(short) == 1)
-		MkMachGenType(8, "short");
-	else if (sizeof(int) == 1)
-		MkMachGenType(8, "int");
-	else if (sizeof(long) == 1)
-		MkMachGenType(8, "long");
+	MkMachGenType(8, "char");
 
-	if (sizeof(char) == 2)
-		MkMachGenType(16, "char");
-	else if (sizeof(short) == 2)
+	if (sizeof(short) == 2)
 		MkMachGenType(16, "short");
 	else if (sizeof(int) == 2)
 		MkMachGenType(16, "int");
@@ -96,7 +91,16 @@ int main(int argc, char *argv[])
 	else if (sizeof(long) == 4)
 		MkMachGenType(32, "long");
 
+#if defined(_MSC_VER)
+	MkMachGenType(64, "__int64");
+#elif defined(__GNUC__) || defined(__SUNPRO_CC)
+	MkMachGenType(64, "long long");
+#else
+#error Your compiler is not supported!
+#endif
+
 	fprintf(stdout, "\n\n" "#endif\n\n");
 
 	return 0;
 }
+

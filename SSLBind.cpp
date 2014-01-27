@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -54,34 +54,12 @@ struct SslBindCtx {
 };
 
 
-static void BSslLockingCB(int iMode, int iType, const char *pszFile, int iLine);
-static void BSslThreadExit(void *pPrivate, SYS_THREAD ThreadID, int iMode);
-static void BSslFreeOSSL(void);
-static int BSslHandleAsync(SslBindCtx *pCtx, int iCode, int iDefError, int iTimeo);
-static int BSslReadLL(SslBindCtx *pCtx, void *pData, int iSize, int iTimeo);
-static int BSslWriteLL(SslBindCtx *pCtx, void const *pData, int iSize, int iTimeo);
-static int BSslShutdown(SslBindCtx *pCtx);
-static char const *BSslCtx__Name(void *pPrivate);
-static int BSslCtx__Free(void *pPrivate);
-static int BSslCtx__Read(void *pPrivate, void *pData, int iSize, int iTimeo);
-static int BSslCtx__Write(void *pPrivate, void const *pData, int iSize, int iTimeo);
-static int BSslCtx__SendFile(void *pPrivate, char const *pszFilePath, SYS_OFF_T llOffStart,
-			     SYS_OFF_T llOffEnd, int iTimeo);
-static int BSslAllocCtx(SslBindCtx **ppCtx, SYS_SOCKET SockFD, SSL_CTX *pSCtx, SSL *pSSL);
-static int BSslEnvExport(SSL_CTX *pSCtx, SSL *pSSL, X509 *pCert,
-			 int (*pfEnvCB)(void *, int, void const *), void *pPrivate);
-static int BSslCertVerifyCB(int iOK, X509_STORE_CTX *pXsCtx);
-static int BSslSetupVerify(SSL_CTX *pSCtx, SslServerBind const *pSSLB);
-
-
-
 static SYS_MUTEX *pSslMtxs = NULL; /* [i_a] - without it, the app will crash when run without args and compiled in debug mode */
-
 
 
 static void BSslLockingCB(int iMode, int iType, const char *pszFile, int iLine)
 {
-	if (pSslMtxs != NULL) /* [i_a] */
+	if (pSslMtxs != NULL)
 	{
 		if (iMode & CRYPTO_LOCK)
 		{
@@ -101,7 +79,6 @@ static void BSslLockingCB(int iMode, int iType, const char *pszFile, int iLine)
 
 static void BSslThreadExit(void *pPrivate, SYS_THREAD ThreadID, int iMode)
 {
-
 	if (iMode == SYS_THREAD_DETACH) {
 		/*
 		 * This needs to be called at every thread exit, in order to give
@@ -137,7 +114,7 @@ int BSslInit(void)
 			ErrorPush();
 			for (i--; i >= 0; i--)
 				SysCloseMutex(pSslMtxs[i]);
-			SysFree(pSslMtxs);
+			SysFreeNullify(pSslMtxs);
 			pSslMtxs = NULL; /* [i_a] */
 			return ErrorPop();
 		}
@@ -173,7 +150,7 @@ void BSslCleanup(void)
 	 */
 	for (i = 0; i < iNumLocks; i++)
 		SysCloseMutex(pSslMtxs[i]);
-	SysFree(pSslMtxs);
+	SysFreeNullify(pSslMtxs);
 	pSslMtxs = NULL; /* [i_a] */
 }
 
@@ -257,7 +234,6 @@ static int BSslShutdown(SslBindCtx *pCtx)
 
 static char const *BSslCtx__Name(void *pPrivate)
 {
-
 	return BSSL_BIO_NAME;
 }
 
@@ -421,8 +397,8 @@ static int BSslSetupVerify(SSL_CTX *pSCtx, SslServerBind const *pSSLB)
 	char const *pszKeyFile = pSSLB->pszKeyFile;
 
 	if (pSSLB->pszCertFile != NULL) {
-		if (SSL_CTX_use_certificate_file(pSCtx, pSSLB->pszCertFile,
-						 SSL_FILETYPE_PEM) <= 0) {
+		if (SSL_CTX_use_certificate_chain_file(pSCtx,
+						       pSSLB->pszCertFile) <= 0) {
 			ErrSetErrorCode(ERR_SSL_SETCERT, pSSLB->pszCertFile);
 			return ERR_SSL_SETCERT;
 		}

@@ -1,11 +1,66 @@
 
 =head1 NAME
 
-XMail Change Log as of Version 1.26
+XMail Change Log as of Version 1.27
 
 [L<top|"__index__">]
 
 =head1 CHANGE LOG
+
+=head2 Feb 25, 2010 v 1.27
+
+=over 4
+
+=item *
+
+Support for using a chain of SSL certificates, instead of a single one.
+
+=item *
+
+Fixed SMTP explicit routing address parsing.
+
+=item *
+
+Fixed a bug that made XMail incorrectly handle extremely long header line lengths.
+
+=item *
+
+Faster shutdown time on Unix systems.
+
+=item *
+
+Tweaked DNS resolution to cope with lame name servers.
+
+=item *
+
+Support for greater than 2GB sizes in POP3 server and PSYNC.
+
+=item *
+
+Safer temporary file name generation.
+
+=item *
+
+Made the temporary directory on Unix, configurable via the "XMAIL_TEMP" environment variable.
+
+=item *
+
+Fixed a bug that was caused by the SSL code triggering the XMail binding locking code
+after XMail has already cleanup.
+
+=item *
+
+Fixed a bug in the SMTP external authentication.
+
+=item *
+
+Fixed Unix syslog logging facility to consider different logging levels.
+
+=item *
+
+Changed SMTP HELP response code to 214.
+
+=back
 
 =head2 Jun 27, 2009 v 1.26
 

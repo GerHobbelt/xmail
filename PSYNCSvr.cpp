@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -51,17 +51,7 @@ struct PSYNCThreadData {
 	POP3Link *pPopLnk;
 };
 
-static bool PSYNCNeedSync(void);
-static PSYNCConfig *PSYNCGetConfigCopy(SHB_HANDLE hShbPSYNC);
 static int PSYNCThreadCountAdd(long lCount, SHB_HANDLE hShbPSYNC, PSYNCConfig *pPSYNCCfg = NULL);
-static int PSYNCTimeToStop(SHB_HANDLE hShbPSYNC);
-static SYS_THREAD PSYNCCreateSyncThread(SHB_HANDLE hShbPSYNC, POP3Link *pPopLnk);
-static int PSYNCStartTransfer(SHB_HANDLE hShbPSYNC, PSYNCConfig *pPSYNCCfg);
-unsigned int PSYNCThreadSyncProc(void *pThreadData);
-static int PSYNCThreadNotifyExit(void);
-static int PSYNCLogEnabled(PSYNCConfig *pPSYNCCfg);
-static int PSYNCLogSession(POP3Link const *pPopLnk, MailSyncReport const *pSRep,
-			   char const *pszStatus);
 
 static bool PSYNCNeedSync(void)
 {
@@ -132,133 +122,47 @@ static int PSYNCTimeToStop(SHB_HANDLE hShbPSYNC)
 	return iTimeToStop;
 }
 
-unsigned int PSYNCThreadProc(void *pThreadData)
-{
-	SysLogMessage(LOG_LEV_MESSAGE, "%s started\n", PSYNC_SERVER_NAME);
-
-	int iElapsedTime = INT_MAX - 2 * PSYNC_WAKEUP_TIME; /* [i_a] start the first PSYNC immediately after starting the xmail server itself */
-
-	for (;;) {
-		SysSleep(PSYNC_WAKEUP_TIME);
-
-		iElapsedTime += PSYNC_WAKEUP_TIME;
-
-		PSYNCConfig *pPSYNCCfg = PSYNCGetConfigCopy(hShbPSYNC);
-
-		if (pPSYNCCfg == NULL)
-			break;
-
-		if (pPSYNCCfg->ulFlags & PSYNCF_STOP_SERVER) {
-			SysFree(pPSYNCCfg);
-			break;
-		}
-
-		if (((pPSYNCCfg->iSyncInterval == 0) || (iElapsedTime < pPSYNCCfg->iSyncInterval))
-		    && !PSYNCNeedSync()) {
-			SysFree(pPSYNCCfg);
-			continue;
-		}
-
-		iElapsedTime = 0;
-
-		PSYNCStartTransfer(hShbPSYNC, pPSYNCCfg);
-
-		SysFree(pPSYNCCfg);
-	}
-
-	/* Wait for client completion */
-	for (int iTotalWait = 0; (iTotalWait < MAX_CLIENTS_WAIT); iTotalWait += PSYNC_WAIT_SLEEP) {
-		PSYNCConfig *pPSYNCCfg = (PSYNCConfig *) ShbLock(hShbPSYNC);
-
-		if (pPSYNCCfg == NULL)
-			break;
-
-		long lThreadCount = pPSYNCCfg->lThreadCount;
-
-		ShbUnlock(hShbPSYNC);
-
-		if (lThreadCount == 0)
-			break;
-
-		SysSleep(PSYNC_WAIT_SLEEP);
-	}
-
-	SysLogMessage(LOG_LEV_MESSAGE, "%s stopped\n", PSYNC_SERVER_NAME);
-
-	return 0;
-}
-
-static SYS_THREAD PSYNCCreateSyncThread(SHB_HANDLE hShbPSYNC, POP3Link *pPopLnk)
-{
-	PSYNCThreadData *pSTD = (PSYNCThreadData *) SysAlloc(sizeof(PSYNCThreadData));
-
-	if (pSTD == NULL)
-		return SYS_INVALID_THREAD;
-
-	if ((pSTD->pPSYNCCfg = PSYNCGetConfigCopy(hShbPSYNC)) == NULL) {
-		SysFree(pSTD);
-		return SYS_INVALID_THREAD;
-	}
-
-	pSTD->pPopLnk = pPopLnk;
-
-	SYS_THREAD hThread = SysCreateThread(PSYNCThreadSyncProc, pSTD);
-
-	if (hThread == SYS_INVALID_THREAD) {
-		SysFree(pSTD->pPSYNCCfg);
-		SysFree(pSTD);
-		return SYS_INVALID_THREAD;
-	}
-
-	return hThread;
-}
-
-static int PSYNCStartTransfer(SHB_HANDLE hShbPSYNC, PSYNCConfig *pPSYNCCfg)
-{
-	GWLKF_HANDLE hLinksDB = GwLkOpenDB();
-
-	if (hLinksDB == INVALID_GWLKF_HANDLE) {
-		ErrorPush();
-		SysLogMessage(LOG_LEV_ERROR, "%s\n", ErrGetErrorString(ErrorFetch()));
-		return ErrorPop();
-	}
-
-	POP3Link *pPopLnk = GwLkGetFirstUser(hLinksDB);
-
-	for (; pPopLnk != NULL; pPopLnk = GwLkGetNextUser(hLinksDB)) {
-		/* Check if link is enabled */
-		if (GwLkCheckEnabled(pPopLnk) < 0) {
-			GwLkFreePOP3Link(pPopLnk);
-			continue;
-		}
-
-		if ((SysWaitSemaphore(hSyncSem, SYS_INFINITE_TIMEOUT) < 0) ||
-		    PSYNCTimeToStop(hShbPSYNC)) {
-			GwLkFreePOP3Link(pPopLnk);
-			break;
-		}
-
-		SYS_THREAD hClientThread = PSYNCCreateSyncThread(hShbPSYNC, pPopLnk);
-
-		if (hClientThread == SYS_INVALID_THREAD) {
-			ErrorPush();
-			GwLkFreePOP3Link(pPopLnk);
-			SysReleaseSemaphore(hSyncSem, 1);
-			GwLkCloseDB(hLinksDB);
-			return ErrorPop();
-		}
-
-		SysCloseThread(hClientThread, 0);
-	}
-
-	GwLkCloseDB(hLinksDB);
-
-	return 0;
-}
-
 static int PSYNCThreadNotifyExit(void)
 {
 	SysReleaseSemaphore(hSyncSem, 1);
+
+	return 0;
+}
+
+static int PSYNCLogEnabled(PSYNCConfig *pPSYNCCfg)
+{
+	return (pPSYNCCfg->ulFlags & PSYNCF_LOG_ENABLED) ? 1 : 0;
+}
+
+static int PSYNCLogSession(POP3Link const *pPopLnk, MailSyncReport const *pSRep,
+			   char const *pszStatus)
+{
+	char szTime[256] = "";
+
+	MscGetTimeNbrString(szTime, sizeof(szTime) - 1);
+
+	RLCK_HANDLE hResLock = RLckLockEX(SVR_LOGS_DIR SYS_SLASH_STR PSYNC_LOG_FILE);
+
+	if (hResLock == INVALID_RLCK_HANDLE)
+		return ErrGetErrorCode();
+
+	MscFileLog(PSYNC_LOG_FILE,
+		   "\"%s\""
+		   "\t\"%s\""
+		   "\t\"%s\""
+		   "\t\"%s\""
+		   "\t\"%s\""
+		   "\t\"%s\""
+		   "\t\"%s\""
+		   "\t\"%d\""
+		   "\t\"" SYS_OFFT_FMT "\""
+		   "\t\"%d\""
+		   "\t\"" SYS_OFFT_FMT "\""
+		   "\n", szTime, pPopLnk->pszDomain, pPopLnk->pszName,
+		   pPopLnk->pszRmtDomain, pPopLnk->pszRmtName, pPopLnk->pszAuthType, pszStatus,
+		   pSRep->iMsgSync, pSRep->llSizeSync, pSRep->iMsgErr, pSRep->llSizeErr);
+
+	RLckUnlockEX(hResLock);
 
 	return 0;
 }
@@ -335,7 +239,8 @@ unsigned int PSYNCThreadSyncProc(void *pThreadData)
 
 			if (UPopSyncRemoteLink(szUserAddress, pPopLnk->pszRmtDomain,
 					       pPopLnk->pszRmtName, pPopLnk->pszRmtPassword, &SRep,
-					       pPopLnk->pszAuthType, szFetchHdrTags, pszErrorAccount) < 0) {
+					       pPopLnk->pszAuthType, szFetchHdrTags,
+					       pszErrorAccount) < 0) {
 				ErrLogMessage(LOG_LEV_MESSAGE,
 					      "[PSYNC] User = \"%s\" - Domain = \"%s\" Failed !\n",
 					      pPopLnk->pszName, pPopLnk->pszDomain);
@@ -347,7 +252,6 @@ unsigned int PSYNCThreadSyncProc(void *pThreadData)
 				if (PSYNCLogEnabled(pPSYNCCfg))
 					PSYNCLogSession(pPopLnk, &SRep, "SYNC=OK");
 			}
-
 			UsrFreeUserInfo(pUI);
 		} else {
 			SysLogMessage(LOG_LEV_MESSAGE,
@@ -423,40 +327,121 @@ unsigned int PSYNCThreadSyncProc(void *pThreadData)
 	return 0;
 }
 
-static int PSYNCLogEnabled(PSYNCConfig *pPSYNCCfg)
+static SYS_THREAD PSYNCCreateSyncThread(SHB_HANDLE hShbPSYNC, POP3Link *pPopLnk)
 {
-	return (pPSYNCCfg->ulFlags & PSYNCF_LOG_ENABLED) ? 1 : 0;
+	PSYNCThreadData *pSTD = (PSYNCThreadData *) SysAlloc(sizeof(PSYNCThreadData));
+
+	if (pSTD == NULL)
+		return SYS_INVALID_THREAD;
+	if ((pSTD->pPSYNCCfg = PSYNCGetConfigCopy(hShbPSYNC)) == NULL) {
+		SysFree(pSTD);
+		return SYS_INVALID_THREAD;
+	}
+	pSTD->pPopLnk = pPopLnk;
+
+	SYS_THREAD hThread = SysCreateThread(PSYNCThreadSyncProc, pSTD);
+
+	if (hThread == SYS_INVALID_THREAD) {
+		SysFree(pSTD->pPSYNCCfg);
+		SysFree(pSTD);
+		return SYS_INVALID_THREAD;
+	}
+
+	return hThread;
 }
 
-static int PSYNCLogSession(POP3Link const *pPopLnk, MailSyncReport const *pSRep,
-			   char const *pszStatus)
+static int PSYNCStartTransfer(SHB_HANDLE hShbPSYNC, PSYNCConfig *pPSYNCCfg)
 {
-	char szTime[256] = "";
+	GWLKF_HANDLE hLinksDB = GwLkOpenDB();
 
-	MscGetTimeNbrString(szTime, sizeof(szTime) - 1);
+	if (hLinksDB == INVALID_GWLKF_HANDLE) {
+		ErrorPush();
+		SysLogMessage(LOG_LEV_ERROR, "%s\n", ErrGetErrorString(ErrorFetch()));
+		return ErrorPop();
+	}
 
-	RLCK_HANDLE hResLock = RLckLockEX(SVR_LOGS_DIR SYS_SLASH_STR PSYNC_LOG_FILE);
+	POP3Link *pPopLnk = GwLkGetFirstUser(hLinksDB);
 
-	if (hResLock == INVALID_RLCK_HANDLE)
-		return ErrGetErrorCode();
+	for (; pPopLnk != NULL; pPopLnk = GwLkGetNextUser(hLinksDB)) {
+		/* Check if link is enabled */
+		if (GwLkCheckEnabled(pPopLnk) < 0) {
+			GwLkFreePOP3Link(pPopLnk);
+			continue;
+		}
+		if (SysWaitSemaphore(hSyncSem, SYS_INFINITE_TIMEOUT) < 0 ||
+		    PSYNCTimeToStop(hShbPSYNC)) {
+			GwLkFreePOP3Link(pPopLnk);
+			break;
+		}
 
-	MscFileLog(PSYNC_LOG_FILE,
-		   "\"%s\""
-		   "\t\"%s\""
-		   "\t\"%s\""
-		   "\t\"%s\""
-		   "\t\"%s\""
-		   "\t\"%s\""
-		   "\t\"%s\""
-		   "\t\"%d\""
-		   "\t\"%lu\""
-		   "\t\"%d\""
-		   "\t\"%lu\""
-		   "\n", szTime, pPopLnk->pszDomain, pPopLnk->pszName,
-		   pPopLnk->pszRmtDomain, pPopLnk->pszRmtName, pPopLnk->pszAuthType, pszStatus,
-		   pSRep->iMsgSync, pSRep->ulSizeSync, pSRep->iMsgErr, pSRep->ulSizeErr);
+		SYS_THREAD hClientThread = PSYNCCreateSyncThread(hShbPSYNC, pPopLnk);
 
-	RLckUnlockEX(hResLock);
+		if (hClientThread == SYS_INVALID_THREAD) {
+			ErrorPush();
+			GwLkFreePOP3Link(pPopLnk);
+			SysReleaseSemaphore(hSyncSem, 1);
+			GwLkCloseDB(hLinksDB);
+			return ErrorPop();
+		}
+		SysCloseThread(hClientThread, 0);
+	}
+
+	GwLkCloseDB(hLinksDB);
+
+	return 0;
+}
+
+unsigned int PSYNCThreadProc(void *pThreadData)
+{
+	SysLogMessage(LOG_LEV_MESSAGE, "%s started\n", PSYNC_SERVER_NAME);
+
+	int iElapsedTime = INT_MAX - 2 * PSYNC_WAKEUP_TIME; /* [i_a] start the first PSYNC immediately after starting the xmail server itself */
+
+	for (;;) {
+		SysSleep(PSYNC_WAKEUP_TIME);
+
+		iElapsedTime += PSYNC_WAKEUP_TIME;
+
+		PSYNCConfig *pPSYNCCfg = PSYNCGetConfigCopy(hShbPSYNC);
+
+		if (pPSYNCCfg == NULL)
+			break;
+		if (pPSYNCCfg->ulFlags & PSYNCF_STOP_SERVER) {
+			SysFree(pPSYNCCfg);
+			break;
+		}
+
+		if ((pPSYNCCfg->iSyncInterval == 0 || iElapsedTime < pPSYNCCfg->iSyncInterval)
+		    && !PSYNCNeedSync()) {
+			SysFree(pPSYNCCfg);
+			continue;
+		}
+		iElapsedTime = 0;
+
+		PSYNCStartTransfer(hShbPSYNC, pPSYNCCfg);
+
+		SysFree(pPSYNCCfg);
+	}
+
+	/* Wait for client completion */
+	for (int iTotalWait = 0; (iTotalWait < MAX_CLIENTS_WAIT);
+	     iTotalWait += PSYNC_WAIT_SLEEP) {
+		PSYNCConfig *pPSYNCCfg = (PSYNCConfig *) ShbLock(hShbPSYNC);
+
+		if (pPSYNCCfg == NULL)
+			break;
+
+		long lThreadCount = pPSYNCCfg->lThreadCount;
+
+		ShbUnlock(hShbPSYNC);
+
+		if (lThreadCount == 0)
+			break;
+
+		SysSleep(PSYNC_WAIT_SLEEP);
+	}
+
+	SysLogMessage(LOG_LEV_MESSAGE, "%s stopped\n", PSYNC_SERVER_NAME);
 
 	return 0;
 }

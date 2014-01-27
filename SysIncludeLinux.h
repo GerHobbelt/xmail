@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -60,5 +60,9 @@
 #include <dlfcn.h>
 #include <sched.h>
 #include <pthread.h>
+
+#ifdef HAS_EVENTFD
+#include <sys/eventfd.h>
+#endif
 
 #endif

@@ -1,6 +1,6 @@
 /*
- *  XMail by Davide Libenzi ( Intranet and Internet mail server )
- *  Copyright (C) 1999,..,2004  Davide Libenzi
+ *  XMail by Davide Libenzi (Intranet and Internet mail server)
+ *  Copyright (C) 1999,..,2010  Davide Libenzi
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -48,21 +48,10 @@
 #define BSD_SETPGRP()         setpgrp(0, getpid())
 #endif
 
-
-static int MnEventLog(char const *pszFormat, ...);
-static char const *MnGetPIDDir(void);
-static int MnSavePID(char const *pszPidFile);
-static int MnRemovePID(char const *pszPidFile);
-static void MnSIGCLD(int iSignal);
-static void MnSetupStdHandles(void);
-static int MnDaemonBootStrap(void);
-static int MnIsDebugStartup(int iArgCount, char *pszArgs[]);
-static int MnDaemonStartup(int iArgCount, char *pszArgs[]);
-
 static int MnEventLog(char const *pszFormat, ...)
 {
 	va_list Args;
-	char szBuffer[2048] = "";
+	char szBuffer[2048];
 
 	openlog(APP_NAME_STR, LOG_PID, LOG_DAEMON);
 	va_start(Args, pszFormat);
@@ -80,14 +69,15 @@ static char const *MnGetPIDDir(void)
 {
 	char const *pszPIDDir = getenv(XMAIL_PIDDIR_ENV);
 
-	return (pszPIDDir != NULL) ? pszPIDDir: RUNNING_PIDS_DIR;
+	return pszPIDDir != NULL ? pszPIDDir: RUNNING_PIDS_DIR;
 }
 
 static int MnSavePID(char const *pszPidFile)
 {
-	char szPidFile[SYS_MAX_PATH] = "";
+	char szPidFile[SYS_MAX_PATH];
 
-	snprintf(szPidFile, sizeof(szPidFile) - 1, "%s/%s.pid", MnGetPIDDir(), pszPidFile);
+	snprintf(szPidFile, sizeof(szPidFile) - 1, "%s/%s.pid", MnGetPIDDir(),
+		 pszPidFile);
 
 	FILE *pFile = fopen(szPidFile, "w");
 
@@ -103,10 +93,10 @@ static int MnSavePID(char const *pszPidFile)
 
 static int MnRemovePID(char const *pszPidFile)
 {
-	char szPidFile[SYS_MAX_PATH] = "";
+	char szPidFile[SYS_MAX_PATH];
 
-	snprintf(szPidFile, sizeof(szPidFile) - 1, "%s/%s.pid", MnGetPIDDir(), pszPidFile);
-
+	snprintf(szPidFile, sizeof(szPidFile) - 1, "%s/%s.pid", MnGetPIDDir(),
+		 pszPidFile);
 	if (unlink(szPidFile) != 0) {
 		perror(szPidFile);
 		return -errno;
@@ -117,12 +107,10 @@ static int MnRemovePID(char const *pszPidFile)
 
 static void MnSIGCLD(int iSignal)
 {
-	int iExitStatus;
-	int iDeadPID;
+	int iExitStatus, iDeadPID;
 
-	while ((iDeadPID = wait3(&iExitStatus, WNOHANG, (struct rusage *) NULL)) > 0) {
-
-	}
+	while ((iDeadPID = wait3(&iExitStatus, WNOHANG,
+				 (struct rusage *) NULL)) > 0);
 	signal(iSignal, MnSIGCLD);
 }
 
@@ -134,22 +122,21 @@ static void MnSetupStdHandles(void)
 		MnEventLog("Cannot open file %s : %s", DEVNULL, strerror(errno));
 		exit(errno);
 	}
-
-	if ((dup2(iFD, 0) == -1) || (dup2(iFD, 1) == -1) || (dup2(iFD, 2) == -1)) {
+	if (dup2(iFD, 0) == -1 || dup2(iFD, 1) == -1 || dup2(iFD, 2) == -1) {
 		MnEventLog("File descriptor duplication error : %s", strerror(errno));
 		exit(errno);
 	}
-
-	close(iFD);
-
+	if (iFD > 2)
+		close(iFD);
 }
 
 static int MnDaemonBootStrap(void)
 {
-	/* This code is inspired from the code of the great Richard Stevens books. */
-	/* May You RIP in programmers paradise great Richard. */
-	/* I suggest You to buy all his collection, soon ! */
-
+	/*
+	 * This code is inspired from the code of the great Richard Stevens books.
+	 * May You RIP in programmers paradise great Richard.
+	 * I suggest You to buy all his collection, soon!
+	 */
 #ifdef SIGTTOU
 	signal(SIGTTOU, SIG_IGN);
 #endif
@@ -167,9 +154,9 @@ static int MnDaemonBootStrap(void)
 		MnEventLog("Cannot fork : %s", strerror(errno));
 
 		exit(errno);
-	} else if (iChildPID > 0) {
+	} else if (iChildPID > 0)
 		exit(0);
-	}
+
 	/*
 	 * Disassociate from controlling terminal and process group.
 	 * Ensure the process can't reacquire a new controlling terminal.
