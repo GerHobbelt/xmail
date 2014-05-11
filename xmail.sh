@@ -1,12 +1,12 @@
 #!/bin/sh
 #
-# skeleton	example file to build /etc/init.d/ scripts.
-#		This file should be used to construct scripts for /etc/init.d.
+# skeleton  example file to build /etc/init.d/ scripts.
+#       This file should be used to construct scripts for /etc/init.d.
 #
-#		Written by Miquel van Smoorenburg <miquels@cistron.nl>.
-#		Modified by Davide Libenzi <davidel@xmailserver.org>
+#       Written by Miquel van Smoorenburg <miquels@cistron.nl>.
+#       Modified by Davide Libenzi <davidel@xmailserver.org>
 #
-# Version:	@(#)skeleton  1.8  03-Mar-1998  miquels@cistron.nl
+# Version:  @(#)skeleton  1.8  03-Mar-1998  miquels@cistron.nl
 #
 
 XMAIL_ROOT=/var/MailRoot
@@ -55,42 +55,42 @@ case "$1" in
       echo -n "Starting $DESC: "
       start_xmail
       echo "$NAME.[" `cat /var/run/$NAME.pid` "]"
-	;;
+    ;;
   stop)
       echo -n "Stopping $DESC: "
       stop_xmail
       echo "$NAME."
-	;;
+    ;;
   #reload)
-	#
-	#	If the daemon can reload its config files on the fly
-	#	for example by sending it SIGHUP, do it here.
-	#
-	#	If the daemon responds to changes in its config file
-	#	directly anyway, make this a do-nothing entry.
-	#
-	# echo "Reloading $DESC configuration files."
-	# start-stop-daemon --stop --signal 1 --quiet --pidfile \
-	#	/var/run/$NAME.pid --exec $DAEMON
+    #
+    #   If the daemon can reload its config files on the fly
+    #   for example by sending it SIGHUP, do it here.
+    #
+    #   If the daemon responds to changes in its config file
+    #   directly anyway, make this a do-nothing entry.
+    #
+    # echo "Reloading $DESC configuration files."
+    # start-stop-daemon --stop --signal 1 --quiet --pidfile \
+    #   /var/run/$NAME.pid --exec $DAEMON
   #;;
   restart|force-reload)
-	#
-	#	If the "reload" option is implemented, move the "force-reload"
-	#	option to the "reload" entry above. If not, "force-reload" is
-	#	just the same as "restart".
-	#
-	echo -n "Restarting $DESC: "
-	stop_xmail
-	sleep 1
-	start_xmail
-        echo "$NAME.[" `cat /var/run/$NAME.pid` "]"	
-	;;
+    #
+    #   If the "reload" option is implemented, move the "force-reload"
+    #   option to the "reload" entry above. If not, "force-reload" is
+    #   just the same as "restart".
+    #
+    echo -n "Restarting $DESC: "
+    stop_xmail
+    sleep 1
+    start_xmail
+        echo "$NAME.[" `cat /var/run/$NAME.pid` "]"
+    ;;
   *)
-	N=/etc/init.d/$NAME
-	# echo "Usage: $N {start|stop|restart|reload|force-reload}" >&2
-	echo "Usage: $N {start|stop|restart|force-reload}" >&2
-	exit 1
-	;;
+    N=/etc/init.d/$NAME
+    # echo "Usage: $N {start|stop|restart|reload|force-reload}" >&2
+    echo "Usage: $N {start|stop|restart|force-reload}" >&2
+    exit 1
+    ;;
 esac
 
 exit 0

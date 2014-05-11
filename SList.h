@@ -27,7 +27,7 @@
 #define ListLinkInit(p)             ((PLISTLINK) (p))->pNext = INVALID_SLIST_PTR
 
 typedef struct s_ListLink {
-	struct s_ListLink *pNext;
+    struct s_ListLink *pNext;
 } LISTLINK;
 
 typedef LISTLINK *PLISTLINK;

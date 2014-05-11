@@ -1,5 +1,5 @@
 
-		< XMail Server ToDo List >
+        < XMail Server ToDo List >
 
 Long term :
 1) GUI ( Qt or GTK for Linux and Win32 for Windows or Tk for both ) for remote server administration

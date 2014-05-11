@@ -50,439 +50,439 @@
 #define MAIL_DOMAINS_LINE_MAX       512
 
 enum PopDomainFileds {
-	domDomain = 0,
+    domDomain = 0,
 
-	domMax
+    domMax
 };
 
 struct DomainsScanData {
-	char szTmpDBFile[SYS_MAX_PATH];
-	FILE *pDBFile;
-	char szCurrDomain[256];
+    char szTmpDBFile[SYS_MAX_PATH];
+    FILE *pDBFile;
+    char szCurrDomain[256];
 };
 
 static int MDomRebuildDomainsIndexes(char const *pszDomainsFilePath);
 static char *MDomGetDomainsFilePath(char *pszDomainsFilePath, int iMaxPath);
 
 static int iIdxDomains_Domain[] = {
-	domDomain,
+    domDomain,
 
-	INDEX_SEQUENCE_TERMINATOR
+    INDEX_SEQUENCE_TERMINATOR
 };
 
 int MDomCheckDomainsIndexes(void)
 {
-	char szDomainsFilePath[SYS_MAX_PATH] = "";
+    char szDomainsFilePath[SYS_MAX_PATH] = "";
 
-	MDomGetDomainsFilePath(szDomainsFilePath, sizeof(szDomainsFilePath));
+    MDomGetDomainsFilePath(szDomainsFilePath, sizeof(szDomainsFilePath));
 
-	/* Align RmtDomain-RmtName index */
-	if (TbixCheckIndex(szDomainsFilePath, iIdxDomains_Domain, false) < 0)
-		return ErrGetErrorCode();
+    /* Align RmtDomain-RmtName index */
+    if (TbixCheckIndex(szDomainsFilePath, iIdxDomains_Domain, false) < 0)
+        return ErrGetErrorCode();
 
-	return 0;
+    return 0;
 }
 
 static int MDomRebuildDomainsIndexes(char const *pszDomainsFilePath)
 {
-	/* Rebuild RmtDomain-RmtName index */
-	if (TbixCreateIndex(pszDomainsFilePath, iIdxDomains_Domain, false) < 0)
-		return ErrGetErrorCode();
+    /* Rebuild RmtDomain-RmtName index */
+    if (TbixCreateIndex(pszDomainsFilePath, iIdxDomains_Domain, false) < 0)
+        return ErrGetErrorCode();
 
-	return 0;
+    return 0;
 }
 
 char *MDomGetDomainPath(char const *pszDomain, char *pszDomainPath, int iMaxPath, int iFinalSlash)
 {
-	/* Make the domain lower-case */
-	char szLoDomain[SYS_MAX_PATH] = "";
+    /* Make the domain lower-case */
+    char szLoDomain[SYS_MAX_PATH] = "";
 
-	StrSNCpy(szLoDomain, pszDomain);
-	StrLower(szLoDomain);
+    StrSNCpy(szLoDomain, pszDomain);
+    StrLower(szLoDomain);
 
-	CfgGetRootPath(pszDomainPath, iMaxPath);
+    CfgGetRootPath(pszDomainPath, iMaxPath);
 
-	StrNCat(pszDomainPath, MAIL_DOMAINS_DIR, iMaxPath);
-	AppendSlash(pszDomainPath);
-	StrNCat(pszDomainPath, szLoDomain, iMaxPath);
+    StrNCat(pszDomainPath, MAIL_DOMAINS_DIR, iMaxPath);
+    AppendSlash(pszDomainPath);
+    StrNCat(pszDomainPath, szLoDomain, iMaxPath);
 
-	if (iFinalSlash)
-		AppendSlash(pszDomainPath);
+    if (iFinalSlash)
+        AppendSlash(pszDomainPath);
 
-	SysLogMessage(LOG_LEV_DEBUG, "Going to look at domain path: '%s'\n", pszDomainPath);
+    SysLogMessage(LOG_LEV_DEBUG, "Going to look at domain path: '%s'\n", pszDomainPath);
 
-	return pszDomainPath;
+    return pszDomainPath;
 }
 
 static char *MDomGetDomainsFilePath(char *pszDomainsFilePath, int iMaxPath)
 {
-	CfgGetRootPath(pszDomainsFilePath, iMaxPath);
+    CfgGetRootPath(pszDomainsFilePath, iMaxPath);
 
-	StrNCat(pszDomainsFilePath, MAIL_DOMAINS_FILE, iMaxPath);
+    StrNCat(pszDomainsFilePath, MAIL_DOMAINS_FILE, iMaxPath);
 
-	SysLogMessage(LOG_LEV_DEBUG, "Going to look at config file: '%s'\n", pszDomainsFilePath);
+    SysLogMessage(LOG_LEV_DEBUG, "Going to look at config file: '%s'\n", pszDomainsFilePath);
 
-	return pszDomainsFilePath;
+    return pszDomainsFilePath;
 }
 
 int MDomLookupDomain(char const *pszDomain)
 {
-	char szDomainsFilePath[SYS_MAX_PATH] = "";
+    char szDomainsFilePath[SYS_MAX_PATH] = "";
 
-	MDomGetDomainsFilePath(szDomainsFilePath, sizeof(szDomainsFilePath));
+    MDomGetDomainsFilePath(szDomainsFilePath, sizeof(szDomainsFilePath));
 
-	char szResLock[SYS_MAX_PATH] = "";
-	RLCK_HANDLE hResLock = RLckLockSH(CfgGetBasedPath(szDomainsFilePath, szResLock,
-							  sizeof(szResLock)));
+    char szResLock[SYS_MAX_PATH] = "";
+    RLCK_HANDLE hResLock = RLckLockSH(CfgGetBasedPath(szDomainsFilePath, szResLock,
+                              sizeof(szResLock)));
 
-	if (hResLock == INVALID_RLCK_HANDLE)
-		return ErrGetErrorCode();
+    if (hResLock == INVALID_RLCK_HANDLE)
+        return ErrGetErrorCode();
 
-	/* Lookup record using the specified index */
-	char **ppszTabTokens = TbixLookup(szDomainsFilePath, iIdxDomains_Domain, false,
-					  pszDomain,
-					  NULL);
+    /* Lookup record using the specified index */
+    char **ppszTabTokens = TbixLookup(szDomainsFilePath, iIdxDomains_Domain, false,
+                      pszDomain,
+                      NULL);
 
-	if (ppszTabTokens == NULL) {
-		RLckUnlockSH(hResLock);
+    if (ppszTabTokens == NULL) {
+        RLckUnlockSH(hResLock);
 
-		ErrSetErrorCode(ERR_DOMAIN_NOT_HANDLED, pszDomain);
-		return ERR_DOMAIN_NOT_HANDLED;
-	}
-	StrFreeStrings(ppszTabTokens);
-	RLckUnlockSH(hResLock);
+        ErrSetErrorCode(ERR_DOMAIN_NOT_HANDLED, pszDomain);
+        return ERR_DOMAIN_NOT_HANDLED;
+    }
+    StrFreeStrings(ppszTabTokens);
+    RLckUnlockSH(hResLock);
 
-	return 0;
+    return 0;
 }
 
 int MDomAddDomain(char const *pszDomain)
 {
-	char szDomainsFilePath[SYS_MAX_PATH] = "";
+    char szDomainsFilePath[SYS_MAX_PATH] = "";
 
-	MDomGetDomainsFilePath(szDomainsFilePath, sizeof(szDomainsFilePath));
+    MDomGetDomainsFilePath(szDomainsFilePath, sizeof(szDomainsFilePath));
 
-	char szResLock[SYS_MAX_PATH] = "";
-	RLCK_HANDLE hResLock = RLckLockEX(CfgGetBasedPath(szDomainsFilePath, szResLock,
-							  sizeof(szResLock)));
+    char szResLock[SYS_MAX_PATH] = "";
+    RLCK_HANDLE hResLock = RLckLockEX(CfgGetBasedPath(szDomainsFilePath, szResLock,
+                              sizeof(szResLock)));
 
-	if (hResLock == INVALID_RLCK_HANDLE)
-		return ErrGetErrorCode();
+    if (hResLock == INVALID_RLCK_HANDLE)
+        return ErrGetErrorCode();
 
-	FILE *pDomainsFile = fopen(szDomainsFilePath, "r+t");
+    FILE *pDomainsFile = fopen(szDomainsFilePath, "r+t");
 
-	if (pDomainsFile == NULL) {
-		RLckUnlockEX(hResLock);
+    if (pDomainsFile == NULL) {
+        RLckUnlockEX(hResLock);
 
-		ErrSetErrorCode(ERR_ALIAS_FILE_NOT_FOUND, szDomainsFilePath);
-		return ERR_ALIAS_FILE_NOT_FOUND;
-	}
+        ErrSetErrorCode(ERR_ALIAS_FILE_NOT_FOUND, szDomainsFilePath);
+        return ERR_ALIAS_FILE_NOT_FOUND;
+    }
 
-	char szDomainsLine[MAIL_DOMAINS_LINE_MAX] = "";
+    char szDomainsLine[MAIL_DOMAINS_LINE_MAX] = "";
 
-	while (MscGetConfigLine(szDomainsLine, sizeof(szDomainsLine) - 1, pDomainsFile) != NULL) {  /* [i_a] */
-		char **ppszStrings = StrGetTabLineStrings(szDomainsLine);
+    while (MscGetConfigLine(szDomainsLine, sizeof(szDomainsLine) - 1, pDomainsFile) != NULL) {  /* [i_a] */
+        char **ppszStrings = StrGetTabLineStrings(szDomainsLine);
 
-		if (ppszStrings == NULL)
-			continue;
+        if (ppszStrings == NULL)
+            continue;
 
-		int iFieldsCount = StrStringsCount(ppszStrings);
+        int iFieldsCount = StrStringsCount(ppszStrings);
 
-		if ((iFieldsCount >= domMax) && (stricmp(pszDomain, ppszStrings[domDomain]) == 0)) {
-			StrFreeStrings(ppszStrings);
-			fclose(pDomainsFile);
-			RLckUnlockEX(hResLock);
+        if ((iFieldsCount >= domMax) && (stricmp(pszDomain, ppszStrings[domDomain]) == 0)) {
+            StrFreeStrings(ppszStrings);
+            fclose(pDomainsFile);
+            RLckUnlockEX(hResLock);
 
-			ErrSetErrorCode(ERR_DOMAIN_ALREADY_HANDLED);
-			return ERR_DOMAIN_ALREADY_HANDLED;
-		}
-		StrFreeStrings(ppszStrings);
-	}
-	fseek(pDomainsFile, 0, SEEK_END);
+            ErrSetErrorCode(ERR_DOMAIN_ALREADY_HANDLED);
+            return ERR_DOMAIN_ALREADY_HANDLED;
+        }
+        StrFreeStrings(ppszStrings);
+    }
+    fseek(pDomainsFile, 0, SEEK_END);
 
-	fprintf(pDomainsFile, "\"%s\"\n", pszDomain);
+    fprintf(pDomainsFile, "\"%s\"\n", pszDomain);
 
-	fclose(pDomainsFile);
+    fclose(pDomainsFile);
 
-	/* Rebuild indexes */
-	if (MDomRebuildDomainsIndexes(szDomainsFilePath) < 0) {
-		ErrorPush();
-		RLckUnlockEX(hResLock);
-		return ErrorPop();
-	}
-	/* Create domain directory */
-	char szDomainPath[SYS_MAX_PATH] = "";
+    /* Rebuild indexes */
+    if (MDomRebuildDomainsIndexes(szDomainsFilePath) < 0) {
+        ErrorPush();
+        RLckUnlockEX(hResLock);
+        return ErrorPop();
+    }
+    /* Create domain directory */
+    char szDomainPath[SYS_MAX_PATH] = "";
 
-	MDomGetDomainPath(pszDomain, szDomainPath, sizeof(szDomainPath), 0);
+    MDomGetDomainPath(pszDomain, szDomainPath, sizeof(szDomainPath), 0);
 
-	if (SysMakeDir(szDomainPath) < 0) {
-		ErrorPush();
-		RLckUnlockEX(hResLock);
-		return ErrorPop();
-	}
-	/* Create cmd alias directory */
-	if (USmlCreateCmdAliasDomainDir(pszDomain) < 0) {
-		ErrorPush();
-		RLckUnlockEX(hResLock);
-		return ErrorPop();
-	}
-	RLckUnlockEX(hResLock);
+    if (SysMakeDir(szDomainPath) < 0) {
+        ErrorPush();
+        RLckUnlockEX(hResLock);
+        return ErrorPop();
+    }
+    /* Create cmd alias directory */
+    if (USmlCreateCmdAliasDomainDir(pszDomain) < 0) {
+        ErrorPush();
+        RLckUnlockEX(hResLock);
+        return ErrorPop();
+    }
+    RLckUnlockEX(hResLock);
 
-	return 0;
+    return 0;
 }
 
 int MDomRemoveDomain(char const *pszDomain)
 {
-	char szDomainsFilePath[SYS_MAX_PATH] = "";
+    char szDomainsFilePath[SYS_MAX_PATH] = "";
 
-	MDomGetDomainsFilePath(szDomainsFilePath, sizeof(szDomainsFilePath));
+    MDomGetDomainsFilePath(szDomainsFilePath, sizeof(szDomainsFilePath));
 
-	char szTmpFile[SYS_MAX_PATH] = "";
+    char szTmpFile[SYS_MAX_PATH] = "";
 
-	UsrGetTmpFile(NULL, szTmpFile, sizeof(szTmpFile));
+    UsrGetTmpFile(NULL, szTmpFile, sizeof(szTmpFile));
 
-	char szResLock[SYS_MAX_PATH] = "";
-	RLCK_HANDLE hResLock = RLckLockEX(CfgGetBasedPath(szDomainsFilePath, szResLock,
-							  sizeof(szResLock)));
+    char szResLock[SYS_MAX_PATH] = "";
+    RLCK_HANDLE hResLock = RLckLockEX(CfgGetBasedPath(szDomainsFilePath, szResLock,
+                              sizeof(szResLock)));
 
-	if (hResLock == INVALID_RLCK_HANDLE) {
-		ErrorPush();
-		CheckRemoveFile(szTmpFile);
-		return ErrorPop();
-	}
+    if (hResLock == INVALID_RLCK_HANDLE) {
+        ErrorPush();
+        CheckRemoveFile(szTmpFile);
+        return ErrorPop();
+    }
 
-	FILE *pDomainsFile = fopen(szDomainsFilePath, "rt");
+    FILE *pDomainsFile = fopen(szDomainsFilePath, "rt");
 
-	if (pDomainsFile == NULL) {
-		RLckUnlockEX(hResLock);
-		CheckRemoveFile(szTmpFile);
+    if (pDomainsFile == NULL) {
+        RLckUnlockEX(hResLock);
+        CheckRemoveFile(szTmpFile);
 
-		ErrSetErrorCode(ERR_DOMAINS_FILE_NOT_FOUND, szDomainsFilePath);
-		return ERR_DOMAINS_FILE_NOT_FOUND;
-	}
+        ErrSetErrorCode(ERR_DOMAINS_FILE_NOT_FOUND, szDomainsFilePath);
+        return ERR_DOMAINS_FILE_NOT_FOUND;
+    }
 
-	FILE *pTmpFile = fopen(szTmpFile, "wt");
+    FILE *pTmpFile = fopen(szTmpFile, "wt");
 
-	if (pTmpFile == NULL) {
-		fclose(pDomainsFile);
-		RLckUnlockEX(hResLock);
-		CheckRemoveFile(szTmpFile);
+    if (pTmpFile == NULL) {
+        fclose(pDomainsFile);
+        RLckUnlockEX(hResLock);
+        CheckRemoveFile(szTmpFile);
 
-		ErrSetErrorCode(ERR_FILE_CREATE, szTmpFile); /* [i_a] */
-		return ERR_FILE_CREATE;
-	}
+        ErrSetErrorCode(ERR_FILE_CREATE, szTmpFile); /* [i_a] */
+        return ERR_FILE_CREATE;
+    }
 
-	int iDomainsFound = 0;
-	char szDomainsLine[MAIL_DOMAINS_LINE_MAX] = "";
+    int iDomainsFound = 0;
+    char szDomainsLine[MAIL_DOMAINS_LINE_MAX] = "";
 
-	while (MscFGets(szDomainsLine, sizeof(szDomainsLine) - 1, pDomainsFile) != NULL) {
-		if (szDomainsLine[0] == TAB_COMMENT_CHAR) {
-			fprintf(pTmpFile, "%s\n", szDomainsLine);
-			continue;
-		}
+    while (MscFGets(szDomainsLine, sizeof(szDomainsLine) - 1, pDomainsFile) != NULL) {
+        if (szDomainsLine[0] == TAB_COMMENT_CHAR) {
+            fprintf(pTmpFile, "%s\n", szDomainsLine);
+            continue;
+        }
 
-		char **ppszStrings = StrGetTabLineStrings(szDomainsLine);
+        char **ppszStrings = StrGetTabLineStrings(szDomainsLine);
 
-		if (ppszStrings == NULL) {
-			fprintf(pTmpFile, "%s\n", szDomainsLine);
-			continue;
-		}
+        if (ppszStrings == NULL) {
+            fprintf(pTmpFile, "%s\n", szDomainsLine);
+            continue;
+        }
 
-		int iFieldsCount = StrStringsCount(ppszStrings);
+        int iFieldsCount = StrStringsCount(ppszStrings);
 
-		if ((iFieldsCount >= domMax) && (stricmp(pszDomain, ppszStrings[domDomain]) == 0)) {
-			++iDomainsFound;
-		} else
-			fprintf(pTmpFile, "%s\n", szDomainsLine);
-		StrFreeStrings(ppszStrings);
-	}
-	fclose(pDomainsFile);
-	fclose(pTmpFile);
+        if ((iFieldsCount >= domMax) && (stricmp(pszDomain, ppszStrings[domDomain]) == 0)) {
+            ++iDomainsFound;
+        } else
+            fprintf(pTmpFile, "%s\n", szDomainsLine);
+        StrFreeStrings(ppszStrings);
+    }
+    fclose(pDomainsFile);
+    fclose(pTmpFile);
 
-	if (iDomainsFound == 0) {
-		SysRemove(szTmpFile);
-		RLckUnlockEX(hResLock);
+    if (iDomainsFound == 0) {
+        SysRemove(szTmpFile);
+        RLckUnlockEX(hResLock);
 
-		ErrSetErrorCode(ERR_DOMAIN_NOT_HANDLED, pszDomain);
-		return ERR_DOMAIN_NOT_HANDLED;
-	}
-	if (MscMoveFile(szTmpFile, szDomainsFilePath) < 0) {
-		ErrorPush();
-		RLckUnlockEX(hResLock);
-		return ErrorPop();
-	}
+        ErrSetErrorCode(ERR_DOMAIN_NOT_HANDLED, pszDomain);
+        return ERR_DOMAIN_NOT_HANDLED;
+    }
+    if (MscMoveFile(szTmpFile, szDomainsFilePath) < 0) {
+        ErrorPush();
+        RLckUnlockEX(hResLock);
+        return ErrorPop();
+    }
 
-	/* Rebuild indexes */
-	if (MDomRebuildDomainsIndexes(szDomainsFilePath) < 0) {
-		ErrorPush();
-		RLckUnlockEX(hResLock);
-		return ErrorPop();
-	}
+    /* Rebuild indexes */
+    if (MDomRebuildDomainsIndexes(szDomainsFilePath) < 0) {
+        ErrorPush();
+        RLckUnlockEX(hResLock);
+        return ErrorPop();
+    }
 
-	RLckUnlockEX(hResLock);
+    RLckUnlockEX(hResLock);
 
-	/* Domain cleanup */
-	if (UsrRemoveDomainUsers(pszDomain) < 0 ||
-	    UsrRemoveDomainAliases(pszDomain) < 0 ||
-	    ExAlRemoveDomainAliases(pszDomain) < 0 ||
-	    GwLkRemoveDomainLinks(pszDomain) < 0 ||
-	    ADomRemoveLinkedDomains(pszDomain) < 0)
-		return ErrGetErrorCode();
+    /* Domain cleanup */
+    if (UsrRemoveDomainUsers(pszDomain) < 0 ||
+        UsrRemoveDomainAliases(pszDomain) < 0 ||
+        ExAlRemoveDomainAliases(pszDomain) < 0 ||
+        GwLkRemoveDomainLinks(pszDomain) < 0 ||
+        ADomRemoveLinkedDomains(pszDomain) < 0)
+        return ErrGetErrorCode();
 
-	/* Try ( if defined ) to drop external auth domain */
-	UAthDropDomain(AUTH_SERVICE_POP3, pszDomain);
+    /* Try ( if defined ) to drop external auth domain */
+    UAthDropDomain(AUTH_SERVICE_POP3, pszDomain);
 
-	/* Directory cleanup */
-	char szDomainPath[SYS_MAX_PATH] = "";
+    /* Directory cleanup */
+    char szDomainPath[SYS_MAX_PATH] = "";
 
-	MDomGetDomainPath(pszDomain, szDomainPath, sizeof(szDomainPath), 0);
+    MDomGetDomainPath(pszDomain, szDomainPath, sizeof(szDomainPath), 0);
 
-	if (MscClearDirectory(szDomainPath) < 0)
-		return ErrGetErrorCode();
+    if (MscClearDirectory(szDomainPath) < 0)
+        return ErrGetErrorCode();
 
-	if (SysRemoveDir(szDomainPath) < 0)
-		return ErrGetErrorCode();
+    if (SysRemoveDir(szDomainPath) < 0)
+        return ErrGetErrorCode();
 
-	/* Remove the cmd alias directory */
-	if (USmlDeleteCmdAliasDomainDir(pszDomain) < 0)
-		return ErrGetErrorCode();
+    /* Remove the cmd alias directory */
+    if (USmlDeleteCmdAliasDomainDir(pszDomain) < 0)
+        return ErrGetErrorCode();
 
-	return 0;
+    return 0;
 }
 
 int MDomGetDomainsFileSnapShot(const char *pszFileName)
 {
-	char szDomainsFilePath[SYS_MAX_PATH] = "";
+    char szDomainsFilePath[SYS_MAX_PATH] = "";
 
-	MDomGetDomainsFilePath(szDomainsFilePath, sizeof(szDomainsFilePath));
+    MDomGetDomainsFilePath(szDomainsFilePath, sizeof(szDomainsFilePath));
 
-	char szResLock[SYS_MAX_PATH] = "";
-	RLCK_HANDLE hResLock = RLckLockSH(CfgGetBasedPath(szDomainsFilePath, szResLock,
-							  sizeof(szResLock)));
+    char szResLock[SYS_MAX_PATH] = "";
+    RLCK_HANDLE hResLock = RLckLockSH(CfgGetBasedPath(szDomainsFilePath, szResLock,
+                              sizeof(szResLock)));
 
-	if (hResLock == INVALID_RLCK_HANDLE)
-		return ErrGetErrorCode();
+    if (hResLock == INVALID_RLCK_HANDLE)
+        return ErrGetErrorCode();
 
-	if (MscCopyFile(pszFileName, szDomainsFilePath) < 0) {
-		ErrorPush();
-		RLckUnlockSH(hResLock);
-		return ErrorPop();
-	}
-	RLckUnlockSH(hResLock);
+    if (MscCopyFile(pszFileName, szDomainsFilePath) < 0) {
+        ErrorPush();
+        RLckUnlockSH(hResLock);
+        return ErrorPop();
+    }
+    RLckUnlockSH(hResLock);
 
-	return 0;
+    return 0;
 }
 
 DOMLS_HANDLE MDomOpenDB(void)
 {
-	DomainsScanData *pDSD = (DomainsScanData *) SysAlloc(sizeof(DomainsScanData));
+    DomainsScanData *pDSD = (DomainsScanData *) SysAlloc(sizeof(DomainsScanData));
 
-	if (pDSD == NULL)
-		return INVALID_DOMLS_HANDLE;
+    if (pDSD == NULL)
+        return INVALID_DOMLS_HANDLE;
 
-	UsrGetTmpFile(NULL, pDSD->szTmpDBFile, sizeof(pDSD->szTmpDBFile));
+    UsrGetTmpFile(NULL, pDSD->szTmpDBFile, sizeof(pDSD->szTmpDBFile));
 
-	if (MDomGetDomainsFileSnapShot(pDSD->szTmpDBFile) < 0) {
-		CheckRemoveFile(pDSD->szTmpDBFile);
-		SysFree(pDSD);
-		return INVALID_DOMLS_HANDLE;
-	}
+    if (MDomGetDomainsFileSnapShot(pDSD->szTmpDBFile) < 0) {
+        CheckRemoveFile(pDSD->szTmpDBFile);
+        SysFree(pDSD);
+        return INVALID_DOMLS_HANDLE;
+    }
 
-	if ((pDSD->pDBFile = fopen(pDSD->szTmpDBFile, "rt")) == NULL) {
-		SysRemove(pDSD->szTmpDBFile);
-		SysFree(pDSD);
-		return INVALID_DOMLS_HANDLE;
-	}
+    if ((pDSD->pDBFile = fopen(pDSD->szTmpDBFile, "rt")) == NULL) {
+        SysRemove(pDSD->szTmpDBFile);
+        SysFree(pDSD);
+        return INVALID_DOMLS_HANDLE;
+    }
 
-	return (DOMLS_HANDLE) pDSD;
+    return (DOMLS_HANDLE) pDSD;
 }
 
 void MDomCloseDB(DOMLS_HANDLE hDomainsDB)
 {
-	DomainsScanData *pDSD = (DomainsScanData *) hDomainsDB;
+    DomainsScanData *pDSD = (DomainsScanData *) hDomainsDB;
 
-	fclose(pDSD->pDBFile);
-	SysRemove(pDSD->szTmpDBFile);
-	SysFree(pDSD);
+    fclose(pDSD->pDBFile);
+    SysRemove(pDSD->szTmpDBFile);
+    SysFree(pDSD);
 }
 
 char const *MDomGetFirstDomain(DOMLS_HANDLE hDomainsDB)
 {
-	DomainsScanData *pDSD = (DomainsScanData *) hDomainsDB;
+    DomainsScanData *pDSD = (DomainsScanData *) hDomainsDB;
 
-	rewind(pDSD->pDBFile);
+    rewind(pDSD->pDBFile);
 
-	const char *pszDomain = NULL;
-	char szDomainsLine[MAIL_DOMAINS_LINE_MAX] = "";
+    const char *pszDomain = NULL;
+    char szDomainsLine[MAIL_DOMAINS_LINE_MAX] = "";
 
-	while ((pszDomain == NULL) &&
-	       (MscGetConfigLine(szDomainsLine, sizeof(szDomainsLine) - 1, pDSD->pDBFile) != NULL)) {  /* [i_a] */
-		char **ppszStrings = StrGetTabLineStrings(szDomainsLine);
+    while ((pszDomain == NULL) &&
+           (MscGetConfigLine(szDomainsLine, sizeof(szDomainsLine) - 1, pDSD->pDBFile) != NULL)) {  /* [i_a] */
+        char **ppszStrings = StrGetTabLineStrings(szDomainsLine);
 
-		if (ppszStrings == NULL)
-			continue;
+        if (ppszStrings == NULL)
+            continue;
 
-		int iFieldsCount = StrStringsCount(ppszStrings);
+        int iFieldsCount = StrStringsCount(ppszStrings);
 
-		if (iFieldsCount >= domMax) {
-			StrSNCpy(pDSD->szCurrDomain, ppszStrings[0]);
-			pszDomain = pDSD->szCurrDomain;
-		}
-		StrFreeStrings(ppszStrings);
-	}
+        if (iFieldsCount >= domMax) {
+            StrSNCpy(pDSD->szCurrDomain, ppszStrings[0]);
+            pszDomain = pDSD->szCurrDomain;
+        }
+        StrFreeStrings(ppszStrings);
+    }
 
-	return pszDomain;
+    return pszDomain;
 }
 
 char const *MDomGetNextDomain(DOMLS_HANDLE hDomainsDB)
 {
-	DomainsScanData *pDSD = (DomainsScanData *) hDomainsDB;
+    DomainsScanData *pDSD = (DomainsScanData *) hDomainsDB;
 
-	const char *pszDomain = NULL;
-	char szDomainsLine[MAIL_DOMAINS_LINE_MAX] = "";
+    const char *pszDomain = NULL;
+    char szDomainsLine[MAIL_DOMAINS_LINE_MAX] = "";
 
-	while ((pszDomain == NULL) &&
-	       (MscGetConfigLine(szDomainsLine, sizeof(szDomainsLine) - 1, pDSD->pDBFile) != NULL)) {  /* [i_a] */
-		char **ppszStrings = StrGetTabLineStrings(szDomainsLine);
+    while ((pszDomain == NULL) &&
+           (MscGetConfigLine(szDomainsLine, sizeof(szDomainsLine) - 1, pDSD->pDBFile) != NULL)) {  /* [i_a] */
+        char **ppszStrings = StrGetTabLineStrings(szDomainsLine);
 
-		if (ppszStrings == NULL)
-			continue;
+        if (ppszStrings == NULL)
+            continue;
 
-		int iFieldsCount = StrStringsCount(ppszStrings);
+        int iFieldsCount = StrStringsCount(ppszStrings);
 
-		if (iFieldsCount >= domMax) {
-			StrSNCpy(pDSD->szCurrDomain, ppszStrings[0]);
-			pszDomain = pDSD->szCurrDomain;
-		}
-		StrFreeStrings(ppszStrings);
-	}
+        if (iFieldsCount >= domMax) {
+            StrSNCpy(pDSD->szCurrDomain, ppszStrings[0]);
+            pszDomain = pDSD->szCurrDomain;
+        }
+        StrFreeStrings(ppszStrings);
+    }
 
-	return pszDomain;
+    return pszDomain;
 }
 
 int MDomGetClientDomain(char const *pszFQDN, char *pszClientDomain, int iMaxDomain)
 {
-	for (; pszFQDN != NULL;) {
-		if (MDomIsHandledDomain(pszFQDN) == 0) {
-			StrNCpy(pszClientDomain, pszFQDN, iMaxDomain);
+    for (; pszFQDN != NULL;) {
+        if (MDomIsHandledDomain(pszFQDN) == 0) {
+            StrNCpy(pszClientDomain, pszFQDN, iMaxDomain);
 
-			return 0;
-		}
-		if ((pszFQDN = strchr(pszFQDN, '.')) != NULL)
-			++pszFQDN;
-	}
+            return 0;
+        }
+        if ((pszFQDN = strchr(pszFQDN, '.')) != NULL)
+            ++pszFQDN;
+    }
 
-	ErrSetErrorCode(ERR_NO_HANDLED_DOMAIN);
-	return ERR_NO_HANDLED_DOMAIN;
+    ErrSetErrorCode(ERR_NO_HANDLED_DOMAIN);
+    return ERR_NO_HANDLED_DOMAIN;
 }
 
 int MDomIsHandledDomain(char const *pszDomain)
 {
-	/* Check for alias domain */
-	char szADomain[MAX_HOST_NAME] = "";
+    /* Check for alias domain */
+    char szADomain[MAX_HOST_NAME] = "";
 
-	if (ADomLookupDomain(pszDomain, szADomain, true))
-		pszDomain = szADomain;
+    if (ADomLookupDomain(pszDomain, szADomain, true))
+        pszDomain = szADomain;
 
-	return MDomLookupDomain(pszDomain);
+    return MDomLookupDomain(pszDomain);
 }
 

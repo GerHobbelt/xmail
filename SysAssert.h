@@ -24,7 +24,7 @@
 #define _SYSASSERT_H
 
 void XmailDie(const char *expr, int line, const char *srcfile);
-#define ASSERT(expr)			do { if (!(expr)) XmailDie(#expr, __LINE__, __FILE__); } while (0)
+#define ASSERT(expr)            do { if (!(expr)) XmailDie(#expr, __LINE__, __FILE__); } while (0)
 
 #endif
 

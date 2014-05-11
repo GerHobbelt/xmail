@@ -34,65 +34,65 @@
 typedef void *SYS_EVENTFD;
 
 struct ThreadExitHook {
-	void (*pfHook)(void *, SYS_THREAD, int);
-	void *pPrivate;
+    void (*pfHook)(void *, SYS_THREAD, int);
+    void *pPrivate;
 };
 
 struct WaitCond {
-	pthread_mutex_t Mtx;
-	pthread_cond_t Cond;
+    pthread_mutex_t Mtx;
+    pthread_cond_t Cond;
 };
 
 struct SemData {
-	WaitCond Wait;
-	int iSemCounter;
-	int iMaxCount;
+    WaitCond Wait;
+    int iSemCounter;
+    int iMaxCount;
 };
 
 struct MutexData {
-	WaitCond Wait;
-	int iLocked;
+    WaitCond Wait;
+    int iLocked;
 };
 
 struct EventData {
-	WaitCond Wait;
-	int iSignaled;
-	int iManualReset;
+    WaitCond Wait;
+    int iSignaled;
+    int iManualReset;
 };
 
 struct PEventData {
-	SYS_EVENTFD hEventfd;
-	int iManualReset;
+    SYS_EVENTFD hEventfd;
+    int iManualReset;
 };
 
 struct ThrData {
-	WaitCond Wait;
-	pthread_t ThreadId;
-	unsigned int (*ThreadProc) (void *);
-	void *pThreadData;
-	int iThreadEnded;
-	int iExitCode;
-	int iUseCount;
+    WaitCond Wait;
+    pthread_t ThreadId;
+    unsigned int (*ThreadProc) (void *);
+    void *pThreadData;
+    int iThreadEnded;
+    int iExitCode;
+    int iUseCount;
 };
 
 union FilledDirent {
-	struct dirent DE;
-	char Pad[sizeof(struct dirent) + SYS_MAX_PATH];
+    struct dirent DE;
+    char Pad[sizeof(struct dirent) + SYS_MAX_PATH];
 };
 
 struct FileFindData {
-	char szPath[SYS_MAX_PATH];
-	DIR *pDIR;
-	FilledDirent FDE;
-	struct stat FStat;
+    char szPath[SYS_MAX_PATH];
+    DIR *pDIR;
+    FilledDirent FDE;
+    struct stat FStat;
 };
 
 struct MMapData {
-	unsigned long ulPageSize;
-	int iFD;
-	int iNumMaps;
-	SYS_OFF_T llFileSize;
-	unsigned long ulFlags;
+    unsigned long ulPageSize;
+    int iFD;
+    int iNumMaps;
+    SYS_OFF_T llFileSize;
+    unsigned long ulFlags;
 };
 
 
@@ -100,7 +100,7 @@ int SysDepInitLibrary(void);
 void SysDepCleanupLibrary(void);
 
 int SysSendFileMMap(SYS_SOCKET SockFD, char const *pszFileName, SYS_OFF_T llBaseOffset,
-		    SYS_OFF_T llEndOffset, int iTimeout);
+            SYS_OFF_T llEndOffset, int iTimeout);
 int SysBlockFD(int iFD, int iBlocking);
 int SysFdWait(int iFD, unsigned int uEvents, int iTimeout);
 

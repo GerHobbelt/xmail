@@ -243,7 +243,7 @@ BUILD
       (located in "win32ssl\dll") inside the same folder where the XMail.exe binary resides.
 
       C:> nmake /f Makefile.win
-      
+
   If once you run the XMail binaries, Windows complains about missing DLLs, your system
       is probably missing the Microsoft CRT redistributable package, that you can download
       here L<http://www.xmailserver.org/vcredist_x86.exe>.
@@ -2608,7 +2608,7 @@ SSL CONFIGURATION
     generate a certificate request file:
 
       $ openssl req -new -key server.key -out cert.csr
-      
+
   C:> openssl req -new -key server.key -out cert.csr -config openssl.cnf
 
     The 'openssl.cnf' file is supplied inside the Xmail's Windows binary

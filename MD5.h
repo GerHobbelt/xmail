@@ -28,10 +28,10 @@
 typedef SYS_UINT32 md5_u32;
 
 typedef struct s_md5_ctx {
-	md5_u32 i[2];
-	md5_u32 buf[4];
-	unsigned char in[64];
-	unsigned char digest[MD5_DIGEST_LEN];
+    md5_u32 i[2];
+    md5_u32 buf[4];
+    unsigned char in[64];
+    unsigned char digest[MD5_DIGEST_LEN];
 } md5_ctx_t;
 
 void md5_init(md5_ctx_t *mdctx);

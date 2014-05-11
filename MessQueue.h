@@ -44,17 +44,17 @@ typedef struct QMSG_HANDLE_struct {
 } *QMSG_HANDLE;
 
 QUEUE_HANDLE QueOpen(char const *pszRootPath, int iMaxRetry, int iRetryTimeout,
-		     int iRetryIncrRatio, int iNumDirsLevel = STD_QUEUEFS_DIRS_X_LEVEL);
+             int iRetryIncrRatio, int iNumDirsLevel = STD_QUEUEFS_DIRS_X_LEVEL);
 int QueClose(QUEUE_HANDLE hQueue);
 int QueGetDirsLevel(QUEUE_HANDLE hQueue);
 char const *QueGetRootPath(QUEUE_HANDLE hQueue);
 char *QueLoadLastLogEntry(char const *pszLogFilePath);
 QMSG_HANDLE QueCreateMessage(QUEUE_HANDLE hQueue);
 int QueGetFilePath(QUEUE_HANDLE hQueue, QMSG_HANDLE hMessage, char *pszFilePath,
-		   char const *pszQueueDir = NULL);
+           char const *pszQueueDir = NULL);
 int QueCloseMessage(QUEUE_HANDLE hQueue, QMSG_HANDLE hMessage);
 QMSG_HANDLE QueGetHandle(QUEUE_HANDLE hQueue, int iLevel1, int iLevel2,
-			 char const *pszQueueDir, char const *pszFileName);
+             char const *pszQueueDir, char const *pszFileName);
 char const *QueGetFileName(QMSG_HANDLE hMessage);
 char const *QueGetQueueDir(QMSG_HANDLE hMessage);
 int QueGetLevel1(QMSG_HANDLE hMessage);

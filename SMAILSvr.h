@@ -27,8 +27,8 @@
 #define SMAILF_LOG_ENABLED          (1 << 1)
 
 struct SMAILConfig {
-	unsigned long ulFlags;
-	long lThreadCount;
+    unsigned long ulFlags;
+    long lThreadCount;
 
 };
 

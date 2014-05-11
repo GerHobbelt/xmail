@@ -27,7 +27,7 @@
 
 int SysDepInitLibrary(void)
 {
-	return 0;
+    return 0;
 }
 
 void SysDepCleanupLibrary(void)
@@ -39,93 +39,93 @@ void SysDepCleanupLibrary(void)
 
 static int SysGetPriorityMin(int iPolicy)
 {
-	int iPriority = 0;
+    int iPriority = 0;
 
-	switch (iPolicy) {
-	case SCHED_FIFO:
-		iPriority = 0;
-		break;
-	case SCHED_OTHER:
-		iPriority = -20;
-		break;
-	case SCHED_RR:
-		iPriority = 0;
-		break;
-	}
+    switch (iPolicy) {
+    case SCHED_FIFO:
+        iPriority = 0;
+        break;
+    case SCHED_OTHER:
+        iPriority = -20;
+        break;
+    case SCHED_RR:
+        iPriority = 0;
+        break;
+    }
 
-	return iPriority;
+    return iPriority;
 }
 
 static int SysGetPriorityMax(int iPolicy)
 {
-	int iPriority = 0;
+    int iPriority = 0;
 
-	switch (iPolicy) {
-	case SCHED_FIFO:
-		iPriority = 31;
-		break;
-	case SCHED_OTHER:
-		iPriority = +20;
-		break;
-	case SCHED_RR:
-		iPriority = 31;
-		break;
-	}
+    switch (iPolicy) {
+    case SCHED_FIFO:
+        iPriority = 31;
+        break;
+    case SCHED_OTHER:
+        iPriority = +20;
+        break;
+    case SCHED_RR:
+        iPriority = 31;
+        break;
+    }
 
-	return iPriority;
+    return iPriority;
 }
 
 #endif
 
 int SysSetThreadPriority(SYS_THREAD ThreadID, int iPriority)
 {
-	ThrData *pTD = (ThrData *) ThreadID;
-	int iPolicy, iMinPriority, iMaxPriority, iStdPriority;
-	struct sched_param SchParam;
+    ThrData *pTD = (ThrData *) ThreadID;
+    int iPolicy, iMinPriority, iMaxPriority, iStdPriority;
+    struct sched_param SchParam;
 
-	if (pthread_getschedparam(pTD->ThreadId, &iPolicy, &SchParam) != 0) {
-		ErrSetErrorCode(ERR_SET_THREAD_PRIORITY);
-		return ERR_SET_THREAD_PRIORITY;
-	}
+    if (pthread_getschedparam(pTD->ThreadId, &iPolicy, &SchParam) != 0) {
+        ErrSetErrorCode(ERR_SET_THREAD_PRIORITY);
+        return ERR_SET_THREAD_PRIORITY;
+    }
 #if defined(__FREEBSD__) || defined (__DARWIN__)
-	iMinPriority = sched_get_priority_min(iPolicy);
-	iMaxPriority = sched_get_priority_max(iPolicy);
+    iMinPriority = sched_get_priority_min(iPolicy);
+    iMaxPriority = sched_get_priority_max(iPolicy);
 #else
-	iMinPriority = SysGetPriorityMin(iPolicy);
-	iMaxPriority = SysGetPriorityMax(iPolicy);
+    iMinPriority = SysGetPriorityMin(iPolicy);
+    iMaxPriority = SysGetPriorityMax(iPolicy);
 #endif
 
-	iStdPriority = (iMinPriority + iMaxPriority) / 2;
+    iStdPriority = (iMinPriority + iMaxPriority) / 2;
 
-	switch (iPriority) {
-	case SYS_PRIORITY_NORMAL:
-		SchParam.sched_priority = iStdPriority;
-		break;
+    switch (iPriority) {
+    case SYS_PRIORITY_NORMAL:
+        SchParam.sched_priority = iStdPriority;
+        break;
 
-	case SYS_PRIORITY_LOWER:
-		SchParam.sched_priority = iStdPriority - (iStdPriority - iMinPriority) / 3;
-		break;
+    case SYS_PRIORITY_LOWER:
+        SchParam.sched_priority = iStdPriority - (iStdPriority - iMinPriority) / 3;
+        break;
 
-	case SYS_PRIORITY_HIGHER:
-		SchParam.sched_priority = iStdPriority + (iStdPriority - iMinPriority) / 3;
-		break;
-	}
-	if (pthread_setschedparam(pTD->ThreadId, iPolicy, &SchParam) != 0) {
-		ErrSetErrorCode(ERR_SET_THREAD_PRIORITY);
-		return ERR_SET_THREAD_PRIORITY;
-	}
+    case SYS_PRIORITY_HIGHER:
+        SchParam.sched_priority = iStdPriority + (iStdPriority - iMinPriority) / 3;
+        break;
+    }
+    if (pthread_setschedparam(pTD->ThreadId, iPolicy, &SchParam) != 0) {
+        ErrSetErrorCode(ERR_SET_THREAD_PRIORITY);
+        return ERR_SET_THREAD_PRIORITY;
+    }
 
-	return 0;
+    return 0;
 }
 
 long SysGetTimeZone(void)
 {
-	time_t tCurr = time(NULL);
-	struct tm tmCurr;
+    time_t tCurr = time(NULL);
+    struct tm tmCurr;
 
-	localtime_r(&tCurr, &tmCurr);
+    localtime_r(&tCurr, &tmCurr);
 
-	return -tmCurr.tm_gmtoff + tmCurr.tm_isdst * 3600;
+    return -tmCurr.tm_gmtoff + tmCurr.tm_isdst * 3600;
 }
 
 int SysGetDiskSpace(char const *pszPath, SYS_INT64 *pTotal, SYS_INT64 *pFree)
@@ -135,95 +135,95 @@ int SysGetDiskSpace(char const *pszPath, SYS_INT64 *pTotal, SYS_INT64 *pFree)
 #else
 #define XMAIL_STATFS statfs
 #endif
-	struct XMAIL_STATFS SFStat;
+    struct XMAIL_STATFS SFStat;
 
-	if (XMAIL_STATFS(pszPath, &SFStat) != 0) {
-		ErrSetErrorCode(ERR_GET_DISK_SPACE_INFO);
-		return ERR_GET_DISK_SPACE_INFO;
-	}
-	*pTotal = (SYS_INT64) SFStat.f_bsize * (SYS_INT64) SFStat.f_blocks;
-	*pFree = (SYS_INT64) SFStat.f_bsize * (SYS_INT64) SFStat.f_bavail;
+    if (XMAIL_STATFS(pszPath, &SFStat) != 0) {
+        ErrSetErrorCode(ERR_GET_DISK_SPACE_INFO);
+        return ERR_GET_DISK_SPACE_INFO;
+    }
+    *pTotal = (SYS_INT64) SFStat.f_bsize * (SYS_INT64) SFStat.f_blocks;
+    *pFree = (SYS_INT64) SFStat.f_bsize * (SYS_INT64) SFStat.f_bavail;
 
-	return 0;
+    return 0;
 }
 
 int SysMemoryInfo(SYS_INT64 *pRamTotal, SYS_INT64 *pRamFree,
-		  SYS_INT64 *pVirtTotal, SYS_INT64 *pVirtFree)
+          SYS_INT64 *pVirtTotal, SYS_INT64 *pVirtFree)
 {
 #if defined(__FREEBSD__)
-	int i, iValue, iSwaps;
-	size_t DataLen;
-	SYS_INT64 PageSize;
-	kvm_t *pKD;
-	struct kvm_swap KSwap[8];
-	char szErrBuffer[_POSIX2_LINE_MAX] = "";
+    int i, iValue, iSwaps;
+    size_t DataLen;
+    SYS_INT64 PageSize;
+    kvm_t *pKD;
+    struct kvm_swap KSwap[8];
+    char szErrBuffer[_POSIX2_LINE_MAX] = "";
 
-	DataLen = sizeof(iValue);
-	if (sysctlbyname("vm.stats.vm.v_page_size", &iValue, &DataLen, NULL, 0) != 0) {
-		ErrSetErrorCode(ERR_GET_MEMORY_INFO);
-		return ERR_GET_MEMORY_INFO;
-	}
-	PageSize = iValue;
+    DataLen = sizeof(iValue);
+    if (sysctlbyname("vm.stats.vm.v_page_size", &iValue, &DataLen, NULL, 0) != 0) {
+        ErrSetErrorCode(ERR_GET_MEMORY_INFO);
+        return ERR_GET_MEMORY_INFO;
+    }
+    PageSize = iValue;
 
-	DataLen = sizeof(iValue);
-	if (sysctlbyname("vm.stats.vm.v_page_count", &iValue, &DataLen, NULL, 0) != 0) {
-		ErrSetErrorCode(ERR_GET_MEMORY_INFO);
-		return ERR_GET_MEMORY_INFO;
-	}
-	*pVirtTotal = *pRamTotal = (SYS_INT64) iValue * PageSize;
+    DataLen = sizeof(iValue);
+    if (sysctlbyname("vm.stats.vm.v_page_count", &iValue, &DataLen, NULL, 0) != 0) {
+        ErrSetErrorCode(ERR_GET_MEMORY_INFO);
+        return ERR_GET_MEMORY_INFO;
+    }
+    *pVirtTotal = *pRamTotal = (SYS_INT64) iValue * PageSize;
 
-	DataLen = sizeof(iValue);
-	if (sysctlbyname("vm.stats.vm.v_free_count", &iValue, &DataLen, NULL, 0) != 0) {
-		ErrSetErrorCode(ERR_GET_MEMORY_INFO);
-		return ERR_GET_MEMORY_INFO;
-	}
-	*pVirtFree = *pRamFree = (SYS_INT64) iValue * PageSize;
+    DataLen = sizeof(iValue);
+    if (sysctlbyname("vm.stats.vm.v_free_count", &iValue, &DataLen, NULL, 0) != 0) {
+        ErrSetErrorCode(ERR_GET_MEMORY_INFO);
+        return ERR_GET_MEMORY_INFO;
+    }
+    *pVirtFree = *pRamFree = (SYS_INT64) iValue * PageSize;
 
-	/* Get swap infos through the kvm interface */
-	if ((pKD = kvm_openfiles(NULL, NULL, NULL, O_RDONLY, szErrBuffer)) == NULL) {
-		ErrSetErrorCode(ERR_GET_MEMORY_INFO);
-		return ERR_GET_MEMORY_INFO;
-	}
+    /* Get swap infos through the kvm interface */
+    if ((pKD = kvm_openfiles(NULL, NULL, NULL, O_RDONLY, szErrBuffer)) == NULL) {
+        ErrSetErrorCode(ERR_GET_MEMORY_INFO);
+        return ERR_GET_MEMORY_INFO;
+    }
 
-	iSwaps = kvm_getswapinfo(pKD, KSwap, CountOf(KSwap), SWIF_DEV_PREFIX);
-	for (i = 0; i < iSwaps; i++) {
-		*pVirtFree += (SYS_INT64) (KSwap[i].ksw_total - KSwap[i].ksw_used) * PageSize;
-		*pVirtTotal += (SYS_INT64) KSwap[i].ksw_total * PageSize;
-	}
-	kvm_close(pKD);
+    iSwaps = kvm_getswapinfo(pKD, KSwap, CountOf(KSwap), SWIF_DEV_PREFIX);
+    for (i = 0; i < iSwaps; i++) {
+        *pVirtFree += (SYS_INT64) (KSwap[i].ksw_total - KSwap[i].ksw_used) * PageSize;
+        *pVirtTotal += (SYS_INT64) KSwap[i].ksw_total * PageSize;
+    }
+    kvm_close(pKD);
 
-	return 0;
+    return 0;
 #else
-	int iResult = 0, iHwPhisMem, iHwPageSize;
-	size_t DataLen;
-	struct vmtotal VmMeter;
-	static int iHwPhisMem_mib[] = { CTL_HW, HW_PHYSMEM };
-	static int iHwPageSize_mib[] = { CTL_HW, HW_PAGESIZE };
-	static int VmMeter_mib[] = { CTL_VM, VM_METER };
+    int iResult = 0, iHwPhisMem, iHwPageSize;
+    size_t DataLen;
+    struct vmtotal VmMeter;
+    static int iHwPhisMem_mib[] = { CTL_HW, HW_PHYSMEM };
+    static int iHwPageSize_mib[] = { CTL_HW, HW_PAGESIZE };
+    static int VmMeter_mib[] = { CTL_VM, VM_METER };
 
-	DataLen = sizeof(iHwPhisMem);
-	if (iResult >= 0)
-		iResult = sysctl(iHwPhisMem_mib, 2, &iHwPhisMem, &DataLen, NULL, 0);
+    DataLen = sizeof(iHwPhisMem);
+    if (iResult >= 0)
+        iResult = sysctl(iHwPhisMem_mib, 2, &iHwPhisMem, &DataLen, NULL, 0);
 
-	DataLen = sizeof(iHwPageSize);
-	if (iResult >= 0)
-		iResult = sysctl(iHwPageSize_mib, 2, &iHwPageSize, &DataLen, NULL, 0);
+    DataLen = sizeof(iHwPageSize);
+    if (iResult >= 0)
+        iResult = sysctl(iHwPageSize_mib, 2, &iHwPageSize, &DataLen, NULL, 0);
 
-	DataLen = sizeof(vmtotal);
-	if (iResult >= 0)
-		iResult = sysctl(VmMeter_mib, 2, &VmMeter, &DataLen, NULL, 0);
+    DataLen = sizeof(vmtotal);
+    if (iResult >= 0)
+        iResult = sysctl(VmMeter_mib, 2, &VmMeter, &DataLen, NULL, 0);
 
-	if (iResult < 0) {
-		ErrSetErrorCode(ERR_GET_MEMORY_INFO);
-		return ERR_GET_MEMORY_INFO;
-	}
+    if (iResult < 0) {
+        ErrSetErrorCode(ERR_GET_MEMORY_INFO);
+        return ERR_GET_MEMORY_INFO;
+    }
 
-	*pRamTotal = iHwPhisMem;
-	*pRamFree = (SYS_INT64) iHwPageSize *(SYS_INT64) VmMeter.t_free;
-	*pVirtTotal = (SYS_INT64) iHwPageSize *(SYS_INT64) VmMeter.t_vm;
-	*pVirtFree = *pVirtTotal - (SYS_INT64) iHwPageSize *(SYS_INT64) VmMeter.t_avm;
+    *pRamTotal = iHwPhisMem;
+    *pRamFree = (SYS_INT64) iHwPageSize *(SYS_INT64) VmMeter.t_free;
+    *pVirtTotal = (SYS_INT64) iHwPageSize *(SYS_INT64) VmMeter.t_vm;
+    *pVirtFree = *pVirtTotal - (SYS_INT64) iHwPageSize *(SYS_INT64) VmMeter.t_avm;
 
-	return 0;
+    return 0;
 #endif
 
 }

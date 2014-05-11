@@ -33,7 +33,7 @@ typedef struct ARRAY_HANDLE_struct {
 
 ARRAY_HANDLE ArrayCreate(unsigned long ulSize);
 void ArrayFree(ARRAY_HANDLE hArray, void (*pFree)(void *, void *),
-	       void *pPrivate);
+           void *pPrivate);
 int ArraySet(ARRAY_HANDLE hArray, unsigned long ulIdx, void *pData);
 unsigned long ArrayCount(ARRAY_HANDLE hArray);
 void *ArrayGet(ARRAY_HANDLE hArray, unsigned long ulIdx);

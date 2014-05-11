@@ -26,86 +26,86 @@
 #include "AppDefines.h"
 
 struct EventfdData {
-	pthread_mutex_t Mtx;
-	int iSignaled;
-	int iEventfd;
+    pthread_mutex_t Mtx;
+    int iSignaled;
+    int iEventfd;
 };
 
 SYS_EVENTFD SysEventfdCreate(void)
 {
-	EventfdData *pEFD;
+    EventfdData *pEFD;
 
-	if ((pEFD = (EventfdData *) SysAlloc(sizeof(EventfdData))) == NULL)
-		return SYS_INVALID_EVENTFD;
-	if (pthread_mutex_init(&pEFD->Mtx, NULL) != 0) {
-		SysFree(pEFD);
-		ErrSetErrorCode(ERR_MUTEXINIT);
-		return SYS_INVALID_EVENTFD;
-	}
-	if ((pEFD->iEventfd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC)) == -1) {
-		pthread_mutex_destroy(&pEFD->Mtx);
-		SysFree(pEFD);
-		ErrSetErrorCode(ERR_EVENTFD);
-		return SYS_INVALID_EVENTFD;
-	}
+    if ((pEFD = (EventfdData *) SysAlloc(sizeof(EventfdData))) == NULL)
+        return SYS_INVALID_EVENTFD;
+    if (pthread_mutex_init(&pEFD->Mtx, NULL) != 0) {
+        SysFree(pEFD);
+        ErrSetErrorCode(ERR_MUTEXINIT);
+        return SYS_INVALID_EVENTFD;
+    }
+    if ((pEFD->iEventfd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC)) == -1) {
+        pthread_mutex_destroy(&pEFD->Mtx);
+        SysFree(pEFD);
+        ErrSetErrorCode(ERR_EVENTFD);
+        return SYS_INVALID_EVENTFD;
+    }
 
-	return (SYS_EVENTFD) pEFD;
+    return (SYS_EVENTFD) pEFD;
 }
 
 int SysEventfdClose(SYS_EVENTFD hEventfd)
 {
-	EventfdData *pEFD = (EventfdData *) hEventfd;
+    EventfdData *pEFD = (EventfdData *) hEventfd;
 
-	if (pEFD != NULL) {
-		close(pEFD->iEventfd);
-		pthread_mutex_destroy(&pEFD->Mtx);
-		SysFree(pEFD);
-	}
+    if (pEFD != NULL) {
+        close(pEFD->iEventfd);
+        pthread_mutex_destroy(&pEFD->Mtx);
+        SysFree(pEFD);
+    }
 
-	return 0;
+    return 0;
 }
 
 int SysEventfdWaitFD(SYS_EVENTFD hEventfd)
 {
-	EventfdData *pEFD = (EventfdData *) hEventfd;
+    EventfdData *pEFD = (EventfdData *) hEventfd;
 
-	return pEFD->iEventfd;
+    return pEFD->iEventfd;
 }
 
 int SysEventfdSet(SYS_EVENTFD hEventfd)
 {
-	EventfdData *pEFD = (EventfdData *) hEventfd;
-	SYS_UINT64 Value = 1;
+    EventfdData *pEFD = (EventfdData *) hEventfd;
+    SYS_UINT64 Value = 1;
 
-	pthread_mutex_lock(&pEFD->Mtx);
-	if (pEFD->iSignaled == 0) {
-		write(pEFD->iEventfd, &Value, sizeof(Value));
-		pEFD->iSignaled++;
-	}
-	pthread_mutex_unlock(&pEFD->Mtx);
+    pthread_mutex_lock(&pEFD->Mtx);
+    if (pEFD->iSignaled == 0) {
+        write(pEFD->iEventfd, &Value, sizeof(Value));
+        pEFD->iSignaled++;
+    }
+    pthread_mutex_unlock(&pEFD->Mtx);
 
-	return 0;
+    return 0;
 }
 
 int SysEventfdReset(SYS_EVENTFD hEventfd)
 {
-	EventfdData *pEFD = (EventfdData *) hEventfd;
-	int iCount = 0;
-	SYS_UINT64 Value;
+    EventfdData *pEFD = (EventfdData *) hEventfd;
+    int iCount = 0;
+    SYS_UINT64 Value;
 
-	pthread_mutex_lock(&pEFD->Mtx);
-	if (pEFD->iSignaled > 0) {
-		/*
-		 * We write no more than one byte on the pipe (see above the
-		 * SysEventfdSet() function), so we need one read of one byte
-		 * only to flush it.
-		 */
-		if (read(pEFD->iEventfd, &Value, sizeof(Value)) == sizeof(Value))
-			iCount++;
-		pEFD->iSignaled = 0;
-	}
-	pthread_mutex_unlock(&pEFD->Mtx);
+    pthread_mutex_lock(&pEFD->Mtx);
+    if (pEFD->iSignaled > 0) {
+        /*
+         * We write no more than one byte on the pipe (see above the
+         * SysEventfdSet() function), so we need one read of one byte
+         * only to flush it.
+         */
+        if (read(pEFD->iEventfd, &Value, sizeof(Value)) == sizeof(Value))
+            iCount++;
+        pEFD->iSignaled = 0;
+    }
+    pthread_mutex_unlock(&pEFD->Mtx);
 
-	return iCount;
+    return iCount;
 }
 

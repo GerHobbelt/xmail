@@ -33,12 +33,12 @@
 #define POP3F_HANG_ON_BADLOGIN      (1 << 1)
 
 struct POP3Config {
-	unsigned long ulFlags;
-	long lThreadCount;
-	long lMaxThreads;
-	int iSessionTimeout;
-	int iTimeout;
-	int iBadLoginWait;
+    unsigned long ulFlags;
+    long lThreadCount;
+    long lMaxThreads;
+    int iSessionTimeout;
+    int iTimeout;
+    int iBadLoginWait;
 };
 
 unsigned int POP3ClientThread(void *pThreadData);

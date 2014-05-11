@@ -32,13 +32,13 @@
 #define SMTPF_LOG_ENABLED           (1 << 0)
 
 struct SMTPConfig {
-	unsigned long ulFlags;
-	long lThreadCount;
-	long lMaxThreads;
-	int iSessionTimeout;
-	int iTimeout;
-	int iMaxRcpts;
-	unsigned int uPopAuthExpireTime;
+    unsigned long ulFlags;
+    long lThreadCount;
+    long lMaxThreads;
+    int iSessionTimeout;
+    int iTimeout;
+    int iMaxRcpts;
+    unsigned int uPopAuthExpireTime;
 };
 
 unsigned int SMTPClientThread(void *pThreadData);

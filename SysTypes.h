@@ -27,28 +27,28 @@
 
 #include "SysTypesWin.h"
 
-#else				// #ifdef WIN32
+#else               // #ifdef WIN32
 #ifdef __LINUX__
 
 #include "SysTypesLinux.h"
 
-#else				// #ifdef __LINUX__
+#else               // #ifdef __LINUX__
 #ifdef __SOLARIS__
 
 #include "SysTypesSolaris.h"
 
-#else				// #ifdef __SOLARIS__
+#else               // #ifdef __SOLARIS__
 #ifdef __BSD__
 
 #include "SysTypesBSD.h"
 
-#else				// #ifdef __BSD__
+#else               // #ifdef __BSD__
 
 #error System type not defined
 
-#endif				// #ifdef __BSD__
-#endif				// #ifdef __SOLARIS__
-#endif				// #ifdef __LINUX__
-#endif				// #ifdef WIN32
+#endif              // #ifdef __BSD__
+#endif              // #ifdef __SOLARIS__
+#endif              // #ifdef __LINUX__
+#endif              // #ifdef WIN32
 
 #endif

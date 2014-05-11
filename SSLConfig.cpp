@@ -39,56 +39,56 @@
 
 int CSslBindSetup(SslServerBind *pSSLB)
 {
-	SVRCFG_HANDLE hCfg;
-	char szMailRoot[SYS_MAX_PATH] = "", szPath[SYS_MAX_PATH] = "";
+    SVRCFG_HANDLE hCfg;
+    char szMailRoot[SYS_MAX_PATH] = "", szPath[SYS_MAX_PATH] = "";
 
-	if ((hCfg = SvrGetConfigHandle()) == INVALID_SVRCFG_HANDLE)
-		return ErrGetErrorCode();
+    if ((hCfg = SvrGetConfigHandle()) == INVALID_SVRCFG_HANDLE)
+        return ErrGetErrorCode();
 
-	ZeroData(*pSSLB);
-	CfgGetRootPath(szMailRoot, sizeof(szMailRoot));
+    ZeroData(*pSSLB);
+    CfgGetRootPath(szMailRoot, sizeof(szMailRoot));
 
-	SysSNPrintf(szPath, sizeof(szPath) - 1, "%sserver.cert", szMailRoot);
-	pSSLB->pszCertFile = SysStrDup(szPath);
+    SysSNPrintf(szPath, sizeof(szPath) - 1, "%sserver.cert", szMailRoot);
+    pSSLB->pszCertFile = SysStrDup(szPath);
 
-	SysSNPrintf(szPath, sizeof(szPath) - 1, "%sserver.key", szMailRoot);
-	pSSLB->pszKeyFile = SysStrDup(szPath);
+    SysSNPrintf(szPath, sizeof(szPath) - 1, "%sserver.key", szMailRoot);
+    pSSLB->pszKeyFile = SysStrDup(szPath);
 
-	if (SvrTestConfigFlag("SSLUseCertsFile", false, hCfg)) {
-		SysSNPrintf(szPath, sizeof(szPath) - 1, "%scerts.pem", szMailRoot);
-		if (SysExistFile(szPath))
-			pSSLB->pszCAFile = SysStrDup(szPath);
-	}
+    if (SvrTestConfigFlag("SSLUseCertsFile", false, hCfg)) {
+        SysSNPrintf(szPath, sizeof(szPath) - 1, "%scerts.pem", szMailRoot);
+        if (SysExistFile(szPath))
+            pSSLB->pszCAFile = SysStrDup(szPath);
+    }
 
-	if (SvrTestConfigFlag("SSLUseCertsDir", false, hCfg)) {
-		SysSNPrintf(szPath, sizeof(szPath) - 1, "%scerts", szMailRoot);
-		if (SysExistDir(szPath))
-			pSSLB->pszCAPath = SysStrDup(szPath);
-	}
+    if (SvrTestConfigFlag("SSLUseCertsDir", false, hCfg)) {
+        SysSNPrintf(szPath, sizeof(szPath) - 1, "%scerts", szMailRoot);
+        if (SysExistDir(szPath))
+            pSSLB->pszCAPath = SysStrDup(szPath);
+    }
 
-	if (SvrTestConfigFlag("SSLWantVerify", false, hCfg))
-		pSSLB->ulFlags |= BSSLF_WANT_VERIFY;
+    if (SvrTestConfigFlag("SSLWantVerify", false, hCfg))
+        pSSLB->ulFlags |= BSSLF_WANT_VERIFY;
 
-	if (SvrTestConfigFlag("SSLAllowSelfSigned", false, hCfg))
-		pSSLB->ulFlags |= BSSLF_ALLOW_SEFLSIGNED;
+    if (SvrTestConfigFlag("SSLAllowSelfSigned", false, hCfg))
+        pSSLB->ulFlags |= BSSLF_ALLOW_SEFLSIGNED;
 
-	if (SvrTestConfigFlag("SSLWantCert", false, hCfg))
-		pSSLB->ulFlags |= BSSLF_WANT_VERIFY | BSSLF_WANT_CERT;
+    if (SvrTestConfigFlag("SSLWantCert", false, hCfg))
+        pSSLB->ulFlags |= BSSLF_WANT_VERIFY | BSSLF_WANT_CERT;
 
-	pSSLB->iMaxDepth = SvrGetConfigInt("SSLMaxCertsDepth", 0, hCfg);
+    pSSLB->iMaxDepth = SvrGetConfigInt("SSLMaxCertsDepth", 0, hCfg);
 
-	SvrReleaseConfigHandle(hCfg);
+    SvrReleaseConfigHandle(hCfg);
 
 
-	return 0;
+    return 0;
 }
 
 void CSslBindCleanup(SslServerBind *pSSLB)
 {
 
-	SysFree(pSSLB->pszKeyFile);
-	SysFree(pSSLB->pszCertFile);
-	SysFree(pSSLB->pszCAFile);
-	SysFree(pSSLB->pszCAPath);
+    SysFree(pSSLB->pszKeyFile);
+    SysFree(pSSLB->pszCertFile);
+    SysFree(pSSLB->pszCAFile);
+    SysFree(pSSLB->pszCAPath);
 }
 

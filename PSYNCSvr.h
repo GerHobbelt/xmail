@@ -27,11 +27,11 @@
 #define PSYNCF_LOG_ENABLED          (1 << 1)
 
 struct PSYNCConfig {
-	unsigned long ulFlags;
-	long lThreadCount;
-	int iTimeout;
-	int iSyncInterval;
-	int iNumSyncThreads;
+    unsigned long ulFlags;
+    long lThreadCount;
+    int iTimeout;
+    int iSyncInterval;
+    int iNumSyncThreads;
 
 };
 

@@ -48,43 +48,43 @@ typedef struct SMTPCH_HANDLE_struct {
 } *SMTPCH_HANDLE;
 
 struct SMTPError {
-	char *pszServer;
-	int iSTMPResponse;
-	char *pszSTMPResponse;
+    char *pszServer;
+    int iSTMPResponse;
+    char *pszSTMPResponse;
 };
 
 struct SMTPGateway {
-	char *pszHost;
-	char *pszIFace;
-	unsigned long ulFlags;
+    char *pszHost;
+    char *pszIFace;
+    unsigned long ulFlags;
 };
 
 enum SmtpMsgInfo {
-	smsgiClientDomain = 0,
-	smsgiClientAddr,
-	smsgiServerDomain,
-	smsgiServerAddr,
-	smsgiTime,
-	smsgiSeverName,
+    smsgiClientDomain = 0,
+    smsgiClientAddr,
+    smsgiServerDomain,
+    smsgiServerAddr,
+    smsgiTime,
+    smsgiSeverName,
 
-	smsgiMax
+    smsgiMax
 };
 
 enum SpoolMsgInfo {
-	smiClientAddr,
-	smiServerAddr,
-	smiTime,
+    smiClientAddr,
+    smiServerAddr,
+    smiTime,
 
-	smiMax
+    smiMax
 };
 
 SMTPGateway **USmtpMakeGateways(char const * const *ppszGwHosts, char const **ppszOptions);
 void USmtpFreeGateways(SMTPGateway **ppGws);
 SMTPGateway **USmtpGetCfgGateways(SVRCFG_HANDLE hSvrConfig,  char const * const *ppszGwHosts,
-				  char const *pszOptions);
+                  char const *pszOptions);
 SMTPGateway **USmtpGetFwdGateways(SVRCFG_HANDLE hSvrConfig, char const *pszDomain);
 int USmtpGetGateway(SVRCFG_HANDLE hSvrConfig, char const *pszDomain, char *pszGateway,
-		    int iSize);
+            int iSize);
 int USmtpAddGateway(char const *pszDomain, char const *pszGateway);
 int USmtpRemoveGateway(char const *pszDomain);
 int USmtpIsAllowedRelay(const SYS_INET_ADDR & PeerInfo, SVRCFG_HANDLE hSvrConfig);
@@ -95,7 +95,7 @@ int USmtpCheckDomainPart(char const *pszName);
 int USmtpCheckAddress(char const *pszAddress);
 int USmtpInitError(SMTPError *pSMTPE);
 int USmtpSetError(SMTPError *pSMTPE, int iSTMPResponse, char const *pszSTMPResponse,
-		  char const *pszServer);
+          char const *pszServer);
 bool USmtpIsFatalError(SMTPError const *pSMTPE);
 char const *USmtpGetErrorMessage(SMTPError const *pSMTPE);
 int USmtpCleanupError(SMTPError *pSMTPE);
@@ -103,16 +103,16 @@ char *USmtpGetSMTPError(SMTPError *pSMTPE, char *pszError, int iMaxError);
 char *USmtpGetSMTPRmtMsgID(char const *pszAckDATA, char *pszRmtMsgID, int iMaxMsg);
 char const *USmtpGetErrorServer(SMTPError const *pSMTPE);
 SMTPCH_HANDLE USmtpCreateChannel(SMTPGateway const *pGw, char const *pszDomain,
-				 SMTPError *pSMTPE = NULL);
+                 SMTPError *pSMTPE = NULL);
 int USmtpCloseChannel(SMTPCH_HANDLE hSmtpCh, int iHardClose = 0, SMTPError *pSMTPE = NULL);
 int USmtpChannelReset(SMTPCH_HANDLE hSmtpCh, SMTPError *pSMTPE = NULL);
 int USmtpSendMail(SMTPCH_HANDLE hSmtpCh, char const *pszFrom, char const *pszRcpt,
-		  FileSection const *pFS, SMTPError *pSMTPE = NULL);
+          FileSection const *pFS, SMTPError *pSMTPE = NULL);
 int USmtpSendMail(SMTPGateway const *pGw, char const *pszDomain, char const *pszFrom,
-		  char const *pszRcpt, FileSection const *pFS, SMTPError *pSMTPE = NULL);
+          char const *pszRcpt, FileSection const *pFS, SMTPError *pSMTPE = NULL);
 int USmtpMailRmtDeliver(SVRCFG_HANDLE hSvrConfig, char const *pszServer, char const *pszDomain,
-			char const *pszFrom, char const *pszRcpt, FileSection const *pFS,
-			SMTPError *pSMTPE = NULL);
+            char const *pszFrom, char const *pszRcpt, FileSection const *pFS,
+            SMTPError *pSMTPE = NULL);
 char *USmtpBuildRcptPath(char const *const *ppszRcptTo, SVRCFG_HANDLE hSvrConfig);
 SMTPGateway **USmtpGetMailExchangers(SVRCFG_HANDLE hSvrConfig, char const *pszDomain);
 int USmtpCheckMailDomain(SVRCFG_HANDLE hSvrConfig, char const *pszDomain);
@@ -123,12 +123,12 @@ int USmtpDnsMapsContained(SYS_INET_ADDR const &PeerInfo, char const *pszMapsServ
 int USmtpSpammerCheck(const SYS_INET_ADDR & PeerInfo, char *&pszInfo);
 int USmtpSpamAddressCheck(char const *pszAddress);
 int USmtpAddMessageInfo(FILE *pMsgFile, char const *pszClientDomain,
-			SYS_INET_ADDR const &PeerInfo, char const *pszServerDomain,
-			SYS_INET_ADDR const &SockInfo, char const *pszSmtpServerLogo);
+            SYS_INET_ADDR const &PeerInfo, char const *pszServerDomain,
+            SYS_INET_ADDR const &SockInfo, char const *pszSmtpServerLogo);
 int USmtpWriteInfoLine(FILE *pSpoolFile, char const *pszClientAddr,
-		       char const *pszServerAddr, char const *pszTime);
+               char const *pszServerAddr, char const *pszTime);
 char *USmtpGetReceived(int iType, char const *pszAuth, char const *const *ppszMsgInfo,
-		       char const *pszMailFrom, char const *pszRcptTo, char const *pszMessageID);
+               char const *pszMailFrom, char const *pszRcptTo, char const *pszMessageID);
 
 #endif
 

@@ -30,27 +30,27 @@
 #define GMPROC_DOMAIN (1 << 1)
 
 struct UserInfo {
-	char *pszDomain;
-	unsigned int uUserID;
-	char *pszName;
-	char *pszPassword;
-	char *pszPath;
-	char *pszType;
-	HSLIST InfoList;
+    char *pszDomain;
+    unsigned int uUserID;
+    char *pszName;
+    char *pszPassword;
+    char *pszPath;
+    char *pszType;
+    HSLIST InfoList;
 };
 
 struct AliasInfo {
-	char *pszDomain;
-	char *pszAlias;
-	char *pszName;
+    char *pszDomain;
+    char *pszAlias;
+    char *pszName;
 };
 
 enum UserType {
-	usrTypeError = -1,
-	usrTypeUser = 0,
-	usrTypeML,
+    usrTypeError = -1,
+    usrTypeUser = 0,
+    usrTypeML,
 
-	usrTypeMax
+    usrTypeMax
 };
 
 typedef struct USRF_HANDLE_struct {
@@ -64,7 +64,7 @@ int UsrCheckAliasesIndexes(void);
 char *UsrGetMLTableFilePath(UserInfo *pUI, char *pszMLTablePath, int iMaxPath);
 UserType UsrGetUserType(UserInfo *pUI);
 UserInfo *UsrCreateDefaultUser(char const *pszDomain, char const *pszName,
-			       char const *pszPassword, UserType TypeUser);
+                   char const *pszPassword, UserType TypeUser);
 void UsrFreeUserInfo(UserInfo *pUI);
 char *UsrGetUserInfoVar(UserInfo *pUI, char const *pszName, char const *pszDefault = NULL);
 int UsrGetUserInfoVarInt(UserInfo *pUI, char const *pszName, int iDefault);
@@ -72,7 +72,7 @@ int UsrDelUserInfoVar(UserInfo *pUI, char const *pszName);
 int UsrSetUserInfoVar(UserInfo *pUI, char const *pszName, char const *pszValue);
 char **UsrGetProfileVars(UserInfo *pUI);
 int UsrAliasLookupName(char const *pszDomain, char const *pszAlias,
-		       char *pszName = NULL, bool bWildMatch = true);
+               char *pszName = NULL, bool bWildMatch = true);
 AliasInfo *UsrAllocAlias(char const *pszDomain, char const *pszAlias, char const *pszName);
 void UsrFreeAlias(AliasInfo *pAI);
 int UsrAddAlias(AliasInfo *pAI);
@@ -81,7 +81,7 @@ int UsrRemoveDomainAliases(char const *pszDomain);
 UserInfo *UsrLookupUser(char const *pszDomain, char const *pszName);
 UserInfo *UsrGetUserByName(char const *pszDomain, char const *pszName);
 UserInfo *UsrGetUserByNameOrAlias(char const *pszDomain, char const *pszName,
-				  char *pszRealAddr = NULL);
+                  char *pszRealAddr = NULL);
 int UsrRemoveUser(char const *pszDomain, char const *pszName, unsigned int uUserID);
 int UsrModifyUser(UserInfo *pUI);
 int UsrRemoveDomainUsers(char const *pszDomain);

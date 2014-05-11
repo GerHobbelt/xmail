@@ -26,10 +26,10 @@
 #define INVALID_ADOMAIN_HANDLE          ((ADOMAIN_HANDLE) 0)
 
 enum ADomainFileds {
-	adomADomain = 0,
-	adomDomain,
+    adomADomain = 0,
+    adomDomain,
 
-	adomMax
+    adomMax
 };
 
 typedef struct ADOMAIN_HANDLE_struct {

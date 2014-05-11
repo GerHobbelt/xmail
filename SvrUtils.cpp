@@ -50,491 +50,491 @@
 #define SVR_CFGHASH_INITSIZE        32
 
 struct ServerInfoVar {
-	HashNode HN;
-	char *pszValue;
+    HashNode HN;
+    char *pszValue;
 };
 
 struct ServerConfigData {
-	RLCK_HANDLE hResLock;
-	int iWriteLock;
-	HASH_HANDLE hHash;
+    RLCK_HANDLE hResLock;
+    int iWriteLock;
+    HASH_HANDLE hHash;
 };
 
 
 static char *SvrGetProfileFilePath(char *pszFilePath, int iMaxPath)
 {
-	CfgGetRootPath(pszFilePath, iMaxPath);
+    CfgGetRootPath(pszFilePath, iMaxPath);
 
-	StrNCat(pszFilePath, SVR_PROFILE_FILE, iMaxPath);
+    StrNCat(pszFilePath, SVR_PROFILE_FILE, iMaxPath);
 
-	SysLogMessage(LOG_LEV_DEBUG, "Going to look at config file: '%s'\n", pszFilePath);
+    SysLogMessage(LOG_LEV_DEBUG, "Going to look at config file: '%s'\n", pszFilePath);
 
-	return pszFilePath;
+    return pszFilePath;
 }
 
 static void SvrFreeConfigVar(ServerInfoVar *pSIV)
 {
-	SysFree(pSIV->HN.Key.pData);
-	SysFree(pSIV->pszValue);
-	SysFree(pSIV);
+    SysFree(pSIV->HN.Key.pData);
+    SysFree(pSIV->pszValue);
+    SysFree(pSIV);
 }
 
 static void SvrHFreeConfigVar(void *pPrivate, HashNode *pHN)
 {
-	ServerInfoVar *pSIV = SYS_LIST_ENTRY(pHN, ServerInfoVar, HN);
+    ServerInfoVar *pSIV = SYS_LIST_ENTRY(pHN, ServerInfoVar, HN);
 
-	SvrFreeConfigVar(pSIV);
+    SvrFreeConfigVar(pSIV);
 }
 
 static ServerInfoVar *SvrAllocVar(const char *pszName, const char *pszValue)
 {
-	char *pszDName;
-	ServerInfoVar *pSIV;
+    char *pszDName;
+    ServerInfoVar *pSIV;
 
-	if ((pSIV = (ServerInfoVar *) SysAlloc(sizeof(ServerInfoVar))) == NULL)
-		return NULL;
-	HashInitNode(&pSIV->HN);
-	pszDName = SysStrDup(pszName);
-	pSIV->HN.Key.pData = pszDName;
-	pSIV->pszValue = SysStrDup(pszValue);
+    if ((pSIV = (ServerInfoVar *) SysAlloc(sizeof(ServerInfoVar))) == NULL)
+        return NULL;
+    HashInitNode(&pSIV->HN);
+    pszDName = SysStrDup(pszName);
+    pSIV->HN.Key.pData = pszDName;
+    pSIV->pszValue = SysStrDup(pszValue);
 
-	return pSIV;
+    return pSIV;
 }
 
 static ServerInfoVar *SvrGetUserVar(HASH_HANDLE hHash, const char *pszName)
 {
-	HashNode *pHNode;
-	HashEnum HEnum;
-	HashDatum Key;
+    HashNode *pHNode;
+    HashEnum HEnum;
+    HashDatum Key;
 
-	Key.pData = (void *) pszName;
-	if (HashGetFirst(hHash, &Key, &HEnum, &pHNode) < 0)
-		return NULL;
+    Key.pData = (void *) pszName;
+    if (HashGetFirst(hHash, &Key, &HEnum, &pHNode) < 0)
+        return NULL;
 
-	return SYS_LIST_ENTRY(pHNode, ServerInfoVar, HN);
+    return SYS_LIST_ENTRY(pHNode, ServerInfoVar, HN);
 }
 
 static int SvrReadConfig(HASH_HANDLE hHash, const char *pszFilePath)
 {
-	FILE *pFile;
-	RLCK_HANDLE hResLock;
-	char szResLock[SYS_MAX_PATH];
-	char szProfileLine[SVR_PROFILE_LINE_MAX];
+    FILE *pFile;
+    RLCK_HANDLE hResLock;
+    char szResLock[SYS_MAX_PATH];
+    char szProfileLine[SVR_PROFILE_LINE_MAX];
 
-	if ((hResLock = RLckLockSH(CfgGetBasedPath(pszFilePath, szResLock,
-						   sizeof(szResLock)))) == INVALID_RLCK_HANDLE)
-		return ErrGetErrorCode();
-	if ((pFile = fopen(pszFilePath, "rt")) == NULL) {
-		RLckUnlockSH(hResLock);
+    if ((hResLock = RLckLockSH(CfgGetBasedPath(pszFilePath, szResLock,
+                           sizeof(szResLock)))) == INVALID_RLCK_HANDLE)
+        return ErrGetErrorCode();
+    if ((pFile = fopen(pszFilePath, "rt")) == NULL) {
+        RLckUnlockSH(hResLock);
 
-		ErrSetErrorCode(ERR_NO_USER_PRFILE, pszFilePath);
-		return ERR_NO_USER_PRFILE;
-	}
-	while (MscGetConfigLine(szProfileLine, sizeof(szProfileLine) - 1,
-				pFile) != NULL) {
-		char **ppszStrings = StrGetTabLineStrings(szProfileLine);
+        ErrSetErrorCode(ERR_NO_USER_PRFILE, pszFilePath);
+        return ERR_NO_USER_PRFILE;
+    }
+    while (MscGetConfigLine(szProfileLine, sizeof(szProfileLine) - 1,
+                pFile) != NULL) {
+        char **ppszStrings = StrGetTabLineStrings(szProfileLine);
 
-		if (ppszStrings == NULL)
-			continue;
+        if (ppszStrings == NULL)
+            continue;
 
-		if (StrStringsCount(ppszStrings) >= 2) {
-			ServerInfoVar *pSIV = SvrAllocVar(ppszStrings[0], ppszStrings[1]);
+        if (StrStringsCount(ppszStrings) >= 2) {
+            ServerInfoVar *pSIV = SvrAllocVar(ppszStrings[0], ppszStrings[1]);
 
-			if (pSIV != NULL && HashAdd(hHash, &pSIV->HN) < 0) {
-				SvrFreeConfigVar(pSIV);
-				StrFreeStrings(ppszStrings);
-				fclose(pFile);
-				RLckUnlockSH(hResLock);
-				return ErrGetErrorCode();
-			}
-		}
-		StrFreeStrings(ppszStrings);
-	}
-	fclose(pFile);
-	RLckUnlockSH(hResLock);
+            if (pSIV != NULL && HashAdd(hHash, &pSIV->HN) < 0) {
+                SvrFreeConfigVar(pSIV);
+                StrFreeStrings(ppszStrings);
+                fclose(pFile);
+                RLckUnlockSH(hResLock);
+                return ErrGetErrorCode();
+            }
+        }
+        StrFreeStrings(ppszStrings);
+    }
+    fclose(pFile);
+    RLckUnlockSH(hResLock);
 
-	return 0;
+    return 0;
 }
 
 static ServerConfigData *SvrAllocConfig(RLCK_HANDLE hResLock, int iWriteLock,
-					const char *pszProfilePath)
+                    const char *pszProfilePath)
 {
-	ServerConfigData *pSCD;
-	HashOps HOps;
+    ServerConfigData *pSCD;
+    HashOps HOps;
 
-	if ((pSCD = (ServerConfigData *) SysAlloc(sizeof(ServerConfigData))) == NULL)
-		return NULL;
-	pSCD->hResLock = hResLock;
-	pSCD->iWriteLock = iWriteLock;
+    if ((pSCD = (ServerConfigData *) SysAlloc(sizeof(ServerConfigData))) == NULL)
+        return NULL;
+    pSCD->hResLock = hResLock;
+    pSCD->iWriteLock = iWriteLock;
 
-	ZeroData(HOps);
-	HOps.pGetHashVal = MscStringHashCB;
-	HOps.pCompare = MscStringCompareCB;
-	if ((pSCD->hHash = HashCreate(&HOps,
-				      SVR_CFGHASH_INITSIZE)) == INVALID_HASH_HANDLE) {
-		SysFree(pSCD);
-		return NULL;
-	}
-	if (SvrReadConfig(pSCD->hHash, pszProfilePath) < 0) {
-		HashFree(pSCD->hHash, SvrHFreeConfigVar, NULL);
-		SysFree(pSCD);
-		return NULL;
-	}
+    ZeroData(HOps);
+    HOps.pGetHashVal = MscStringHashCB;
+    HOps.pCompare = MscStringCompareCB;
+    if ((pSCD->hHash = HashCreate(&HOps,
+                      SVR_CFGHASH_INITSIZE)) == INVALID_HASH_HANDLE) {
+        SysFree(pSCD);
+        return NULL;
+    }
+    if (SvrReadConfig(pSCD->hHash, pszProfilePath) < 0) {
+        HashFree(pSCD->hHash, SvrHFreeConfigVar, NULL);
+        SysFree(pSCD);
+        return NULL;
+    }
 
-	return pSCD;
+    return pSCD;
 }
 
 SVRCFG_HANDLE SvrGetConfigHandle(int iWriteLock)
 {
-	RLCK_HANDLE hResLock;
-	ServerConfigData *pSCD;
-	char szProfilePath[SYS_MAX_PATH];
-	char szResLock[SYS_MAX_PATH];
+    RLCK_HANDLE hResLock;
+    ServerConfigData *pSCD;
+    char szProfilePath[SYS_MAX_PATH];
+    char szResLock[SYS_MAX_PATH];
 
-	SvrGetProfileFilePath(szProfilePath, sizeof(szProfilePath));
-	if (iWriteLock) {
-		if ((hResLock =
-		     RLckLockEX(CfgGetBasedPath(szProfilePath, szResLock,
-						sizeof(szResLock)))) == INVALID_RLCK_HANDLE)
-			return INVALID_SVRCFG_HANDLE;
-	} else {
-		if ((hResLock =
-		     RLckLockSH(CfgGetBasedPath(szProfilePath, szResLock,
-						sizeof(szResLock)))) == INVALID_RLCK_HANDLE)
-			return INVALID_SVRCFG_HANDLE;
-	}
-	if ((pSCD = SvrAllocConfig(hResLock, iWriteLock, szProfilePath)) == NULL) {
-		if (iWriteLock)
-			RLckUnlockEX(hResLock);
-		else
-			RLckUnlockSH(hResLock);
-		return INVALID_SVRCFG_HANDLE;
-	}
+    SvrGetProfileFilePath(szProfilePath, sizeof(szProfilePath));
+    if (iWriteLock) {
+        if ((hResLock =
+             RLckLockEX(CfgGetBasedPath(szProfilePath, szResLock,
+                        sizeof(szResLock)))) == INVALID_RLCK_HANDLE)
+            return INVALID_SVRCFG_HANDLE;
+    } else {
+        if ((hResLock =
+             RLckLockSH(CfgGetBasedPath(szProfilePath, szResLock,
+                        sizeof(szResLock)))) == INVALID_RLCK_HANDLE)
+            return INVALID_SVRCFG_HANDLE;
+    }
+    if ((pSCD = SvrAllocConfig(hResLock, iWriteLock, szProfilePath)) == NULL) {
+        if (iWriteLock)
+            RLckUnlockEX(hResLock);
+        else
+            RLckUnlockSH(hResLock);
+        return INVALID_SVRCFG_HANDLE;
+    }
 
-	return (SVRCFG_HANDLE) pSCD;
+    return (SVRCFG_HANDLE) pSCD;
 }
 
 void SvrReleaseConfigHandle(SVRCFG_HANDLE hSvrConfig)
 {
-	ServerConfigData *pSCD = (ServerConfigData *) hSvrConfig;
+    ServerConfigData *pSCD = (ServerConfigData *) hSvrConfig;
 
-	if (pSCD->iWriteLock)
-		RLckUnlockEX(pSCD->hResLock);
-	else
-		RLckUnlockSH(pSCD->hResLock);
-	HashFree(pSCD->hHash, SvrHFreeConfigVar, NULL);
-	SysFree(pSCD);
+    if (pSCD->iWriteLock)
+        RLckUnlockEX(pSCD->hResLock);
+    else
+        RLckUnlockSH(pSCD->hResLock);
+    HashFree(pSCD->hHash, SvrHFreeConfigVar, NULL);
+    SysFree(pSCD);
 }
 
 char *SvrGetConfigVar(SVRCFG_HANDLE hSvrConfig, const char *pszName, const char *pszDefault)
 {
-	ServerConfigData *pSCD = (ServerConfigData *) hSvrConfig;
-	ServerInfoVar *pSIV;
+    ServerConfigData *pSCD = (ServerConfigData *) hSvrConfig;
+    ServerInfoVar *pSIV;
 
-	if ((pSIV = SvrGetUserVar(pSCD->hHash, pszName)) != NULL)
-		return SysStrDup(pSIV->pszValue);
+    if ((pSIV = SvrGetUserVar(pSCD->hHash, pszName)) != NULL)
+        return SysStrDup(pSIV->pszValue);
 
-	return pszDefault != NULL ? SysStrDup(pszDefault): NULL;
+    return pszDefault != NULL ? SysStrDup(pszDefault): NULL;
 }
 
 bool SvrTestConfigFlag(const char *pszName, bool bDefault, SVRCFG_HANDLE hSvrConfig)
 {
-	char szValue[64];
+    char szValue[64];
 
-	SvrConfigVar(pszName, szValue, sizeof(szValue) - 1, hSvrConfig, (bDefault) ? "1": "0");
+    SvrConfigVar(pszName, szValue, sizeof(szValue) - 1, hSvrConfig, (bDefault) ? "1": "0");
 
-	return atoi(szValue) != 0 ? true: false;
+    return atoi(szValue) != 0 ? true: false;
 }
 
 int SvrGetConfigInt(const char *pszName, int iDefault, SVRCFG_HANDLE hSvrConfig)
 {
-	char szValue[64];
+    char szValue[64];
 
-	return SvrConfigVar(pszName, szValue, sizeof(szValue) - 1, hSvrConfig, NULL) < 0 ||
-		IsEmptyString(szValue) ? iDefault: atoi(szValue);
+    return SvrConfigVar(pszName, szValue, sizeof(szValue) - 1, hSvrConfig, NULL) < 0 ||
+        IsEmptyString(szValue) ? iDefault: atoi(szValue);
 }
 
 static int SvrWriteConfig(HASH_HANDLE hHash, FILE *pFile)
 {
-	HashNode *pHNode;
-	ServerInfoVar *pSIV;
-	char *pszQuoted;
-	HashEnum HEnum;
+    HashNode *pHNode;
+    ServerInfoVar *pSIV;
+    char *pszQuoted;
+    HashEnum HEnum;
 
-	if (HashFirst(hHash, &HEnum, &pHNode) == 0) {
-		do {
-			pSIV = SYS_LIST_ENTRY(pHNode, ServerInfoVar, HN);
+    if (HashFirst(hHash, &HEnum, &pHNode) == 0) {
+        do {
+            pSIV = SYS_LIST_ENTRY(pHNode, ServerInfoVar, HN);
 
-			if ((pszQuoted = StrQuote((char *) pSIV->HN.Key.pData,
-						  '"')) == NULL)
-				return ErrGetErrorCode();
-			fprintf(pFile, "%s\t", pszQuoted);
-			SysFree(pszQuoted);
+            if ((pszQuoted = StrQuote((char *) pSIV->HN.Key.pData,
+                          '"')) == NULL)
+                return ErrGetErrorCode();
+            fprintf(pFile, "%s\t", pszQuoted);
+            SysFree(pszQuoted);
 
-			if ((pszQuoted = StrQuote(pSIV->pszValue, '"')) == NULL)
-				return ErrGetErrorCode();
-			fprintf(pFile, "%s\n", pszQuoted);
-			SysFree(pszQuoted);
-		} while (HashNext(hHash, &HEnum, &pHNode) == 0);
-	}
+            if ((pszQuoted = StrQuote(pSIV->pszValue, '"')) == NULL)
+                return ErrGetErrorCode();
+            fprintf(pFile, "%s\n", pszQuoted);
+            SysFree(pszQuoted);
+        } while (HashNext(hHash, &HEnum, &pHNode) == 0);
+    }
 
-	return 0;
+    return 0;
 }
 
 int SysFlushConfig(SVRCFG_HANDLE hSvrConfig)
 {
-	ServerConfigData *pSCD = (ServerConfigData *) hSvrConfig;
-	int iError;
-	FILE *pFile;
-	char szProfilePath[SYS_MAX_PATH];
+    ServerConfigData *pSCD = (ServerConfigData *) hSvrConfig;
+    int iError;
+    FILE *pFile;
+    char szProfilePath[SYS_MAX_PATH];
 
-	if (!pSCD->iWriteLock) {
-		ErrSetErrorCode(ERR_SVR_PRFILE_NOT_LOCKED);
-		return ERR_SVR_PRFILE_NOT_LOCKED;
-	}
+    if (!pSCD->iWriteLock) {
+        ErrSetErrorCode(ERR_SVR_PRFILE_NOT_LOCKED);
+        return ERR_SVR_PRFILE_NOT_LOCKED;
+    }
 
-	SvrGetProfileFilePath(szProfilePath, sizeof(szProfilePath));
-	if ((pFile = fopen(szProfilePath, "wt")) == NULL) {
-		ErrSetErrorCode(ERR_FILE_CREATE, szProfilePath); /* [i_a] */
-		return ERR_FILE_CREATE;
-	}
+    SvrGetProfileFilePath(szProfilePath, sizeof(szProfilePath));
+    if ((pFile = fopen(szProfilePath, "wt")) == NULL) {
+        ErrSetErrorCode(ERR_FILE_CREATE, szProfilePath); /* [i_a] */
+        return ERR_FILE_CREATE;
+    }
 
-	iError = SvrWriteConfig(pSCD->hHash, pFile);
+    iError = SvrWriteConfig(pSCD->hHash, pFile);
 
-	fclose(pFile);
+    fclose(pFile);
 
-	return iError;
+    return iError;
 }
 
 int SvrGetMessageID(SYS_UINT64 *pullMessageID)
 {
-	char szMsgIDFile[SYS_MAX_PATH] = "";
+    char szMsgIDFile[SYS_MAX_PATH] = "";
 
-	CfgGetRootPath(szMsgIDFile, sizeof(szMsgIDFile));
-	StrNCat(szMsgIDFile, MESSAGEID_FILE, sizeof(szMsgIDFile));
+    CfgGetRootPath(szMsgIDFile, sizeof(szMsgIDFile));
+    StrNCat(szMsgIDFile, MESSAGEID_FILE, sizeof(szMsgIDFile));
 
-	char szResLock[SYS_MAX_PATH] = "";
-	RLCK_HANDLE hResLock = RLckLockEX(CfgGetBasedPath(szMsgIDFile, szResLock,
-							  sizeof(szResLock)));
+    char szResLock[SYS_MAX_PATH] = "";
+    RLCK_HANDLE hResLock = RLckLockEX(CfgGetBasedPath(szMsgIDFile, szResLock,
+                              sizeof(szResLock)));
 
-	if (hResLock == INVALID_RLCK_HANDLE)
-		return ErrGetErrorCode();
+    if (hResLock == INVALID_RLCK_HANDLE)
+        return ErrGetErrorCode();
 
-	FILE *pMsgIDFile = fopen(szMsgIDFile, "r+b");
+    FILE *pMsgIDFile = fopen(szMsgIDFile, "r+b");
 
-	if (pMsgIDFile == NULL) {
-		if ((pMsgIDFile = fopen(szMsgIDFile, "wb")) == NULL) {
-			RLckUnlockEX(hResLock);
+    if (pMsgIDFile == NULL) {
+        if ((pMsgIDFile = fopen(szMsgIDFile, "wb")) == NULL) {
+            RLckUnlockEX(hResLock);
 
-			ErrSetErrorCode(ERR_FILE_CREATE, szMsgIDFile);
-			return ERR_FILE_CREATE;
-		}
-		*pullMessageID = 1;
-	} else {
-		char szMessageID[128] = "";
+            ErrSetErrorCode(ERR_FILE_CREATE, szMsgIDFile);
+            return ERR_FILE_CREATE;
+        }
+        *pullMessageID = 1;
+    } else {
+        char szMessageID[128] = "";
 
-		if ((MscGetString(pMsgIDFile, szMessageID, sizeof(szMessageID) - 1) == NULL) ||
-		    !isdigit(szMessageID[0])) {
-			fclose(pMsgIDFile);
-			RLckUnlockEX(hResLock);
+        if ((MscGetString(pMsgIDFile, szMessageID, sizeof(szMessageID) - 1) == NULL) ||
+            !isdigit(szMessageID[0])) {
+            fclose(pMsgIDFile);
+            RLckUnlockEX(hResLock);
 
-			ErrSetErrorCode(ERR_INVALID_FILE, szMsgIDFile);
-			return ERR_INVALID_FILE;
-		}
-		if (sscanf(szMessageID, SYS_LLU_FMT, pullMessageID) != 1) {
-			fclose(pMsgIDFile);
-			RLckUnlockEX(hResLock);
+            ErrSetErrorCode(ERR_INVALID_FILE, szMsgIDFile);
+            return ERR_INVALID_FILE;
+        }
+        if (sscanf(szMessageID, SYS_LLU_FMT, pullMessageID) != 1) {
+            fclose(pMsgIDFile);
+            RLckUnlockEX(hResLock);
 
-			ErrSetErrorCode(ERR_INVALID_FILE, szMsgIDFile);
-			return ERR_INVALID_FILE;
-		}
-	}
+            ErrSetErrorCode(ERR_INVALID_FILE, szMsgIDFile);
+            return ERR_INVALID_FILE;
+        }
+    }
 
-	++*pullMessageID;
-	fseek(pMsgIDFile, 0, SEEK_SET);
-	fprintf(pMsgIDFile, SYS_LLU_FMT "\r\n", *pullMessageID);
-	fclose(pMsgIDFile);
-	RLckUnlockEX(hResLock);
+    ++*pullMessageID;
+    fseek(pMsgIDFile, 0, SEEK_SET);
+    fprintf(pMsgIDFile, SYS_LLU_FMT "\r\n", *pullMessageID);
+    fclose(pMsgIDFile);
+    RLckUnlockEX(hResLock);
 
-	return 0;
+    return 0;
 }
 
 char *SvrGetLogsDir(char *pszLogsPath, int iMaxPath)
 {
-	CfgGetRootPath(pszLogsPath, iMaxPath);
-	StrNCat(pszLogsPath, SVR_LOGS_DIR, iMaxPath);
+    CfgGetRootPath(pszLogsPath, iMaxPath);
+    StrNCat(pszLogsPath, SVR_LOGS_DIR, iMaxPath);
 
-	SysLogMessage(LOG_LEV_DEBUG, "Going to look at directory: '%s'\n", pszLogsPath);
+    SysLogMessage(LOG_LEV_DEBUG, "Going to look at directory: '%s'\n", pszLogsPath);
 
-	return pszLogsPath;
+    return pszLogsPath;
 }
 
 char *SvrGetSpoolDir(char *pszSpoolPath, int iMaxPath)
 {
-	CfgGetRootPath(pszSpoolPath, iMaxPath);
-	StrNCat(pszSpoolPath, SMTP_SPOOL_DIR, iMaxPath);
+    CfgGetRootPath(pszSpoolPath, iMaxPath);
+    StrNCat(pszSpoolPath, SMTP_SPOOL_DIR, iMaxPath);
 
-	SysLogMessage(LOG_LEV_DEBUG, "Going to look at directory: '%s'\n", pszSpoolPath);
+    SysLogMessage(LOG_LEV_DEBUG, "Going to look at directory: '%s'\n", pszSpoolPath);
 
-	return pszSpoolPath;
+    return pszSpoolPath;
 }
 
 int SvrConfigVar(const char *pszVarName, char *pszVarValue, int iMaxVarValue,
-		 SVRCFG_HANDLE hSvrConfig, const char *pszDefault)
+         SVRCFG_HANDLE hSvrConfig, const char *pszDefault)
 {
-	int iReleaseConfig = 0;
+    int iReleaseConfig = 0;
 
-	if (hSvrConfig == INVALID_SVRCFG_HANDLE) {
-		if ((hSvrConfig = SvrGetConfigHandle()) == INVALID_SVRCFG_HANDLE)
-			return ErrGetErrorCode();
+    if (hSvrConfig == INVALID_SVRCFG_HANDLE) {
+        if ((hSvrConfig = SvrGetConfigHandle()) == INVALID_SVRCFG_HANDLE)
+            return ErrGetErrorCode();
 
-		++iReleaseConfig;
-	}
+        ++iReleaseConfig;
+    }
 
-	char *pszValue = SvrGetConfigVar(hSvrConfig, pszVarName, pszDefault);
+    char *pszValue = SvrGetConfigVar(hSvrConfig, pszVarName, pszDefault);
 
-	if (pszValue == NULL) {
-		if (iReleaseConfig)
-			SvrReleaseConfigHandle(hSvrConfig);
+    if (pszValue == NULL) {
+        if (iReleaseConfig)
+            SvrReleaseConfigHandle(hSvrConfig);
 
-		ErrSetErrorCode(ERR_CFG_VAR_NOT_FOUND);
-		return ERR_CFG_VAR_NOT_FOUND;
-	}
+        ErrSetErrorCode(ERR_CFG_VAR_NOT_FOUND);
+        return ERR_CFG_VAR_NOT_FOUND;
+    }
 
-	strncpy(pszVarValue, pszValue, iMaxVarValue - 1);
-	pszVarValue[iMaxVarValue - 1] = '\0';
+    strncpy(pszVarValue, pszValue, iMaxVarValue - 1);
+    pszVarValue[iMaxVarValue - 1] = '\0';
 
-	SysFree(pszValue);
-	if (iReleaseConfig)
-		SvrReleaseConfigHandle(hSvrConfig);
+    SysFree(pszValue);
+    if (iReleaseConfig)
+        SvrReleaseConfigHandle(hSvrConfig);
 
-	return 0;
+    return 0;
 }
 
 int SvrCheckDiskSpace(unsigned long ulMinSpace)
 {
-	time_t tNow = time(NULL);
-	static SYS_INT64 FreeSpace = 0;
-	static time_t tLastCheck = 0;
+    time_t tNow = time(NULL);
+    static SYS_INT64 FreeSpace = 0;
+    static time_t tLastCheck = 0;
 
-	if (tNow > (tLastCheck + SYS_RES_CHECK_INTERVAL)) {
-		SYS_INT64 TotalSpace;
-		char szRootDir[SYS_MAX_PATH] = "";
+    if (tNow > (tLastCheck + SYS_RES_CHECK_INTERVAL)) {
+        SYS_INT64 TotalSpace;
+        char szRootDir[SYS_MAX_PATH] = "";
 
-		tLastCheck = tNow;
-		CfgGetRootPath(szRootDir, sizeof(szRootDir));
-		if (SysGetDiskSpace(szRootDir, &TotalSpace, &FreeSpace) < 0)
-			return ErrGetErrorCode();
-	}
-	if (FreeSpace < (SYS_INT64) ulMinSpace) {
-		ErrSetErrorCode(ERR_LOW_DISK_SPACE);
-		return ERR_LOW_DISK_SPACE;
-	}
+        tLastCheck = tNow;
+        CfgGetRootPath(szRootDir, sizeof(szRootDir));
+        if (SysGetDiskSpace(szRootDir, &TotalSpace, &FreeSpace) < 0)
+            return ErrGetErrorCode();
+    }
+    if (FreeSpace < (SYS_INT64) ulMinSpace) {
+        ErrSetErrorCode(ERR_LOW_DISK_SPACE);
+        return ERR_LOW_DISK_SPACE;
+    }
 
-	return 0;
+    return 0;
 }
 
 int SvrCheckVirtMemSpace(unsigned long ulMinSpace)
 {
-	time_t tNow = time(NULL);
-	static SYS_INT64 FreeSpace = 0;
-	static time_t tLastCheck = 0;
+    time_t tNow = time(NULL);
+    static SYS_INT64 FreeSpace = 0;
+    static time_t tLastCheck = 0;
 
-	if (tNow > tLastCheck + SYS_RES_CHECK_INTERVAL) {
-		SYS_INT64 RamTotal, RamFree, VirtTotal;
+    if (tNow > tLastCheck + SYS_RES_CHECK_INTERVAL) {
+        SYS_INT64 RamTotal, RamFree, VirtTotal;
 
-		tLastCheck = tNow;
-		if (SysMemoryInfo(&RamTotal, &RamFree, &VirtTotal, &FreeSpace) < 0)
-			return ErrGetErrorCode();
-	}
-	if (FreeSpace < (SYS_INT64) ulMinSpace) {
-		ErrSetErrorCode(ERR_LOW_VM_SPACE);
-		return ERR_LOW_VM_SPACE;
-	}
+        tLastCheck = tNow;
+        if (SysMemoryInfo(&RamTotal, &RamFree, &VirtTotal, &FreeSpace) < 0)
+            return ErrGetErrorCode();
+    }
+    if (FreeSpace < (SYS_INT64) ulMinSpace) {
+        ErrSetErrorCode(ERR_LOW_VM_SPACE);
+        return ERR_LOW_VM_SPACE;
+    }
 
-	return 0;
+    return 0;
 }
 
 static char *SvrGetProtoIPPropFile(const char *pszProto, char *pszFileName, int iMaxName)
 {
-	char szMailRoot[SYS_MAX_PATH] = "";
+    char szMailRoot[SYS_MAX_PATH] = "";
 
-	CfgGetRootPath(szMailRoot, sizeof(szMailRoot));
-	SysSNPrintf(pszFileName, iMaxName, "%s%s.ipprop.tab", szMailRoot, pszProto);
+    CfgGetRootPath(szMailRoot, sizeof(szMailRoot));
+    SysSNPrintf(pszFileName, iMaxName, "%s%s.ipprop.tab", szMailRoot, pszProto);
 
-	SysLogMessage(LOG_LEV_DEBUG, "Going to look at config file: '%s'\n", pszFileName);
+    SysLogMessage(LOG_LEV_DEBUG, "Going to look at config file: '%s'\n", pszFileName);
 
-	return pszFileName;
+    return pszFileName;
 }
 
 static char *SvrGetProtoHNPropFile(const char *pszProto, char *pszFileName, int iMaxName)
 {
-	char szMailRoot[SYS_MAX_PATH] = "";
+    char szMailRoot[SYS_MAX_PATH] = "";
 
-	CfgGetRootPath(szMailRoot, sizeof(szMailRoot));
-	SysSNPrintf(pszFileName, iMaxName, "%s%s.hnprop.tab", szMailRoot, pszProto);
+    CfgGetRootPath(szMailRoot, sizeof(szMailRoot));
+    SysSNPrintf(pszFileName, iMaxName, "%s%s.hnprop.tab", szMailRoot, pszProto);
 
-	SysLogMessage(LOG_LEV_DEBUG, "Going to look at config file: '%s'\n", pszFileName);
+    SysLogMessage(LOG_LEV_DEBUG, "Going to look at config file: '%s'\n", pszFileName);
 
-	return pszFileName;
+    return pszFileName;
 }
 
 int SvrEnumProtoProps(const char *pszProto, const SYS_INET_ADDR *pPeerInfo,
-		      const char *pszHostName, int (*pfEnum)(void *, const char *, const char *),
-		      void *pPrivate)
+              const char *pszHostName, int (*pfEnum)(void *, const char *, const char *),
+              void *pPrivate)
 {
-	int i;
-	char **ppszProps;
-	char szProtoFile[SYS_MAX_PATH] = "";
+    int i;
+    char **ppszProps;
+    char szProtoFile[SYS_MAX_PATH] = "";
 
-	if (pPeerInfo != NULL) {
-		SvrGetProtoIPPropFile(pszProto, szProtoFile, sizeof(szProtoFile) - 1);
+    if (pPeerInfo != NULL) {
+        SvrGetProtoIPPropFile(pszProto, szProtoFile, sizeof(szProtoFile) - 1);
 
-		if ((ppszProps = MscGetIPProperties(szProtoFile, pPeerInfo)) != NULL) {
-			for (i = 1; ppszProps[i] != NULL; i++) {
-				char *pszName = ppszProps[i];
-				char *pszVal = strchr(pszName, '=');
+        if ((ppszProps = MscGetIPProperties(szProtoFile, pPeerInfo)) != NULL) {
+            for (i = 1; ppszProps[i] != NULL; i++) {
+                char *pszName = ppszProps[i];
+                char *pszVal = strchr(pszName, '=');
 
-				if (pszVal != NULL)
-					*pszVal++ = '\0';
-				if ((*pfEnum)(pPrivate, pszName, pszVal) < 0) {
-					StrFreeStrings(ppszProps);
-					return ErrGetErrorCode();
-				}
-			}
-			StrFreeStrings(ppszProps);
-		}
-	}
+                if (pszVal != NULL)
+                    *pszVal++ = '\0';
+                if ((*pfEnum)(pPrivate, pszName, pszVal) < 0) {
+                    StrFreeStrings(ppszProps);
+                    return ErrGetErrorCode();
+                }
+            }
+            StrFreeStrings(ppszProps);
+        }
+    }
 
-	SvrGetProtoHNPropFile(pszProto, szProtoFile, sizeof(szProtoFile) - 1);
-	if (SysExistFile(szProtoFile)) {
-		char szHostName[SYS_MAX_PATH] = "";
+    SvrGetProtoHNPropFile(pszProto, szProtoFile, sizeof(szProtoFile) - 1);
+    if (SysExistFile(szProtoFile)) {
+        char szHostName[SYS_MAX_PATH] = "";
 
-		if (pszHostName == NULL) {
-			if (pPeerInfo == NULL) {
-				ErrSetErrorCode(ERR_INVALID_PARAMETER);
-				return ERR_INVALID_PARAMETER;
-			}
-			if (SysGetHostByAddr(*pPeerInfo, szHostName, sizeof(szHostName)) < 0)
-				return ErrGetErrorCode();
-			pszHostName = szHostName;
-		}
-		if ((ppszProps = MscGetHNProperties(szProtoFile, pszHostName)) != NULL) {
-			for (i = 1; ppszProps[i] != NULL; i++) {
-				char *pszName = ppszProps[i];
-				char *pszVal = strchr(pszName, '=');
+        if (pszHostName == NULL) {
+            if (pPeerInfo == NULL) {
+                ErrSetErrorCode(ERR_INVALID_PARAMETER);
+                return ERR_INVALID_PARAMETER;
+            }
+            if (SysGetHostByAddr(*pPeerInfo, szHostName, sizeof(szHostName)) < 0)
+                return ErrGetErrorCode();
+            pszHostName = szHostName;
+        }
+        if ((ppszProps = MscGetHNProperties(szProtoFile, pszHostName)) != NULL) {
+            for (i = 1; ppszProps[i] != NULL; i++) {
+                char *pszName = ppszProps[i];
+                char *pszVal = strchr(pszName, '=');
 
-				if (pszVal != NULL)
-					*pszVal++ = '\0';
-				if ((*pfEnum)(pPrivate, pszName, pszVal) < 0) {
-					StrFreeStrings(ppszProps);
-					return ErrGetErrorCode();
-				}
-			}
-			StrFreeStrings(ppszProps);
-		}
-	}
+                if (pszVal != NULL)
+                    *pszVal++ = '\0';
+                if ((*pfEnum)(pPrivate, pszName, pszVal) < 0) {
+                    StrFreeStrings(ppszProps);
+                    return ErrGetErrorCode();
+                }
+            }
+            StrFreeStrings(ppszProps);
+        }
+    }
 
-	return 0;
+    return 0;
 }
 

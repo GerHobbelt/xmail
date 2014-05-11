@@ -32,11 +32,11 @@
 #define CTRLF_LOG_ENABLED           (1 << 0)
 
 struct CTRLConfig {
-	unsigned long ulFlags;
-	long lThreadCount;
-	long lMaxThreads;
-	int iSessionTimeout;
-	int iTimeout;
+    unsigned long ulFlags;
+    long lThreadCount;
+    long lMaxThreads;
+    int iSessionTimeout;
+    int iTimeout;
 };
 
 unsigned int CTRLClientThread(void *pThreadData);

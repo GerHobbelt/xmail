@@ -27,10 +27,10 @@
 #define LMAILF_LOG_ENABLED          (1 << 1)
 
 struct LMAILConfig {
-	unsigned long ulFlags;
-	long lNumThreads;
-	int iSleepTimeout;
-	long lThreadCount;
+    unsigned long ulFlags;
+    long lNumThreads;
+    int iSleepTimeout;
+    long lThreadCount;
 
 };
 

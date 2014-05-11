@@ -26,59 +26,59 @@
 #include "ShBlocks.h"
 
 struct SharedBlock {
-	unsigned int uSize;
-	SYS_MUTEX hMutex;
-	void *pData;
+    unsigned int uSize;
+    SYS_MUTEX hMutex;
+    void *pData;
 };
 
 SHB_HANDLE ShbCreateBlock(unsigned int uSize)
 {
-	SharedBlock *pSHB = (SharedBlock *) SysAlloc(sizeof(SharedBlock));
+    SharedBlock *pSHB = (SharedBlock *) SysAlloc(sizeof(SharedBlock));
 
-	if (pSHB == NULL)
-		return SHB_INVALID_HANDLE;
+    if (pSHB == NULL)
+        return SHB_INVALID_HANDLE;
 
-	pSHB->uSize = uSize;
-	if ((pSHB->hMutex = SysCreateMutex()) == SYS_INVALID_MUTEX) {
-		SysFree(pSHB);
-		return SHB_INVALID_HANDLE;
-	}
-	if ((pSHB->pData = SysAlloc(uSize)) == NULL) {
-		SysCloseMutex(pSHB->hMutex);
-		SysFree(pSHB);
-		return SHB_INVALID_HANDLE;
-	}
+    pSHB->uSize = uSize;
+    if ((pSHB->hMutex = SysCreateMutex()) == SYS_INVALID_MUTEX) {
+        SysFree(pSHB);
+        return SHB_INVALID_HANDLE;
+    }
+    if ((pSHB->pData = SysAlloc(uSize)) == NULL) {
+        SysCloseMutex(pSHB->hMutex);
+        SysFree(pSHB);
+        return SHB_INVALID_HANDLE;
+    }
 
-	return (SHB_HANDLE) pSHB;
+    return (SHB_HANDLE) pSHB;
 }
 
 int ShbCloseBlock(SHB_HANDLE hBlock)
 {
-	SharedBlock *pSHB = (SharedBlock *) hBlock;
+    SharedBlock *pSHB = (SharedBlock *) hBlock;
 
-	SysCloseMutex(pSHB->hMutex);
-	SysFree(pSHB->pData);
-	SysFree(pSHB);
+    SysCloseMutex(pSHB->hMutex);
+    SysFree(pSHB->pData);
+    SysFree(pSHB);
 
-	return 0;
+    return 0;
 }
 
 void *ShbLock(SHB_HANDLE hBlock)
 {
-	SharedBlock *pSHB = (SharedBlock *) hBlock;
+    SharedBlock *pSHB = (SharedBlock *) hBlock;
 
-	if (SysLockMutex(pSHB->hMutex, SYS_INFINITE_TIMEOUT) < 0)
-		return NULL;
+    if (SysLockMutex(pSHB->hMutex, SYS_INFINITE_TIMEOUT) < 0)
+        return NULL;
 
-	return pSHB->pData;
+    return pSHB->pData;
 }
 
 int ShbUnlock(SHB_HANDLE hBlock)
 {
-	SharedBlock *pSHB = (SharedBlock *) hBlock;
+    SharedBlock *pSHB = (SharedBlock *) hBlock;
 
-	SysUnlockMutex(pSHB->hMutex);
+    SysUnlockMutex(pSHB->hMutex);
 
-	return 0;
+    return 0;
 }
 

@@ -24,83 +24,83 @@
 
 static int MkMachIsLE(void)
 {
-	union MachWordBytes {
-		unsigned int w;
-		unsigned char b[sizeof(unsigned int)];
-	} MWB;
+    union MachWordBytes {
+        unsigned int w;
+        unsigned char b[sizeof(unsigned int)];
+    } MWB;
 
-	MWB.w = 1;
+    MWB.w = 1;
 
-	return MWB.b[0] != 0;
+    return MWB.b[0] != 0;
 }
 
 static int MkMachIsLEBF(void)
 {
-	union MachBitField {
-		struct {
-			unsigned int b:1;
-		} BF;
-		unsigned int w;
-	} MWB;
+    union MachBitField {
+        struct {
+            unsigned int b:1;
+        } BF;
+        unsigned int w;
+    } MWB;
 
-	MWB.w = 1;
+    MWB.w = 1;
 
-	return MWB.BF.b != 0;
+    return MWB.BF.b != 0;
 }
 
 static int MkMachGenType(int iBits, char const *pszBase)
 {
-	fprintf(stdout,
-		"typedef signed %s MachInt%d;\n"
-		"typedef unsigned %s MachUInt%d;\n"
-		"#define MACH_TYPE_%dBIT %s\n\n", pszBase, iBits, pszBase, iBits, iBits, pszBase);
+    fprintf(stdout,
+        "typedef signed %s MachInt%d;\n"
+        "typedef unsigned %s MachUInt%d;\n"
+        "#define MACH_TYPE_%dBIT %s\n\n", pszBase, iBits, pszBase, iBits, iBits, pszBase);
 
-	return 0;
+    return 0;
 }
 
 int main(int argc, char *argv[])
 {
-	fprintf(stdout,
-		"#ifndef _MACHDEFS_H\n"
-		"#define _MACHDEFS_H\n\n\n");
+    fprintf(stdout,
+        "#ifndef _MACHDEFS_H\n"
+        "#define _MACHDEFS_H\n\n\n");
 
-	if (!MkMachIsLE())
-		fprintf(stdout, "#define MACH_BIG_ENDIAN_WORDS\n\n");
-	else
-		fprintf(stdout, "#undef MACH_BIG_ENDIAN_WORDS\n\n");
-	if (!MkMachIsLEBF())
-		fprintf(stdout, "#define MACH_BIG_ENDIAN_BITFIELD\n\n");
-	else
-		fprintf(stdout, "#undef MACH_BIG_ENDIAN_BITFIELD\n\n");
+    if (!MkMachIsLE())
+        fprintf(stdout, "#define MACH_BIG_ENDIAN_WORDS\n\n");
+    else
+        fprintf(stdout, "#undef MACH_BIG_ENDIAN_WORDS\n\n");
+    if (!MkMachIsLEBF())
+        fprintf(stdout, "#define MACH_BIG_ENDIAN_BITFIELD\n\n");
+    else
+        fprintf(stdout, "#undef MACH_BIG_ENDIAN_BITFIELD\n\n");
 
-	MkMachGenType(8, "char");
+    MkMachGenType(8, "char");
 
-	if (sizeof(short) == 2)
-		MkMachGenType(16, "short");
-	else if (sizeof(int) == 2)
-		MkMachGenType(16, "int");
-	else if (sizeof(long) == 2)
-		MkMachGenType(16, "long");
+    if (sizeof(short) == 2)
+        MkMachGenType(16, "short");
+    else if (sizeof(int) == 2)
+        MkMachGenType(16, "int");
+    else if (sizeof(long) == 2)
+        MkMachGenType(16, "long");
 
-	if (sizeof(char) == 4)
-		MkMachGenType(32, "char");
-	else if (sizeof(short) == 4)
-		MkMachGenType(32, "short");
-	else if (sizeof(int) == 4)
-		MkMachGenType(32, "int");
-	else if (sizeof(long) == 4)
-		MkMachGenType(32, "long");
+    if (sizeof(char) == 4)
+        MkMachGenType(32, "char");
+    else if (sizeof(short) == 4)
+        MkMachGenType(32, "short");
+    else if (sizeof(int) == 4)
+        MkMachGenType(32, "int");
+    else if (sizeof(long) == 4)
+        MkMachGenType(32, "long");
 
 #if defined(_MSC_VER)
-	MkMachGenType(64, "__int64");
+    MkMachGenType(64, "__int64");
 #elif defined(__GNUC__) || defined(__SUNPRO_CC)
-	MkMachGenType(64, "long long");
+    MkMachGenType(64, "long long");
 #else
 #error Your compiler is not supported!
 #endif
 
-	fprintf(stdout, "\n\n" "#endif\n\n");
+    fprintf(stdout, "\n\n" "#endif\n\n");
 
-	return 0;
+    return 0;
 }
 

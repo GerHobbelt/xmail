@@ -63,118 +63,118 @@
 #define IsEmailAddress(a)       (strchr((a), '@') != NULL)
 #define MemMatch(s, n, m, l)    ((n) == (l) && memcmp(s, m, n) == 0)
 #define EquivDatum(a, b)        ((a)->lSize == (b)->lSize && memcmp((a)->pData, (b)->pData, (a)->lSize) == 0)
-#define ArrayInit(a, v)         do {			\
-		unsigned int __i;			\
-		for (__i = 0; __i < CountOf(a); __i++)	\
-			(a)[__i] = (v);			\
-	} while (0)
-#define StrVSprint(r, l, f) do {					\
-		int iPSize, iCurrSize = 256;				\
-		va_list Args;						\
-		for (;;) {						\
-			if ((r = (char *) SysAlloc(iCurrSize)) == NULL)	\
-				break;					\
-			va_start(Args, l);				\
-			if ((iPSize = SysVSNPrintf(r, iCurrSize - 1, f, Args)) >= 0 && \
-			    iPSize < iCurrSize) {			\
-				va_end(Args);				\
-				break;					\
-			}						\
-			va_end(Args);					\
-			if (iPSize > 0)					\
-				iCurrSize = (4 * iPSize) / 3 + 2;	\
-			else						\
-				iCurrSize *= 2;				\
-			SysFree(r);					\
-		}							\
-	} while (0)
+#define ArrayInit(a, v)         do {            \
+        unsigned int __i;           \
+        for (__i = 0; __i < CountOf(a); __i++)  \
+            (a)[__i] = (v);         \
+    } while (0)
+#define StrVSprint(r, l, f) do {                    \
+        int iPSize, iCurrSize = 256;                \
+        va_list Args;                       \
+        for (;;) {                      \
+            if ((r = (char *) SysAlloc(iCurrSize)) == NULL) \
+                break;                  \
+            va_start(Args, l);              \
+            if ((iPSize = SysVSNPrintf(r, iCurrSize - 1, f, Args)) >= 0 && \
+                iPSize < iCurrSize) {           \
+                va_end(Args);               \
+                break;                  \
+            }                       \
+            va_end(Args);                   \
+            if (iPSize > 0)                 \
+                iCurrSize = (4 * iPSize) / 3 + 2;   \
+            else                        \
+                iCurrSize *= 2;             \
+            SysFree(r);                 \
+        }                           \
+    } while (0)
 
 
 
 inline char *StrNCat(char *pszDest, char const *pszSrc, int iMaxSize)
 {
-	int iDestLength = (int)strlen(pszDest);
+    int iDestLength = (int)strlen(pszDest);
 
-	if (iDestLength < iMaxSize)
-		StrNCpy(pszDest + iDestLength, pszSrc, iMaxSize - iDestLength);
+    if (iDestLength < iMaxSize)
+        StrNCpy(pszDest + iDestLength, pszSrc, iMaxSize - iDestLength);
 
-	return pszDest;
+    return pszDest;
 }
 
 inline int StrNCmdMatch(char const *pszCmdLine, char const *pszCmd, int iCmdLength)
 {
-	return strnicmp(pszCmdLine, pszCmd, iCmdLength) == 0 &&
-		(pszCmdLine[iCmdLength] == '\0' || strchr(" \r\n\t", pszCmdLine[iCmdLength]) != NULL);
+    return strnicmp(pszCmdLine, pszCmd, iCmdLength) == 0 &&
+        (pszCmdLine[iCmdLength] == '\0' || strchr(" \r\n\t", pszCmdLine[iCmdLength]) != NULL);
 }
 
 inline char *AppendChar(char *pszString, int iChar)
 {
-	int iStrLength = (int)strlen(pszString);
+    int iStrLength = (int)strlen(pszString);
 
-	if (iStrLength == 0 || pszString[iStrLength - 1] != iChar) {
-		pszString[iStrLength] = iChar;
-		pszString[iStrLength + 1] = '\0';
-	}
+    if (iStrLength == 0 || pszString[iStrLength - 1] != iChar) {
+        pszString[iStrLength] = iChar;
+        pszString[iStrLength + 1] = '\0';
+    }
 
-	return pszString;
+    return pszString;
 }
 
 inline char *AppendSlash(char *pszPath)
 {
-	return AppendChar(pszPath, SYS_SLASH_CHAR);
+    return AppendChar(pszPath, SYS_SLASH_CHAR);
 }
 
 inline char *DelFinalChar(char *pszString, int iChar)
 {
-	int iStrLength = (int)strlen(pszString);
+    int iStrLength = (int)strlen(pszString);
 
-	if (iStrLength > 0 && pszString[iStrLength - 1] == iChar)
-		pszString[iStrLength - 1] = '\0';
+    if (iStrLength > 0 && pszString[iStrLength - 1] == iChar)
+        pszString[iStrLength - 1] = '\0';
 
-	return pszString;
+    return pszString;
 }
 
 inline char *DelFinalSlash(char *pszPath)
 {
-	return DelFinalChar(pszPath, SYS_SLASH_CHAR);
+    return DelFinalChar(pszPath, SYS_SLASH_CHAR);
 }
 
 inline int ToUpper(int iChar)
 {
-	return ((iChar >= 'a') && (iChar <= 'z')) ? ('A' + (iChar - 'a')) : iChar;
+    return ((iChar >= 'a') && (iChar <= 'z')) ? ('A' + (iChar - 'a')) : iChar;
 }
 
 inline int ToLower(int iChar)
 {
-	return ((iChar >= 'A') && (iChar <= 'Z')) ? ('a' + (iChar - 'A')) : iChar;
+    return ((iChar >= 'A') && (iChar <= 'Z')) ? ('a' + (iChar - 'A')) : iChar;
 }
 
 inline int IsPrimeNumber(long lNumber)
 {
-	if (lNumber > 3) {
-		if (lNumber & 1) {
-			long i, lHalfNumber;
+    if (lNumber > 3) {
+        if (lNumber & 1) {
+            long i, lHalfNumber;
 
-			for (i = 3, lHalfNumber = lNumber / 2; i < lHalfNumber;
-			     i += 2)
-				if ((lNumber % i) == 0)
-					return 0;
-		} else
-			return 0;
-	}
+            for (i = 3, lHalfNumber = lNumber / 2; i < lHalfNumber;
+                 i += 2)
+                if ((lNumber % i) == 0)
+                    return 0;
+        } else
+            return 0;
+    }
 
-	return 1;
+    return 1;
 }
 
 inline char *ClearEOL(char *pszBuffer)
 {
-	int iSize = (int)strlen(pszBuffer);
+    int iSize = (int)strlen(pszBuffer);
 
-	for (; iSize > 0 && (pszBuffer[iSize - 1] == '\r' || pszBuffer[iSize - 1] == '\n');
-	     iSize--);
-	pszBuffer[iSize] = '\0';
+    for (; iSize > 0 && (pszBuffer[iSize - 1] == '\r' || pszBuffer[iSize - 1] == '\n');
+         iSize--);
+    pszBuffer[iSize] = '\0';
 
-	return pszBuffer;
+    return pszBuffer;
 }
 
 #endif

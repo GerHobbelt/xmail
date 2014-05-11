@@ -25,25 +25,25 @@
 
 
 struct FileSection {
-	char szFilePath[SYS_MAX_PATH];
-	SYS_OFF_T llStartOffset;
-	SYS_OFF_T llEndOffset;
+    char szFilePath[SYS_MAX_PATH];
+    SYS_OFF_T llStartOffset;
+    SYS_OFF_T llEndOffset;
 };
 
 struct Datum {
-	char *pData;
-	long lSize;
+    char *pData;
+    long lSize;
 };
 
 struct LstDatum {
-	SysListHead LLnk;
-	Datum Data;
+    SysListHead LLnk;
+    Datum Data;
 };
 
 struct LstNDatum {
-	SysListHead LLnk;
-	Datum Name;
-	Datum Data;
+    SysListHead LLnk;
+    Datum Name;
+    Datum Data;
 };
 
 

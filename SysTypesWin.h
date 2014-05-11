@@ -103,8 +103,8 @@ typedef SYS_INT64 SYS_OFF_T;
 typedef long SYS_SIZE_T;
 
 struct SYS_THREAD_ONCE {
-	LONG lOnce;
-	LONG lDone;
+    LONG lOnce;
+    LONG lDone;
 };
 
 #endif

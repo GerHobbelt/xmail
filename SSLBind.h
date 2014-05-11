@@ -34,26 +34,26 @@
 
 
 struct SslServerBind {
-	char *pszKeyFile;
-	char *pszCertFile;
-	unsigned long ulFlags;
-	int iMaxDepth;
-	char *pszCAFile;
-	char *pszCAPath;
+    char *pszKeyFile;
+    char *pszCertFile;
+    unsigned long ulFlags;
+    int iMaxDepth;
+    char *pszCAFile;
+    char *pszCAPath;
 };
 
 struct SslBindEnv {
-	char *pszIssuer;
-	char *pszSubject;
+    char *pszIssuer;
+    char *pszSubject;
 };
 
 
 int BSslInit(void);
 void BSslCleanup(void);
 int BSslBindClient(BSOCK_HANDLE hBSock, SslServerBind const *pSSLB,
-		   int (*pfEnvCB)(void *, int, void const *), void *pPrivate);
+           int (*pfEnvCB)(void *, int, void const *), void *pPrivate);
 int BSslBindServer(BSOCK_HANDLE hBSock, SslServerBind const *pSSLB,
-		   int (*pfEnvCB)(void *, int, void const *), void *pPrivate);
+           int (*pfEnvCB)(void *, int, void const *), void *pPrivate);
 
 #endif
 

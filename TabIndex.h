@@ -37,16 +37,16 @@ typedef struct INDEX_HANDLE_struct {
 
 char *TbixGetIndexFile(char const *pszTabFilePath, int const *piFieldsIdx, char *pszIdxFile);
 int TbixCreateIndex(char const *pszTabFilePath, int const *piFieldsIdx, bool bCaseSens,
-		    int (*pHashFunc) (char const *const *, int const *, unsigned long *,
-				      bool) = NULL);
+            int (*pHashFunc) (char const *const *, int const *, unsigned long *,
+                      bool) = NULL);
 int TbixCalculateHash(char const *const *ppszToks, int const *piFieldsIdx,
-		      unsigned long *pulHashVal, bool bCaseSens);
+              unsigned long *pulHashVal, bool bCaseSens);
 char **TbixLookup(char const *pszTabFilePath, int const *piFieldsIdx, bool bCaseSens, ...);
 int TbixCheckIndex(char const *pszTabFilePath, int const *piFieldsIdx, bool bCaseSens,
-		   int (*pHashFunc) (char const *const *, int const *, unsigned long *,
-				     bool) = NULL);
+           int (*pHashFunc) (char const *const *, int const *, unsigned long *,
+                     bool) = NULL);
 INDEX_HANDLE TbixOpenHandle(char const *pszTabFilePath, int const *piFieldsIdx,
-			    unsigned long const *pulHashVal, int iNumVals);
+                unsigned long const *pulHashVal, int iNumVals);
 int TbixCloseHandle(INDEX_HANDLE hIndexLookup);
 long TbixLookedUpRecords(INDEX_HANDLE hIndexLookup);
 char **TbixFirstRecord(INDEX_HANDLE hIndexLookup);

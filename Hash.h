@@ -31,38 +31,38 @@ typedef struct HASH_HANDLE_struct {
 } *HASH_HANDLE;
 
 union HashDatum {
-	void *pData;
-	unsigned long ulData;
+    void *pData;
+    unsigned long ulData;
 };
 
 struct HashOps {
-	void *pPrivate;
-	unsigned long (*pGetHashVal)(void *, HashDatum const *);
-	int (*pCompare)(void *, HashDatum const *, HashDatum const *);
+    void *pPrivate;
+    unsigned long (*pGetHashVal)(void *, HashDatum const *);
+    int (*pCompare)(void *, HashDatum const *, HashDatum const *);
 };
 
 struct HashNode {
-	SysListHead Lnk;
-	HashDatum Key;
+    SysListHead Lnk;
+    HashDatum Key;
 };
 
 struct HashEnum {
-	unsigned long ulHIdx;
-	SysListHead *pNext;
+    unsigned long ulHIdx;
+    SysListHead *pNext;
 };
 
 
 HASH_HANDLE HashCreate(HashOps const *pOps, unsigned long ulSize);
 void HashFree(HASH_HANDLE hHash, void (*pFree)(void *, HashNode *),
-	      void *pPrivate);
+          void *pPrivate);
 unsigned long HashGetCount(HASH_HANDLE hHash);
 void HashInitNode(HashNode *pHNode);
 int HashAdd(HASH_HANDLE hHash, HashNode *pHNode);
 void HashDel(HASH_HANDLE hHash, HashNode *pHNode);
 int HashGetFirst(HASH_HANDLE hHash, HashDatum const *pKey,
-		 HashEnum *pHEnum, HashNode **ppHNode);
+         HashEnum *pHEnum, HashNode **ppHNode);
 int HashGetNext(HASH_HANDLE hHash, HashDatum const *pKey,
-		HashEnum *pHEnum, HashNode **ppHNode);
+        HashEnum *pHEnum, HashNode **ppHNode);
 int HashFirst(HASH_HANDLE hHash, HashEnum *pHEnum, HashNode **ppHNode);
 int HashNext(HASH_HANDLE hHash, HashEnum *pHEnum, HashNode **ppHNode);
 

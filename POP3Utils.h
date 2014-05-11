@@ -31,45 +31,45 @@ typedef struct POP3_HANDLE_struct {
 } *POP3_HANDLE;
 
 struct MailSyncReport {
-	int iMsgSync;
-	int iMsgErr;
-	SYS_OFF_T llSizeSync;
-	SYS_OFF_T llSizeErr;
+    int iMsgSync;
+    int iMsgErr;
+    SYS_OFF_T llSizeSync;
+    SYS_OFF_T llSizeErr;
 };
 
 struct PopLastLoginInfo {
-	SYS_INET_ADDR Address;
-	time_t LTime;
+    SYS_INET_ADDR Address;
+    time_t LTime;
 };
 
 int UPopGetMailboxSize(UserInfo *pUI, SYS_OFF_T &llMBSize, unsigned long &ulNumMessages);
 int UPopCheckMailboxSize(UserInfo *pUI, SYS_OFF_T *pllAvailSpace = NULL);
 int UPopAuthenticateAPOP(char const *pszDomain, char const *pszUsrName,
-			 char const *pszTimeStamp, char const *pszDigest);
+             char const *pszTimeStamp, char const *pszDigest);
 POP3_HANDLE UPopBuildSession(char const *pszDomain, char const *pszUsrName,
-			     char const *pszUsrPass, SYS_INET_ADDR const *pPeerInfo);
+                 char const *pszUsrPass, SYS_INET_ADDR const *pPeerInfo);
 void UPopReleaseSession(POP3_HANDLE hPOPSession, int iUpdate = 1);
 char *UPopGetUserInfoVar(POP3_HANDLE hPOPSession, char const *pszName,
-			 char const *pszDefault = NULL);
+             char const *pszDefault = NULL);
 int UPopGetSessionMsgCurrent(POP3_HANDLE hPOPSession);
 int UPopGetSessionMsgTotal(POP3_HANDLE hPOPSession);
 SYS_OFF_T UPopGetSessionMBSize(POP3_HANDLE hPOPSession);
 int UPopGetSessionLastAccessed(POP3_HANDLE hPOPSession);
 int UPopGetMessageSize(POP3_HANDLE hPOPSession, int iMsgIndex, SYS_OFF_T &llMessageSize);
 int UPopGetMessageUIDL(POP3_HANDLE hPOPSession, int iMsgIndex, char *pszMessageUIDL,
-		       int iSize);
+               int iSize);
 int UPopDeleteMessage(POP3_HANDLE hPOPSession, int iMsgIndex);
 int UPopResetSession(POP3_HANDLE hPOPSession);
 int UPopSendErrorResponse(BSOCK_HANDLE hBSock, int iErrorCode, int iTimeout);
 int UPopSessionSendMsg(POP3_HANDLE hPOPSession, int iMsgIndex, BSOCK_HANDLE hBSock);
 int UPopSessionTopMsg(POP3_HANDLE hPOPSession, int iMsgIndex, int iNumLines,
-		      BSOCK_HANDLE hBSock);
+              BSOCK_HANDLE hBSock);
 int UPopSaveUserIP(POP3_HANDLE hPOPSession);
 int UPopSyncRemoteLink(char const *pszSyncAddr, char const *pszRmtServer,
-		       char const *pszRmtName, char const *pszRmtPassword,
-		       MailSyncReport *pSRep, char const *pszSyncCfg,
-		       char const *pszFetchHdrTags = "+X-Deliver-To,To,Cc",
-		       char const *pszErrorAccount = NULL);
+               char const *pszRmtName, char const *pszRmtPassword,
+               MailSyncReport *pSRep, char const *pszSyncCfg,
+               char const *pszFetchHdrTags = "+X-Deliver-To,To,Cc",
+               char const *pszErrorAccount = NULL);
 int UPopUserIpCheck(UserInfo *pUI, SYS_INET_ADDR const *pPeerInfo, unsigned int uExpireTime);
 int UPopGetLastLoginInfo(UserInfo *pUI, PopLastLoginInfo *pInfo);
 

@@ -30,9 +30,9 @@
 #define FINGF_LOG_ENABLED           (1 << 0)
 
 struct FINGConfig {
-	unsigned long ulFlags;
-	long lThreadCount;
-	int iTimeout;
+    unsigned long ulFlags;
+    long lThreadCount;
+    int iTimeout;
 };
 
 unsigned int FINGClientThread(void *pThreadData);

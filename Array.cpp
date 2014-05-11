@@ -34,86 +34,86 @@
 
 
 struct Array {
-	unsigned long ulAlloc;
-	unsigned long ulCount;
-	void **ppData;
+    unsigned long ulAlloc;
+    unsigned long ulCount;
+    void **ppData;
 };
 
 
 ARRAY_HANDLE ArrayCreate(unsigned long ulSize)
 {
-	Array *pAr;
+    Array *pAr;
 
-	if ((pAr = (Array *) SysAlloc(sizeof(Array))) == NULL)
-		return INVALID_ARRAY_HANDLE;
-	pAr->ulAlloc = ulSize + 1;
-	if ((pAr->ppData = (void **) SysAlloc(pAr->ulAlloc * sizeof(void *))) == NULL) {
-		SysFree(pAr);
-		return INVALID_ARRAY_HANDLE;
-	}
+    if ((pAr = (Array *) SysAlloc(sizeof(Array))) == NULL)
+        return INVALID_ARRAY_HANDLE;
+    pAr->ulAlloc = ulSize + 1;
+    if ((pAr->ppData = (void **) SysAlloc(pAr->ulAlloc * sizeof(void *))) == NULL) {
+        SysFree(pAr);
+        return INVALID_ARRAY_HANDLE;
+    }
 
-	return (ARRAY_HANDLE) pAr;
+    return (ARRAY_HANDLE) pAr;
 }
 
 void ArrayFree(ARRAY_HANDLE hArray, void (*pFree)(void *, void *),
-	       void *pPrivate)
+           void *pPrivate)
 {
-	Array *pAr = (Array *) hArray;
+    Array *pAr = (Array *) hArray;
 
-	if (pAr != NULL) {
-		if (pFree != NULL)
-			for (unsigned long i = 0; i < pAr->ulCount; i++)
-				if (pAr->ppData[i] != NULL)
-					(*pFree)(pPrivate, pAr->ppData[i]);
-		SysFree(pAr->ppData);
-		SysFree(pAr);
-	}
+    if (pAr != NULL) {
+        if (pFree != NULL)
+            for (unsigned long i = 0; i < pAr->ulCount; i++)
+                if (pAr->ppData[i] != NULL)
+                    (*pFree)(pPrivate, pAr->ppData[i]);
+        SysFree(pAr->ppData);
+        SysFree(pAr);
+    }
 }
 
 int ArraySet(ARRAY_HANDLE hArray, unsigned long ulIdx, void *pData)
 {
-	Array *pAr = (Array *) hArray;
+    Array *pAr = (Array *) hArray;
 
-	if (ulIdx >= pAr->ulAlloc) {
-		unsigned long i, ulAlloc = (3 * ulIdx) / 2 + ARRAY_EXTRA_SPACE;
-		void **ppData = (void **) SysRealloc(pAr->ppData,
-						     ulAlloc * sizeof(void *));
+    if (ulIdx >= pAr->ulAlloc) {
+        unsigned long i, ulAlloc = (3 * ulIdx) / 2 + ARRAY_EXTRA_SPACE;
+        void **ppData = (void **) SysRealloc(pAr->ppData,
+                             ulAlloc * sizeof(void *));
 
-		if (ppData == NULL)
-			return ErrGetErrorCode();
-		for (i = pAr->ulAlloc; i < ulAlloc; i++)
-			ppData[i] = NULL;
-		pAr->ulAlloc = ulAlloc;
-		pAr->ppData = ppData;
-	}
-	pAr->ppData[ulIdx] = pData;
-	if (ulIdx >= pAr->ulCount)
-		pAr->ulCount = ulIdx + 1;
+        if (ppData == NULL)
+            return ErrGetErrorCode();
+        for (i = pAr->ulAlloc; i < ulAlloc; i++)
+            ppData[i] = NULL;
+        pAr->ulAlloc = ulAlloc;
+        pAr->ppData = ppData;
+    }
+    pAr->ppData[ulIdx] = pData;
+    if (ulIdx >= pAr->ulCount)
+        pAr->ulCount = ulIdx + 1;
 
-	return 0;
+    return 0;
 }
 
 unsigned long ArrayCount(ARRAY_HANDLE hArray)
 {
-	Array *pAr = (Array *) hArray;
+    Array *pAr = (Array *) hArray;
 
-	return pAr->ulCount;
+    return pAr->ulCount;
 }
 
 void *ArrayGet(ARRAY_HANDLE hArray, unsigned long ulIdx)
 {
-	Array *pAr = (Array *) hArray;
+    Array *pAr = (Array *) hArray;
 
-	if (ulIdx >= pAr->ulCount) {
-		ErrSetErrorCode(ERR_NOT_FOUND);
-		return NULL;
-	}
+    if (ulIdx >= pAr->ulCount) {
+        ErrSetErrorCode(ERR_NOT_FOUND);
+        return NULL;
+    }
 
-	return pAr->ppData[ulIdx];
+    return pAr->ppData[ulIdx];
 }
 
 int ArrayAppend(ARRAY_HANDLE hArray, void *pData)
 {
-	return ArraySet(hArray, ArrayCount(hArray), pData);
+    return ArraySet(hArray, ArrayCount(hArray), pData);
 }
 

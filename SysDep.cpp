@@ -24,34 +24,34 @@
 
 #include "SysDepWin.cpp"
 
-#else				// #ifdef WIN32
+#else               // #ifdef WIN32
 #ifdef __LINUX__
 
 #include "SysDepLinux.cpp"
 
-#else				// #ifdef __LINUX__
+#else               // #ifdef __LINUX__
 #ifdef __SOLARIS__
 
 #include "SysDepSolaris.cpp"
 
-#else				// #ifdef __SOLARIS__
+#else               // #ifdef __SOLARIS__
 #ifdef __BSD__
 
 #include "SysDepBSD.cpp"
 
-#else				// #ifdef __BSD__
+#else               // #ifdef __BSD__
 
 #error System type not defined
 
-#endif				// #ifdef __BSD__
-#endif				// #ifdef __SOLARIS__
-#endif				// #ifdef __LINUX__
-#endif				// #ifdef WIN32
+#endif              // #ifdef __BSD__
+#endif              // #ifdef __SOLARIS__
+#endif              // #ifdef __LINUX__
+#endif              // #ifdef WIN32
 
 
 
 void XmailDie(const char *expr, int line, const char *srcfile)
 {
-	fprintf(stderr, "Assertion '%s' failed at line %d (%s)\n", expr, line, srcfile); 
-	exit(EXIT_FAILURE); 
+    fprintf(stderr, "Assertion '%s' failed at line %d (%s)\n", expr, line, srcfile);
+    exit(EXIT_FAILURE);
 }

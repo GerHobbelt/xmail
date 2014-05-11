@@ -24,9 +24,9 @@
 #define _STRUTILS_H
 
 struct DynString {
-	char *pszBuffer;
-	int iStringSize;
-	int iBufferSize;
+    char *pszBuffer;
+    int iStringSize;
+    int iBufferSize;
 };
 
 void *StrMemDup(void const *pData, long lSize, long lExtra);
@@ -53,7 +53,7 @@ int StrIWildMatch(char const *pszString, char const *pszMatch);
 char *StrLoadFile(FILE *pFile);
 char *StrSprint(char const *pszFormat, ...);
 int StrSplitString(char const *pszString, char const *pszSplitters,
-		   char *pszStrLeft, int iSizeLeft, char *pszStrRight, int iSizeRight);
+           char *pszStrLeft, int iSizeLeft, char *pszStrRight, int iSizeRight);
 char *StrLTrim(char *pszString, char const *pszTrimChars);
 char *StrRTrim(char *pszString, char const *pszTrimChars);
 char *StrTrim(char *pszString, char const *pszTrimChars);
@@ -71,6 +71,6 @@ int StrDynPrint(DynString *pDS, char const *pszFormat, ...);
 char *StrNDup(char const *pszStr, int iSize);
 int StrParamGet(char const *pszBuffer, char const *pszName, char *pszVal, int iMaxVal);
 char *StrMacSubst(char const *pszIn, int *piSize,
-		  char *(*pLkupProc)(void *, char const *, int), void *pPriv);
+          char *(*pLkupProc)(void *, char const *, int), void *pPriv);
 
 #endif

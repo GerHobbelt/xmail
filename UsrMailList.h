@@ -28,8 +28,8 @@
 #define DEFAULT_MLUSER_PERMS        "RW"
 
 struct MLUserInfo {
-	char *pszAddress;
-	char *pszPerms;
+    char *pszAddress;
+    char *pszPerms;
 };
 
 typedef struct USRML_HANDLE_struct {

@@ -46,23 +46,23 @@
 #define SYS_IS_VALID_FILENAME(f)    ((strcmp(f, ".") != 0) && (strcmp(f, "..") != 0))
 
 enum SysFileTypes {
-	ftNormal = 1,
-	ftDirectory,
-	ftLink,
-	ftOther,
+    ftNormal = 1,
+    ftDirectory,
+    ftLink,
+    ftOther,
 
-	ftMax
+    ftMax
 };
 
 struct SYS_FILE_INFO {
-	int iFileType;
-	SYS_OFF_T llSize;
-	time_t tMod;
+    int iFileType;
+    SYS_OFF_T llSize;
+    time_t tMod;
 };
 
 struct SYS_INET_ADDR {
-	int iSize;
-	unsigned char Addr[128 - sizeof(int)];
+    int iSize;
+    unsigned char Addr[128 - sizeof(int)];
 };
 
 
@@ -81,17 +81,17 @@ void SysListenSocket(SYS_SOCKET SockFD, int iConnections);
 int SysRecvData(SYS_SOCKET SockFD, char *pszBuffer, int iBufferSize, int iTimeout);
 int SysRecv(SYS_SOCKET SockFD, char *pszBuffer, int iBufferSize, int iTimeout);
 int SysRecvDataFrom(SYS_SOCKET SockFD, SYS_INET_ADDR *pFrom, char *pszBuffer,
-		    int iBufferSize, int iTimeout);
+            int iBufferSize, int iTimeout);
 int SysSendData(SYS_SOCKET SockFD, char const *pszBuffer, int iBufferSize, int iTimeout);
 int SysSend(SYS_SOCKET SockFD, char const *pszBuffer, int iBufferSize, int iTimeout);
 int SysSendDataTo(SYS_SOCKET SockFD, const SYS_INET_ADDR *pTo,
-		  char const *pszBuffer, int iBufferSize, int iTimeout);
+          char const *pszBuffer, int iBufferSize, int iTimeout);
 int SysConnect(SYS_SOCKET SockFD, const SYS_INET_ADDR *pSockName, int iTimeout);
 SYS_SOCKET SysAccept(SYS_SOCKET SockFD, SYS_INET_ADDR *pSockName, int iTimeout);
 int SysSelect(int iMaxFD, SYS_fd_set *pReadFDs, SYS_fd_set *pWriteFDs, SYS_fd_set *pExcptFDs,
-	      int iTimeout);
+          int iTimeout);
 int SysSendFile(SYS_SOCKET SockFD, char const *pszFileName, SYS_OFF_T llBaseOffset,
-		SYS_OFF_T llEndOffset, int iTimeout);
+        SYS_OFF_T llEndOffset, int iTimeout);
 int SysInetAnySetup(SYS_INET_ADDR &AddrInfo, int iFamily, int iPortNo);
 int SysGetAddrFamily(SYS_INET_ADDR const &AddrInfo);
 int SysGetAddrPort(SYS_INET_ADDR const &AddrInfo);
@@ -106,7 +106,7 @@ void const *SysInetAddrData(SYS_INET_ADDR const &AddrInfo, int *piSize);
 int SysInetIPV6CompatIPV4(SYS_INET_ADDR const &Addr);
 int SysInetIPV6ToIPV4(SYS_INET_ADDR const &SAddr, SYS_INET_ADDR &DAddr);
 int SysInetAddrMatch(SYS_INET_ADDR const &Addr, SYS_UINT8 const *pMask, int iMaskSize,
-		     SYS_INET_ADDR const &TestAddr);
+             SYS_INET_ADDR const &TestAddr);
 int SysInetAddrMatch(SYS_INET_ADDR const &Addr, SYS_INET_ADDR const &TestAddr);
 
 SYS_SEMAPHORE SysCreateSemaphore(int iInitCount, int iMaxCount);
@@ -147,7 +147,7 @@ int SysSetThreadPriority(SYS_THREAD ThreadID, int iPriority);
 int SysWaitThread(SYS_THREAD ThreadID, int iTimeout);
 unsigned long SysGetCurrentThreadId(void);
 int SysExec(char const *pszCommand, char const *const *pszArgs, int iWaitTimeout = 0,
-	    int iPriority = SYS_PRIORITY_NORMAL, int *piExitStatus = NULL);
+        int iPriority = SYS_PRIORITY_NORMAL, int *piExitStatus = NULL);
 void SysSetBreakHandler(void (*pBreakHandler) (void));
 unsigned long SysGetCurrentProcessId(void);
 
@@ -206,7 +206,7 @@ long SysGetDayLight(void);
 
 int SysGetDiskSpace(char const *pszPath, SYS_INT64 *pTotal, SYS_INT64 *pFree);
 int SysMemoryInfo(SYS_INT64 *pRamTotal, SYS_INT64 *pRamFree,
-		  SYS_INT64 *pVirtTotal, SYS_INT64 *pVirtFree);
+          SYS_INT64 *pVirtTotal, SYS_INT64 *pVirtFree);
 
 SYS_MMAP SysCreateMMap(char const *pszFileName, unsigned long ulFlags);
 void SysCloseMMap(SYS_MMAP hMap);

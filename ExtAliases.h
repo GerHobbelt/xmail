@@ -26,10 +26,10 @@
 #define INVALID_EXAL_HANDLE         ((EXAL_HANDLE) 0)
 
 struct ExtAlias {
-	char *pszDomain;
-	char *pszName;
-	char *pszRmtDomain;
-	char *pszRmtName;
+    char *pszDomain;
+    char *pszName;
+    char *pszRmtDomain;
+    char *pszRmtName;
 };
 
 typedef struct EXAL_HANDLE_struct {

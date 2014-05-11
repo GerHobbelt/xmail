@@ -26,20 +26,20 @@
 #define INVALID_GWLKF_HANDLE         ((GWLKF_HANDLE) 0)
 
 struct POP3Link {
-	char *pszDomain;
-	char *pszName;
-	char *pszRmtDomain;
-	char *pszRmtName;
-	char *pszRmtPassword;
-	char *pszAuthType;
+    char *pszDomain;
+    char *pszName;
+    char *pszRmtDomain;
+    char *pszRmtName;
+    char *pszRmtPassword;
+    char *pszAuthType;
 };
 
 typedef struct GWLKF_HANDLE_struct {
 } *GWLKF_HANDLE;
 
 POP3Link *GwLkAllocLink(char const *pszDomain, char const *pszName,
-			char const *pszRmtDomain, char const *pszRmtName,
-			char const *pszRmtPassword, char const *pszAuthType);
+            char const *pszRmtDomain, char const *pszRmtName,
+            char const *pszRmtPassword, char const *pszAuthType);
 void GwLkFreePOP3Link(POP3Link *pPopLnk);
 int GwLkAddLink(POP3Link *pPopLnk);
 int GwLkRemoveLink(POP3Link *pPopLnk);
@@ -51,7 +51,7 @@ void GwLkCloseDB(GWLKF_HANDLE hLinksDB);
 POP3Link *GwLkGetFirstUser(GWLKF_HANDLE hLinksDB);
 POP3Link *GwLkGetNextUser(GWLKF_HANDLE hLinksDB);
 int GwLkGetMsgSyncDbFile(char const *pszRmtDomain, char const *pszRmtName,
-			 char *pszMsgSyncFile, int iMaxPath);
+             char *pszMsgSyncFile, int iMaxPath);
 int GwLkLinkLock(POP3Link const *pPopLnk);
 void GwLkLinkUnlock(POP3Link const *pPopLnk);
 int GwLkClearLinkLocksDir(void);
@@ -60,7 +60,7 @@ int GwLkMasqueradeDomain(POP3Link const *pPopLnk);
 int GwLkCheckEnabled(POP3Link const *pPopLnk);
 int GwLkEnable(POP3Link const *pPopLnk, bool bEnable);
 int GwLkEnable(char const *pszDomain, char const *pszName,
-	       char const *pszRmtDomain, char const *pszRmtName, bool bEnable);
+           char const *pszRmtDomain, char const *pszRmtName, bool bEnable);
 
 #endif
 
